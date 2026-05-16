@@ -20,8 +20,11 @@ export default function NamaHalamanIni() { // <-- GANTI NAMA FUNCTION INI
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-100 p-5">
+    <main className="min-h-screen p-5">
       <h1 className="text-2xl font-bold mb-5">Biji</h1>
+      tambahin /contohadmin buat liat dasboard admin, <br /> /contohmember buat liat dashboard member 
+      <br />
+      (di linknya)
     </main>
   );
 }
