@@ -9,6 +9,7 @@ import AdminLayout from "./components/AdminLayout";
 import MemberLayout from "./components/MemberLayout";
 import Footer from "./components/Footer";
 import LandingPage from "./pages/Landingpage";
+import Login from "./pages/login";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -19,7 +20,7 @@ export default function App() {
         {/* 2. DAFTARKAN RUTE URL HALAMAN DI SINI kalo ga ada header */}
         <Route path="/" element={<NamaHalamanIni />} />
         <Route path="/landingpage" element={<LandingPage />} />
-        
+        <Route path="/login" element={<Login />} />
 
         {/* kalo ada header di sini:     (pilih admin atau member) */}
         <Route element={<AdminLayout />}>
