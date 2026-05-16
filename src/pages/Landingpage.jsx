@@ -102,7 +102,7 @@ const LandingPage = () => {
           </ul>
 
           {/* Tombol Login Desktop */}
-          <a href="/LoginMember" className="hidden md:block px-8 py-2 border border-[#C2A676] text-[#C2A676] rounded-full hover:bg-[#C2A676] hover:text-[#111315] transition-colors font-bold uppercase tracking-wider text-sm">
+          <a href="/login" className="hidden md:block px-8 py-2 border border-[#C2A676] text-[#C2A676] rounded-full hover:bg-[#C2A676] hover:text-[#111315] transition-colors font-bold uppercase tracking-wider text-sm">
             Login
           </a>
 
@@ -151,7 +151,7 @@ const LandingPage = () => {
                 <a href="/news" className="block w-full">News</a>
               </li>
               <li className="py-4 text-[#C2A676] font-bold hover:text-white transition-colors cursor-pointer mt-2">
-                <a href="/LoginMember" className="block w-full">Login</a>
+                <a href="/login" className="block w-full">Login</a>
               </li>
             </ul>
           </div>
@@ -210,7 +210,7 @@ const LandingPage = () => {
               <p className="text-xs md:text-sm font-semibold text-[#E0E0E0] uppercase tracking-widest md:leading-loose leading-relaxed max-w-sm drop-shadow-md">
                 Join the Gymbros Community. Unleash your potential in a powerful, supportive atmosphere. Find your bro, find your strength.
               </p>
-              <a href="/LoginMember" className="px-8 md:px-10 py-3 md:py-4 bg-[#C2A676] text-[#111315] rounded font-black uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_20px_rgba(194,166,118,0.3)]">
+              <a href="/login" className="px-8 md:px-10 py-3 md:py-4 bg-[#C2A676] text-[#111315] rounded font-black uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_20px_rgba(194,166,118,0.3)]">
                 Login Now
               </a>
             </div>
