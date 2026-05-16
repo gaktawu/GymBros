@@ -23,22 +23,33 @@ const LandingPage = () => {
     }
   ];
 
-  // Efek samping (useEffect) untuk memenuhi syarat rubrik
-  useEffect(() => {
-    // 1. Mengubah judul tab browser saat halaman diload
+
+useEffect(() => {
+
     document.title = "Gymbros | Unleash Your Potential";
 
-    // 2. Event listener untuk menutup menu mobile otomatis jika layar di-resize ke desktop
     const handleResize = () => {
       if (window.innerWidth >= 768) {
         setIsMobileMenuOpen(false);
       }
     };
     window.addEventListener('resize', handleResize);
+
+    const hash = window.location.hash; 
+    if (hash) {
+  
+      setTimeout(() => {
+        const element = document.querySelector(hash);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+ 
     
     // Cleanup function
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, []); 
 
   // Fungsi untuk scroll halus ke bagian tertentu
   const scrollToSection = (sectionId) => {
