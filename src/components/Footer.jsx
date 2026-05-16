@@ -54,8 +54,8 @@ export default function Footer() {
         <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-gray-500">
           <p>&copy; 2026 GYM System Management. All Rights Reserved.</p>
           <div className="flex gap-6">
-            <Link to="/privacy-policy" className="hover:text-gray-300 transition">PRIVACY POLICY</Link>
-            <Link to="/terms-conditions" className="hover:text-gray-300 transition">TERMS AND CONDITIONS</Link>
+            <Link to="https://github.com/gaktawu" className="hover:text-gray-300 transition">PRIVACY POLICY</Link>
+            <Link to="https://github.com/gaktawu" className="hover:text-gray-300 transition">TERMS AND CONDITIONS</Link>
           </div>
         </div>
 

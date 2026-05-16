@@ -2,35 +2,30 @@ import React, { useState, useEffect } from 'react';
 import Footer from '../components/Footer';
 
 const LoginPage = () => {
-  // State untuk Switch Member/Admin
   const [isAdmin, setIsAdmin] = useState(false);
-  
-  // State untuk menampung ketikan user di form
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  // State BARU untuk menampung pesan error
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Ubah judul tab browser & reset error ketika ganti tab Member/Admin
+  // Ubah judul tab browser & reset error
   useEffect(() => {
     document.title = isAdmin ? "Admin Login | GYMBROS" : "Member Login | GYMBROS";
-    setErrorMsg(''); // Hilangkan pesan error jika user ganti mode login
-    setEmail('');    // Kosongkan form juga biar rapi
+    setErrorMsg(''); 
+    setEmail('');    
     setPassword('');
   }, [isAdmin]);
 
-  // Fungsi saat tombol login ditekan (Dummy Validation)
+  // Dummy Validation
   const handleLogin = (e) => {
-    e.preventDefault(); // Mencegah halaman ke-refresh
-    setErrorMsg(''); // Reset error sebelum ngecek
+    e.preventDefault(); 
+    setErrorMsg(''); 
 
     if (isAdmin) {
       // Cek Sandi Admin
       if (email === 'admin@gymbros.com' && password === 'admin123') {
         window.location.href = '/contohadmin'; // Arahkan ke rute admin
       } else {
-        // Tampilkan error di UI, bukan di alert
+        // Tampilan error
         setErrorMsg('Email atau Password Admin salah!');
       }
     } else {
@@ -38,7 +33,7 @@ const LoginPage = () => {
       if (email === 'member@gymbros.com' && password === 'member123') {
         window.location.href = '/contohmember'; // Arahkan ke rute member
       } else {
-        // Tampilkan error di UI, bukan di alert
+        // Tampilan error
         setErrorMsg('Email atau Password Member salah!');
       }
     }
@@ -61,14 +56,13 @@ const LoginPage = () => {
                     <a href="/landingpage#facility">Facility</a>
                 </li>
                 <li className="cursor-pointer hover:text-white transition-colors">
-                {/* Link ke halaman lain */}
                 <a href="/news">News</a>
                 </li>
             </ul>
             </nav>
             </header>
 
-        {/* Background Image (Diturunkan opacity agar form lebih jelas) */}
+        {/* Background Image */}
         <div 
             className="absolute inset-0 z-0 bg-cover bg-center opacity-30 pointer-events-none"
             style={{ 
@@ -76,13 +70,13 @@ const LoginPage = () => {
             }}
         ></div>
 
-        {/* AREA TENGAH UNTUK CARD LOGIN */}
+        {/* CARD LOGIN */}
         <div className="relative z-10 w-full min-h-screen flex items-center justify-center pt-20">
             
             {/* Login Card Container */}
             <div className="relative w-full max-w-sm px-6 py-10 mx-4 bg-[#1A1C1E]/80 backdrop-blur-md rounded-3xl border border-[#333] shadow-2xl">
             
-            {/* Tombol X untuk keluar */}
+            {/* Tombol X */}
             <a 
                 href="/landingpage" 
                 className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-[#111315] border border-[#333] text-[#888] hover:text-white hover:bg-red-500/20 hover:border-red-500 transition-all"
@@ -123,7 +117,7 @@ const LoginPage = () => {
             {/* FORM LOGIN */}
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
                 
-                {/* --- KOTAK PERINGATAN ERROR MUNCUL DI SINI JIKA ADA ERROR --- */}
+                {/* KOTAK PERINGATAN ERROR */}
                 {errorMsg && (
                 <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-xs font-bold px-4 py-3 rounded-xl text-center flex items-center justify-center gap-2 animate-pulse">
                     <span>⚠️</span> {errorMsg}

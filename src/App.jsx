@@ -10,6 +10,7 @@ import MemberLayout from "./components/MemberLayout";
 import Footer from "./components/Footer";
 import LandingPage from "./pages/Landingpage";
 import Login from "./pages/login";
+import News from "./pages/news";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/" element={<NamaHalamanIni />} />
         <Route path="/landingpage" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/news" element={<News />} />
 
         {/* kalo ada header di sini:     (pilih admin atau member) */}
         <Route element={<AdminLayout />}>
