@@ -8,6 +8,7 @@ import NamaHalamanIni from "./pages/contoh";
 import AdminLayout from "./components/AdminLayout";
 import MemberLayout from "./components/MemberLayout";
 import Footer from "./components/Footer";
+import LandingPage from "./pages/Landingpage";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         {/* Disini */}
         {/* 2. DAFTARKAN RUTE URL HALAMAN DI SINI kalo ga ada header */}
         <Route path="/" element={<NamaHalamanIni />} />
+        <Route path="/landingpage" element={<LandingPage />} />
         
 
         {/* kalo ada header di sini:     (pilih admin atau member) */}
