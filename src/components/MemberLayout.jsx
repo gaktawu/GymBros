@@ -9,7 +9,7 @@ export default function MemberLayout() {
 
   // Daftar menu khusus Member
   const navItems = [
-    { name: "Dashboard", path: "/member/dashboard" },
+    { name: "Dashboard", path: "/member/dashboardmember" },
     { name: "Booking", path: "/member/booking" },
     { name: "Equipment", path: "/member/equipment" },
     { name: "Reports", path: "/member/reports" },
