@@ -11,6 +11,10 @@ import Footer from "./components/Footer";
 import LandingPage from "./pages/Landingpage";
 import Login from "./pages/login";
 import News from "./pages/news";
+import DashboardMember from "./pages/dashboardmember";
+import ClassSchedule from "./pages/jadwalkelas";
+import AdminManageMembers from "./pages/datamember";
+
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -27,12 +31,18 @@ export default function App() {
         {/* kalo ada header di sini:     (pilih admin atau member) */}
         <Route element={<AdminLayout />}>
           <Route path="/contohadmin" element={<NamaHalamanIni />} />
+          <Route path="/admin/datamember" element={<AdminManageMembers />} />
+          
           {/* <Route path="/admin-alat" element={<HalamanKelolaAlat />} /> */}
         </Route>
       
         {/* --- RUTE MEMBER  --- */}
         <Route element={<MemberLayout />}>
-          <Route path="/contohmember" element={<NamaHalamanIni />} />
+        <Route path="/contohmember" element={<NamaHalamanIni />} />
+        <Route path="/member/dashboardmember" element={<DashboardMember />} />
+        <Route path="/member/booking" element={<ClassSchedule />} />
+        
+
           {/* <Route path="/member-booking" element={<HalamanBooking />} /> */}
         </Route>
 

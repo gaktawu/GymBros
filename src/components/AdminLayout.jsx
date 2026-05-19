@@ -9,10 +9,10 @@ export default function AdminNavbar() {
 
   // Daftar menu
   const navItems = [
-    { name: "Dashboard", path: "/dashboard" },
-    { name: "Add Member", path: "/add-member" },
-    { name: "Manage Classes", path: "/manage-classes" },
-    { name: "Manage Equipment", path: "/manage-equipment" },
+    { name: "Dashboard", path: "/admin/dashboard" },
+    { name: "Add Member", path: "/admin/add-member" },
+    { name: "Manage Classes", path: "/admin/manage-classes" },
+    { name: "Manage Equipment", path: "/admin/manage-equipment" },
   ];
 
   // Fungsi saat tombol logout ditekan (di desktop & mobile)
