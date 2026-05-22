@@ -85,6 +85,8 @@ export default function MemberLayout() {
               className="h-full w-full object-cover"
             />
           </Link>
+      <button onClick={handleLogoutClick} className="hidden md:flex items-center rounded-full bg-[#af0909] px-4 py-2 text-sm font-medium text-gray-300 ring-1 ring-white/10 transition hover:bg-red-700 hover:text-white">Logout</button>
+
         </div>
 
         {/* ================= MODAL MOBILE MENU ================= */}
