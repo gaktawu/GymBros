@@ -18,6 +18,7 @@ import DashboardAdmin from "./pages/dashboardadmin";
 import AddMember from "./pages/addmember";
 import AdminNotifications from "./pages/notifikasi";
 import Reports from "./pages/Reports";
+import ManajemenKelas from "./pages/kelolakelas";
 
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/admin/add-member" element={<AdminManageMembers />} />
           <Route path="/admin/tambahmember" element={<AddMember />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
+          <Route path="/admin/manage-classes" element={<ManajemenKelas />} />
           
           {/* <Route path="/admin-alat" element={<HalamanKelolaAlat />} /> */}
         </Route>
