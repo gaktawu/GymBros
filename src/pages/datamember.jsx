@@ -72,7 +72,7 @@ const AdminManageMembers = () => {
 
   const handleEditClick = (e, member) => {
     e.preventDefault();
-    e.stopPropagation(); // Amankan klik dari hambatan luar
+    e.stopPropagation();
     setSelectedMember({ ...member });
     setIsEditModalOpen(true);
   };
