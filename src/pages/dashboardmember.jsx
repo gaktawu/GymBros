@@ -1,184 +1,350 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const DashboardMember = () => {
-  // Simulasi data member Gymbros
-  const memberData = {
-    name: "ALEXANDER BRO",
-    id: "GB-99210",
-    joinDate: "January 2026",
-    planType: "ELITE BRO MEMBERSHIP",
-    status: "ACTIVE",
-    expiryDate: "December 31, 2026",
-    gymCapacity: 42, 
-    monthlyGoal: { target: 20, achieved: 14 }, 
-    stats: {
-      attendanceThisMonth: 14,
-      workoutStreak: 5,
-      totalHours: 28
-    },
-    upcomingClasses: [
-      { id: 1, name: "Powerlifting Fundamentals", coach: "Coach Iron", time: "Today, 18:30", zone: "Power Rack Area" },
-      { id: 2, name: "HIIT Conditioning", coach: "Coach Sarah", time: "Tomorrow, 08:00", zone: "Cardio Zone" }
-    ]
-  };
+const AdminManageMembers = () => {
+  const [members, setMembers] = useState([
+    { id: "GB-99210", name: "ALEXANDER BRO", email: "alex@gymbros.com", plan: "Elite Bro", status: "Active", joined: "Jan 2026" },
+    { id: "GB-99211", name: "BUDI SQUAT", email: "budi@gymbros.com", plan: "Basic Bro", status: "Active", joined: "Feb 2026" },
+    { id: "GB-99212", name: "CHRIS GAINS", email: "chris@gymbros.com", plan: "Elite Bro", status: "Pending", joined: "Mar 2026" }
+  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const [selectedMember, setSelectedMember] = useState({ id: "", name: "", email: "", plan: "Basic Bro", status: "Active" });
+  const [newMember, setNewMember] = useState({ name: "", email: "", plan: "Basic Bro" });
+  const [memberToDelete, setMemberToDelete] = useState({ id: "", name: "" });
 
   useEffect(() => {
-    document.title = "Gymbros | Member Dashboard";
-
-
+    document.title = "Gymbros Admin | Manage Members";
     const originalBodyBg = document.body.style.backgroundColor;
-
-
     document.body.style.backgroundColor = "#111315";
 
+    const fetchMemberData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get('https://dummyjson.com/users?limit=10');
+        
+        const formattedMembers = response.data.users.map((user, index) => ({
+          id: `GB-${99200 + user.id}`,
+          name: `${user.firstName} ${user.lastName}`.toUpperCase(),
+          email: user.email.toLowerCase(),
+          plan: user.age > 30 ? "Elite Bro" : "Basic Bro",
+          status: index % 4 === 0 ? "Expired" : "Active",
+          joined: "Jan 2026"
+        }));
+
+        setMembers(formattedMembers);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Gagal mengambil data dari API, Bro:", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchMemberData();
 
     return () => {
       document.body.style.backgroundColor = originalBodyBg;
     };
   }, []);
 
+  const handleAddSubmit = (e) => {
+    e.preventDefault();
+    const randomID = `GB-${Math.floor(10000 + Math.random() * 90000)}`;
+    const memberBaru = {
+      id: randomID,
+      name: newMember.name.toUpperCase(),
+      email: newMember.email.toLowerCase(),
+      plan: newMember.plan,
+      status: "Active",
+      joined: "May 2026"
+    };
+    
+    setMembers([memberBaru, ...members]);
+    setNewMember({ name: "", email: "", plan: "Basic Bro" });
+    setIsAddModalOpen(false);
+  };
+
+  const handleEditClick = (e, member) => {
+    e.preventDefault();
+    e.stopPropagation(); // Amankan klik dari hambatan luar
+    setSelectedMember({ ...member });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    setMembers((prev) =>
+      prev.map((m) => (m.id === selectedMember.id ? { ...selectedMember } : m))
+    );
+    setIsEditModalOpen(false);
+  };
+
+  const handleDeleteClick = (e, member) => {
+    e.preventDefault();
+    e.stopPropagation(); // Amankan klik dari hambatan luar
+    setMemberToDelete(member);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = (e) => {
+    e.preventDefault();
+    setMembers((prev) => prev.filter((m) => m.id !== memberToDelete.id));
+    setIsDeleteModalOpen(false);
+  };
+
+  const toggleStatus = (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMembers((prev) =>
+      prev.map((member) => {
+        if (member.id === id) {
+          const nextStatus = member.status === "Active" ? "Expired" : "Active";
+          return { ...member, status: nextStatus };
+        }
+        return member;
+      })
+    );
+  };
+
+  const filteredMembers = members.filter(member => {
+    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          member.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "All" || member.status.toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalActive = members.filter(m => m.status === "Active").length;
+
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none animate-fade-in bg-[#111315]">
+    /* ⚡ PERUBAHAN KRUSIAL: z-30 dan pointer-events-auto memaksa halaman ini bisa diklik menebus rintangan invisibel */
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto">
       
-      <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 overflow-hidden shadow-xl hover:scale-[1.01] transition-transform duration-300">
-        <div className="z-10">
-          <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">MEMBER AREA</h4>
-          <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">WELCOME BACK, BRO!</h3>
+      {/* BANNER */}
+      <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 overflow-hidden shadow-xl">
+        <div>
+          <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">ADMIN CONTROL PANEL</h4>
+          <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">LIVE API MANAGEMENT</h3>
           <p className="text-xs md:text-sm text-gray-400 mt-1 max-w-xl">
-            "The only bad workout is the one that didn't happen." Your streak is strong, keep pushing your limits today!
+            Database keanggotaan sinkron secara real-time via Axios. Anda dapat menambahkan, mengubah profil, atau mencabut hak akses member.
           </p>
         </div>
-        <div className="px-4 py-2 bg-[#C2A676]/10 border border-[#C2A676]/30 rounded-full text-[#C2A676] text-xs font-black tracking-widest uppercase z-10 shadow-[0_0_15px_rgba(194,166,118,0.1)]">
-          {memberData.planType}
+        <div className="px-5 py-2.5 bg-[#1e2023] border border-white/10 rounded-2xl shadow-inner text-center sm:text-right">
+          <span className="text-2xl font-black text-[#C2A676] block leading-none">{totalActive} <span className="text-xs text-gray-500 font-bold">/ {members.length}</span></span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 block">Active Members</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        <div className="bg-[#1e2023] border border-white/5 p-5 rounded-3xl shadow-lg flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <h4 className="text-xs font-black text-gray-400 tracking-wider uppercase">LIVE STATUS</h4>
-              <h3 className="text-lg font-black text-white uppercase tracking-tight">Gym Capacity Meter</h3>
-            </div>
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-          </div>
-          <p className="text-xs text-gray-400 mb-4">Kondisi keramaian alat latihan saat ini di Gymbros pusat.</p>
-          <div>
-            <div className="flex justify-between text-xs font-bold mb-1.5">
-              <span className="text-[#C2A676] uppercase tracking-wider">Status: Optimal</span>
-              <span className="text-white">{memberData.gymCapacity}% Busy</span>
-            </div>
-            <div className="w-full bg-[#25282c] h-3 rounded-full overflow-hidden p-[2px] border border-white/5">
-              <div 
-                className="bg-gradient-to-r from-green-500 to-[#C2A676] h-full rounded-full transition-all duration-500"
-                style={{ width: `${memberData.gymCapacity}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-[#1e2023] border border-white/5 p-5 rounded-3xl shadow-lg flex flex-col justify-between">
-          <div>
-            <h4 className="text-xs font-black text-gray-400 tracking-wider uppercase">GOAL TRACKER</h4>
-            <h3 className="text-lg font-black text-white uppercase tracking-tight">Monthly Target Consistency</h3>
-          </div>
-          <div className="flex items-center justify-between my-3">
-            <p className="text-xs text-gray-400 max-w-[200px]">Sisa <span className="text-white font-bold">{memberData.monthlyGoal.target - memberData.monthlyGoal.achieved} sesi latihan</span> lagi untuk mencapai target bulananmu.</p>
-            <div className="text-right">
-              <span className="text-2xl font-black text-white">{memberData.monthlyGoal.achieved}</span>
-              <span className="text-gray-500 font-bold">/{memberData.monthlyGoal.target} Days</span>
-            </div>
-          </div>
-          <div className="w-full bg-[#25282c] h-3 rounded-full overflow-hidden p-[2px] border border-white/5">
-            <div 
-              className="bg-[#C2A676] h-full rounded-full transition-all duration-500"
-              style={{ width: `${(memberData.monthlyGoal.achieved / memberData.monthlyGoal.target) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="lg:col-span-2 space-y-6">
-          
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-[#1e2023] border border-white/5 p-4 text-center rounded-2xl shadow-md hover:border-[#C2A676]/30 transition-colors">
-              <p className="text-2xl md:text-4xl font-black text-[#C2A676]">{memberData.stats.attendanceThisMonth}</p>
-              <p className="text-[10px] md:text-xs font-bold tracking-wider text-gray-400 uppercase mt-1">Days Attended</p>
-            </div>
-            <div className="bg-[#1e2023] border border-white/5 p-4 text-center rounded-2xl shadow-md hover:border-[#C2A676]/30 transition-colors">
-              <p className="text-2xl md:text-4xl font-black text-white">{memberData.stats.workoutStreak} 🔥</p>
-              <p className="text-[10px] md:text-xs font-bold tracking-wider text-gray-400 uppercase mt-1">Day Streak</p>
-            </div>
-            <div className="bg-[#1e2023] border border-white/5 p-4 text-center rounded-2xl shadow-md hover:border-[#C2A676]/30 transition-colors">
-              <p className="text-2xl md:text-4xl font-black text-white">{memberData.stats.totalHours}</p>
-              <p className="text-[10px] md:text-xs font-bold tracking-wider text-gray-400 uppercase mt-1">Total Hours</p>
-            </div>
-          </div>
-
-          <div className="bg-[#1e2023] border border-white/5 p-6 rounded-3xl shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-sm font-black tracking-widest text-white uppercase">Today's Scheduled Classes</h4>
-              <a href="/member/booking" className="text-[11px] font-black tracking-wider text-[#C2A676] uppercase hover:underline">View All Schedule →</a>
-            </div>
-            <div className="space-y-3">
-              {memberData.upcomingClasses.map((cls) => (
-                <div key={cls.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#25282c] border border-white/5 rounded-2xl hover:border-[#C2A676]/40 transition-all duration-300 group">
-                  <div>
-                    <h5 className="text-sm font-black text-white uppercase group-hover:text-[#C2A676] transition-colors">{cls.name}</h5>
-                    <p className="text-xs text-gray-400 mt-0.5">with <span className="text-[#C2A676] font-medium">{cls.coach}</span> | {cls.zone}</p>
-                  </div>
-                  <div className="text-xs font-bold bg-[#1e2023] border border-white/5 px-3 py-1.5 rounded-xl text-gray-300 text-center sm:text-right">
-                    ⏰ {cls.time}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-[#1A1C1E] border-l-4 border-[#C2A676] p-4 rounded-r-2xl shadow-md">
-            <p className="text-xs font-black tracking-wider text-[#C2A676] uppercase">💡 BRO-TIP OF THE DAY</p>
-            <p className="text-xs text-gray-300 mt-1 italic">
-              "Konsumsi protein sekitar 1.6 - 2.2 gram per kilogram berat badan Anda setiap hari untuk memaksimalkan proses hypertrophy otot setelah melakukan latihan berat."
-            </p>
-          </div>
-
-        </div>
-
-        <div className="bg-[#1e2023] border border-white/5 shadow-lg p-6 rounded-3xl flex flex-col items-center justify-between text-center min-h-[350px]">
-          <div>
-            <h4 className="text-sm font-black tracking-widest text-white uppercase">DIGITAL GYM PASS</h4>
-            <p className="text-[11px] text-gray-400 mt-1">Scan this code at the gate terminal to check-in</p>
-          </div>
-          
-          <div className="w-44 h-44 bg-white p-3 rounded-2xl flex items-center justify-center my-4 relative shadow-md group">
-            <img 
-              src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Gymbros-Alex-GB-99210" 
-              alt="Gym Pass QR Code" 
-              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+      {/* CONTROLLER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="sm:col-span-2 relative">
+            <input 
+              type="text" 
+              placeholder="Search by name or ID Member..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-[#1e2023] border border-white/5 rounded-2xl px-5 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#C2A676]/50 transition-colors shadow-md"
             />
+            <span className="absolute right-5 top-3.5">🔍</span>
           </div>
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full bg-[#1e2023] border border-white/5 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none shadow-md cursor-pointer text-gray-300"
+            >
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
+              <option value="Expired">Expired</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* TOMBOL TAMBAH */}
+        <button
+          type="button"
+          onClick={() => setIsAddModalOpen(true)}
+          className="bg-[#C2A676] text-[#111315] font-black uppercase text-xs tracking-widest px-6 py-3.5 rounded-2xl shadow-lg hover:bg-white transition-colors duration-300 flex items-center justify-center gap-2 cursor-pointer relative z-40"
+        >
+          <span>➕</span> Add New Member
+        </button>
+      </div>
 
-          <div className="w-full">
-            <p className="text-xs font-black text-white tracking-widest uppercase">{memberData.name}</p>
-            <div className="mt-2 flex items-center justify-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">Status: {memberData.status}</span>
+      {/* TABLE */}
+      <div className="bg-[#1e2023] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="p-20 text-center text-xs font-black tracking-widest text-[#C2A676] uppercase animate-pulse">
+              🔄 Axios Synchronizing With DummyJSON Server...
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/10 bg-[#25282c]/50 text-[11px] font-black tracking-widest text-gray-400 uppercase">
+                  <th className="py-4 px-6">ID Member</th>
+                  <th className="py-4 px-6">Full Name</th>
+                  <th className="py-4 px-6">Email Address</th>
+                  <th className="py-4 px-6">Plan Type</th>
+                  <th className="py-4 px-6">Joined Date</th>
+                  <th className="py-4 px-6 text-center">Status</th>
+                  <th className="py-4 px-6 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-xs font-medium text-gray-300">
+                {filteredMembers.length > 0 ? (
+                  filteredMembers.map((member) => (
+                    <tr key={member.id} className="hover:bg-[#25282c]/30 transition-colors duration-200">
+                      <td className="py-4 px-6 font-black text-[#C2A676] tracking-wider">{member.id}</td>
+                      <td className="py-4 px-6 font-bold text-white uppercase">{member.name}</td>
+                      <td className="py-4 px-6 font-mono text-gray-400">{member.email}</td>
+                      <td className="py-4 px-6">
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${member.plan === 'Elite Bro' ? 'bg-[#C2A676]/10 text-[#C2A676]' : 'bg-gray-800 text-gray-400'}`}>
+                          {member.plan}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-gray-500">{member.joined}</td>
+                      <td className="py-4 px-6 text-center">
+                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest
+                          ${member.status.toLowerCase() === 'active' ? 'text-green-400 bg-green-950/20' : 
+                            member.status.toLowerCase() === 'pending' ? 'text-yellow-400 bg-yellow-950/20' : 'text-red-400 bg-red-950/20'}`}>
+                          {member.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button type="button" onClick={(e) => handleEditClick(e, member)} className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase bg-white/5 border border-white/5 hover:border-[#C2A676] hover:text-[#C2A676] cursor-pointer">Edit</button>
+                          <button type="button" onClick={(e) => toggleStatus(e, member.id)} className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase cursor-pointer transition-colors ${member.status.toLowerCase() === 'active' ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-[#111315]' : 'bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-[#111315]'}`}>{member.status.toLowerCase() === 'active' ? 'Ban' : 'Unban'}</button>
+                          <button type="button" onClick={(e) => handleDeleteClick(e, member)} className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white cursor-pointer">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="py-12 text-center text-gray-500 uppercase font-bold text-sm">⚠️ No Matching Records Found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* MODAL 1: TAMBAH MEMBER */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}></div>
+          <div className="relative w-full max-w-md rounded-3xl bg-[#1e2023] p-6 shadow-2xl border border-white/10 text-left z-50">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <span className="text-[10px] font-black text-[#C2A676] uppercase tracking-widest">REGISTRATION DESK</span>
+                <h3 className="text-lg font-black text-white uppercase tracking-tight mt-0.5">Add New Gym Member</h3>
+              </div>
+              <button type="button" onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
+                <input type="text" placeholder="E.G. JOHN DOE" value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} required className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
+                <input type="email" placeholder="johndoe@example.com" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} required className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Plan Membership</label>
+                <select value={newMember.plan} onChange={(e) => setNewMember({ ...newMember, plan: e.target.value })} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none">
+                  <option value="Basic Bro">Basic Bro</option>
+                  <option value="Elite Bro">Elite Bro</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 rounded-xl bg-[#25282c] px-4 py-2.5 text-xs font-black uppercase text-white">Cancel</button>
+                <button type="submit" className="flex-1 rounded-xl bg-[#C2A676] px-4 py-2.5 text-xs font-black uppercase text-[#111315]">Register</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: EDIT MEMBER */}
+      {isEditModalOpen && selectedMember && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)}></div>
+          <div className="relative w-full max-w-md rounded-3xl bg-[#1e2023] p-6 shadow-2xl border border-white/10 text-left z-50">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <span className="text-[10px] font-black text-[#C2A676] uppercase tracking-widest">MEMBER PROFILE EDIT</span>
+                <h3 className="text-lg font-black text-white uppercase tracking-tight mt-0.5">Update Member Data</h3>
+              </div>
+              <button type="button" onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">ID Member (Permanent)</label>
+                <input type="text" value={selectedMember.id} disabled className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-gray-500 font-black" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
+                <input type="text" value={selectedMember.name || ""} onChange={(e) => setSelectedMember({ ...selectedMember, name: e.target.value.toUpperCase() })} required className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
+                <input type="email" value={selectedMember.email || ""} onChange={(e) => setSelectedMember({ ...selectedMember, email: e.target.value })} required className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Plan Membership</label>
+                <select value={selectedMember.plan || "Basic Bro"} onChange={(e) => setSelectedMember({ ...selectedMember, plan: e.target.value })} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none" >
+                  <option value="Basic Bro">Basic Bro</option>
+                  <option value="Elite Bro">Elite Bro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status Account</label>
+                <select value={selectedMember.status || "Active"} onChange={(e) => setSelectedMember({ ...selectedMember, status: e.target.value })} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none" >
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Expired">Expired</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 rounded-xl bg-[#25282c] px-4 py-2.5 text-xs font-black uppercase text-white">Cancel</button>
+                <button type="submit" className="flex-1 rounded-xl bg-[#C2A676] px-4 py-2.5 text-xs font-black uppercase text-[#111315]">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: KONFIRMASI HAPUS */}
+      {isDeleteModalOpen && memberToDelete && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsDeleteModalOpen(false)}></div>
+          <div className="relative w-full max-w-sm rounded-3xl bg-[#1e2023] p-6 text-center shadow-2xl border border-white/10 z-50">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-500 font-bold text-lg">
+              ⚠️
+            </div>
+            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-1">Delete Member Record</h3>
+            <p className="text-xs text-gray-400 px-2 leading-relaxed mb-6">
+              Apakah Anda yakin ingin menghapus permanen data <span className="text-white font-bold">{memberToDelete.name}</span> ({memberToDelete.id})? Database akan terhapus selamanya.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setIsDeleteModalOpen(false)} className="flex-1 rounded-xl bg-[#25282c] px-4 py-2.5 text-xs font-black uppercase text-white">Batal</button>
+              <button type="button" onClick={(e) => confirmDelete(e)} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black uppercase text-white">Ya, Hapus</button>
             </div>
           </div>
         </div>
-
-      </div>
+      )}
 
     </div>
   );
 };
 
-export default DashboardMember;
+export default AdminManageMembers;
