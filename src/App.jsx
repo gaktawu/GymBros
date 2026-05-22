@@ -26,7 +26,7 @@ export default function App() {
       <Routes>
         {/* Disini */}
         {/* 2. DAFTARKAN RUTE URL HALAMAN DI SINI kalo ga ada header */}
-        <Route path="/" element={<NamaHalamanIni />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/landingpage" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/news" element={<News />} />
@@ -34,7 +34,7 @@ export default function App() {
       
         {/* kalo ada header di sini:     (pilih admin atau member) */}
         <Route element={<AdminLayout />}>
-          <Route path="/contohadmin" element={<NamaHalamanIni />} />
+          <Route path="/contohadmin" element={<DashboardAdmin />} />
           <Route path="/admin/datamember" element={<AdminManageMembers />} />
           <Route path="/admin/dashboard" element={<DashboardAdmin />} />
           <Route path="/admin/add-member" element={<AdminManageMembers />} />
@@ -46,7 +46,7 @@ export default function App() {
       
         {/* --- RUTE MEMBER  --- */}
         <Route element={<MemberLayout />}>
-        <Route path="/contohmember" element={<NamaHalamanIni />} />
+        <Route path="/contohmember" element={<DashboardMember />} />
         <Route path="/member/dashboardmember" element={<DashboardMember />} />
         <Route path="/member/booking" element={<ClassSchedule />} />
         
