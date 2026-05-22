@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 
 const DashboardMember = () => {
-  // Simulasi data member Gymbros
   const memberData = {
     name: "ALEXANDER BRO",
     id: "GB-99210",
