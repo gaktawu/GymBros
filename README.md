@@ -7,7 +7,7 @@
 ## Preview
 
 <p align="center">
-  <img src="./src/assets/dashboard.png" width="800"/>
+  <img src="./src/assets/dashboard.png" width="800" alt="Gym Management System dashboard displaying member statistics, class schedules, and booking overview in dark elegant theme with modern fitness interface"/>
 </p>
 
 ---
@@ -167,13 +167,13 @@ Tema aplikasi menggunakan konsep:
 ## Admin Dashboard
 
 <p align="center">
-  <img src="./src/assets/admin.png" width="800"/>
+  <img src="./src/assets/admin.png" width="800" alt="Admin dashboard interface showing member management, class creation, membership packages, and real-time analytics with comprehensive control panel in dark theme"/>
 </p>
 
 ## Member Dashboard
 
 <p align="center">
-  <img src="h./src/assets/admin.png"/>
+  <img src="./src/assets/member.png" width="800" alt="Member dashboard featuring profile information, available gym classes, booking history, membership status, and personalized fitness tracking in modern responsive layout"/>
 </p>
 
 ---
