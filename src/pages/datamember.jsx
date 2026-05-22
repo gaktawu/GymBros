@@ -87,7 +87,7 @@ const AdminManageMembers = () => {
 
   const handleDeleteClick = (e, member) => {
     e.preventDefault();
-    e.stopPropagation(); // Amankan klik dari hambatan luar
+    e.stopPropagation(); 
     setMemberToDelete(member);
     setIsDeleteModalOpen(true);
   };
@@ -122,10 +122,9 @@ const AdminManageMembers = () => {
   const totalActive = members.filter(m => m.status === "Active").length;
 
   return (
-    /* ⚡ PERUBAHAN KRUSIAL: z-30 dan pointer-events-auto memaksa halaman ini bisa diklik menebus rintangan invisibel */
     <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto">
       
-      {/* BANNER */}
+
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 overflow-hidden shadow-xl">
         <div>
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">ADMIN CONTROL PANEL</h4>
@@ -140,7 +139,6 @@ const AdminManageMembers = () => {
         </div>
       </div>
 
-      {/* CONTROLLER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2 relative">
@@ -167,7 +165,6 @@ const AdminManageMembers = () => {
           </div>
         </div>
         
-        {/* TOMBOL TAMBAH */}
         <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
@@ -177,7 +174,6 @@ const AdminManageMembers = () => {
         </button>
       </div>
 
-      {/* TABLE */}
       <div className="bg-[#1e2023] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           {isLoading ? (
@@ -236,8 +232,6 @@ const AdminManageMembers = () => {
           )}
         </div>
       </div>
-
-      {/* MODAL 1: TAMBAH MEMBER */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}></div>
@@ -274,7 +268,6 @@ const AdminManageMembers = () => {
         </div>
       )}
 
-      {/* MODAL 2: EDIT MEMBER */}
       {isEditModalOpen && selectedMember && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)}></div>
@@ -323,7 +316,6 @@ const AdminManageMembers = () => {
         </div>
       )}
 
-      {/* MODAL 3: KONFIRMASI HAPUS */}
       {isDeleteModalOpen && memberToDelete && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsDeleteModalOpen(false)}></div>
