@@ -14,6 +14,9 @@ import News from "./pages/news";
 import DashboardMember from "./pages/dashboardmember";
 import ClassSchedule from "./pages/jadwalkelas";
 import AdminManageMembers from "./pages/datamember";
+import DashboardAdmin from "./pages/dashboardadmin";
+import AddMember from "./pages/addmember";
+import AdminNotifications from "./pages/notifikasi";
 
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
@@ -27,11 +30,16 @@ export default function App() {
         <Route path="/landingpage" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/news" element={<News />} />
-
+        
+      
         {/* kalo ada header di sini:     (pilih admin atau member) */}
         <Route element={<AdminLayout />}>
           <Route path="/contohadmin" element={<NamaHalamanIni />} />
           <Route path="/admin/datamember" element={<AdminManageMembers />} />
+          <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+          <Route path="/admin/add-member" element={<AdminManageMembers />} />
+          <Route path="/admin/tambahmember" element={<AddMember />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
           
           {/* <Route path="/admin-alat" element={<HalamanKelolaAlat />} /> */}
         </Route>

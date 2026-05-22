@@ -3,9 +3,56 @@ import { Link, useNavigate, Outlet } from "react-router-dom";
 import Footer from "./Footer";
 
 export default function AdminLayout() {
+export default function AdminLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoutPopupOpen, setIsLogoutPopupOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const navigate = useNavigate();
+
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "New Member Registration",
+      message: "Alexander Bro has registered as Elite Bro plan.",
+      time: "2 min ago",
+      read: false,
+      type: "member"
+    },
+    {
+      id: 2,
+      title: "Payment Received",
+      message: "Monthly subscription payment from Chris Gains confirmed.",
+      time: "15 min ago",
+      read: false,
+      type: "payment"
+    },
+    {
+      id: 3,
+      title: "Class Booking",
+      message: "Budi Squat booked Advanced Leg Day class for tomorrow.",
+      time: "1 hour ago",
+      read: true,
+      type: "booking"
+    },
+    {
+      id: 4,
+      title: "Equipment Maintenance",
+      message: "Treadmill #3 scheduled for maintenance check.",
+      time: "3 hours ago",
+      read: true,
+      type: "system"
+    }
+  ]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   const navItems = [
     { name: "Dashboard", path: "/admin/dashboard" },
@@ -18,14 +65,19 @@ export default function AdminLayout() {
     e.preventDefault();
     setIsMobileMenuOpen(false);
     setIsLogoutPopupOpen(true);
+    e.preventDefault();
+    setIsMobileMenuOpen(false);
+    setIsLogoutPopupOpen(true);
   };
 
   const confirmLogout = () => {
     setIsLogoutPopupOpen(false);
     navigate("/landingpage");
+    navigate("/landingpage");
   };
 
   return (
+    <div className="min-h-screen bg-[#111315]">
     <div className="min-h-screen bg-[#111315]">
       <style>
         {`
@@ -38,12 +90,20 @@ export default function AdminLayout() {
           .animate-pop-bounce {
             animation: popBounce 0.4s ease-out forwards;
           }
+          .notif-scroll::-webkit-scrollbar {
+            width: 5px;
+          }
+          .notif-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .notif-scroll::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
+          }
         `}
       </style>
 
-      {/* Header mengambang di atas (fixed) */}
-      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-center pt-6 px-4">
-
+      <header className="fixed top-0 left-0 right-0 z-40 flex h-[80px] items-center justify-center bg-[#111315]/95 backdrop-blur-md border-b border-[#333333]/50 px-4">
         {/* DESKTOP NAVBAR */}
         <nav className="hidden md:flex items-center gap-6 rounded-full bg-[#1e2023] px-5 py-2.5 shadow-lg ring-1 ring-white/10">
           {navItems.map((item) => (
@@ -57,8 +117,11 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        {/* ================= TOMBOL KANAN (Notifikasi + Admin + Logout) ================= */}
+        {/* TOMBOL KANAN */}
         <div className="absolute top-6 right-7 md:right-8 flex items-center gap-3">
+
+          {/* Tombol Menu Mobile */}
+          <button
 
           {/* Tombol Menu Mobile */}
           <button
@@ -70,13 +133,71 @@ export default function AdminLayout() {
             </svg>
           </button>
 
-          {/* Notifikasi */}
-          <button className="hidden md:flex p-2 hover:bg-[#333333] rounded-xl text-[#888888] hover:text-[#C2A676] transition relative">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-[#C2A676] rounded-full"></span>
-          </button>
+          {/* NOTIFIKASI DROPDOWN */}
+          <div className="relative hidden md:block">
+            <button
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="flex p-2 hover:bg-[#333333] rounded-xl text-[#888888] hover:text-[#C2A676] transition relative"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#C2A676] rounded-full border-2 border-[#111315]"></span>
+              )}
+            </button>
+
+            {/* DROPDOWN PANEL */}
+            {isNotifOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
+                <div className="absolute right-0 top-12 w-80 bg-[#1e2023] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-pop-bounce">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#25282c]">
+                    <span className="text-xs font-black text-white uppercase tracking-widest">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-[10px] font-bold text-[#C2A676] hover:text-white uppercase tracking-wider transition-colors"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-72 overflow-y-auto notif-scroll">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs text-gray-500">No notifications yet.</div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => markAsRead(notif.id)}
+                          className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`}></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{notif.title}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">{notif.message}</p>
+                              <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="px-4 py-2.5 border-t border-white/10 bg-[#1a1c1f] text-center">
+                    <Link
+                      to="/admin/notifications"
+                      onClick={() => setIsNotifOpen(false)}
+                      className="text-[10px] font-black text-[#C2A676] uppercase tracking-widest hover:text-white transition-colors"
+                    >
+                      View All Notifications →
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Administrator Badge */}
           <span className="hidden md:inline-flex text-xs font-bold tracking-wider text-[#C2A676] bg-[#C2A676]/10 px-3 py-1.5 rounded-lg border border-[#C2A676]/20 uppercase">
