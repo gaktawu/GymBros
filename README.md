@@ -173,7 +173,7 @@ Tema aplikasi menggunakan konsep:
 ## Member Dashboard
 
 <p align="center">
-  <img src="h./src/assets/admin.png"/>
+  <img src="h./src/assets/member.png" widht="800"/>
 </p>
 
 ---
