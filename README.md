@@ -7,7 +7,7 @@
 ## Preview
 
 <p align="center">
-  <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438" width="800"/>
+  <img src="./src/assets/dashboard.png" width="800"/>
 </p>
 
 ---
@@ -167,13 +167,13 @@ Tema aplikasi menggunakan konsep:
 ## Admin Dashboard
 
 <p align="center">
-  <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a" width="800"/>
+  <img src="./src/assets/admin.png" width="800"/>
 </p>
 
 ## Member Dashboard
 
 <p align="center">
-  <img src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd" width="800"/>
+  <img src="h./src/assets/admin.png"/>
 </p>
 
 ---
