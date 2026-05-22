@@ -3,6 +3,7 @@ import { Link, useNavigate, Outlet } from "react-router-dom";
 import Footer from "./Footer";
 
 export default function AdminLayout() {
+export default function AdminLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoutPopupOpen, setIsLogoutPopupOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -64,14 +65,19 @@ export default function AdminLayout() {
     e.preventDefault();
     setIsMobileMenuOpen(false);
     setIsLogoutPopupOpen(true);
+    e.preventDefault();
+    setIsMobileMenuOpen(false);
+    setIsLogoutPopupOpen(true);
   };
 
   const confirmLogout = () => {
     setIsLogoutPopupOpen(false);
     navigate("/landingpage");
+    navigate("/landingpage");
   };
 
   return (
+    <div className="min-h-screen bg-[#111315]">
     <div className="min-h-screen bg-[#111315]">
       <style>
         {`
@@ -113,6 +119,9 @@ export default function AdminLayout() {
 
         {/* TOMBOL KANAN */}
         <div className="absolute top-6 right-7 md:right-8 flex items-center gap-3">
+
+          {/* Tombol Menu Mobile */}
+          <button
 
           {/* Tombol Menu Mobile */}
           <button
