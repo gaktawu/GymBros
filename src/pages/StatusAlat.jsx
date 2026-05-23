@@ -1,16 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import axios from 'axios';
 
-const initialEquipment = [
-  { id: 'EQ001', name: 'Treadmill Electric', category: 'Kardio', status: 'baik' },
-  { id: 'EQ002', name: 'Stationary Bike', category: 'Kardio', status: 'baik' },
-  { id: 'EQ003', name: 'Dumbbell 5kg', category: 'Beban', status: 'baik' },
-  { id: 'EQ004', name: 'Dumbbell 10kg', category: 'Beban', status: 'perawatan' },
-  { id: 'EQ005', name: 'Barbell Set', category: 'Beban', status: 'baik' },
-  { id: 'EQ006', name: 'Bench Press Rack', category: 'Beban', status: 'perawatan' },
-  { id: 'EQ007', name: 'Leg Press Machine', category: 'Mesin', status: 'perawatan' },
-  { id: 'EQ008', name: 'Lat Pulldown Machine', category: 'Mesin', status: 'perawatan' },
-  { id: 'EQ009', name: 'Yoga Mat', category: 'Aksesoris', status: 'baik' },
-];
+const API_URL = 'https://api.npoint.io/71404f7b687ef9416db6';
 
 const CATEGORIES = ['Kardio', 'Beban', 'Mesin', 'Aksesoris'];
 const STATUSES = ['baik', 'perawatan', 'rusak'];
@@ -73,7 +64,9 @@ const generateNextId = (list) => {
 };
 
 export default function KelolaAlatAdmin() {
-  const [equipment, setEquipment] = useState(initialEquipment);
+  const [equipment, setEquipment] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ name: '', category: '', status: '' });
   const [filterCat, setFilterCat] = useState('Semua');
@@ -82,6 +75,27 @@ export default function KelolaAlatAdmin() {
   const [toast, setToast] = useState(null);
   const [delConfirm, setDelConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await axios.get(API_URL);
+        const data = response.data;
+        const list = Array.isArray(data)
+          ? data
+          : data.equipment || data.data || [];
+        setEquipment(list);
+      } catch (err) {
+        setError('Gagal memuat data. Periksa koneksi Anda.');
+        console.error('API Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -170,6 +184,46 @@ export default function KelolaAlatAdmin() {
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-thumb{background:#2A2D30;border-radius:4px;}
       `}</style>
+
+      {loading && (
+        <div style={{
+          position: 'fixed', inset: 0, background: '#0D0F10',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', zIndex: 9998, gap: 16
+        }}>
+          <div style={{
+            width: 44, height: 44, border: '3px solid #252830',
+            borderTop: '3px solid #C2A676', borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <span style={{ color: '#666', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em' }}>
+            Memuat data...
+          </span>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      )}
+
+      {error && (
+        <div style={{
+          position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, background: 'rgba(248,113,113,0.12)',
+          border: '1px solid rgba(248,113,113,0.4)', color: '#F87171',
+          padding: '12px 24px', borderRadius: 12, fontWeight: 700,
+          fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
+          backdropFilter: 'blur(12px)', animation: 'slideIn 0.3s ease'
+        }}>
+          ✕ {error}
+          <button
+            onClick={() => { setError(null); setLoading(true); axios.get(API_URL).then(r => { const d = r.data; setEquipment(Array.isArray(d) ? d : d.equipment || d.data || []); }).catch(() => setError('Gagal memuat data.')).finally(() => setLoading(false)); }}
+            style={{
+              background: 'rgba(248,113,113,0.2)', border: '1px solid rgba(248,113,113,0.4)',
+              color: '#F87171', borderRadius: 6, padding: '3px 10px',
+              fontSize: 11, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em'
+            }}>
+            Coba Lagi
+          </button>
+        </div>
+      )}
 
       {toast && (
         <div style={{

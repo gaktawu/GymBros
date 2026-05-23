@@ -21,6 +21,7 @@ import Reports from "./pages/Reports";
 import ManajemenKelas from "./pages/kelolakelas";
 import KelolaAlatAdmin from "./pages/StatusAlat";
 import KetersediaanAlatMember from "./pages/KetersediaanAlat";
+import MemberNotifications from "./pages/NotifikasiMember";
 
 
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
@@ -59,7 +60,7 @@ export default function App() {
         <Route path="/member/booking" element={<ClassSchedule />} />
         <Route path="/member/reports" element={<Reports />} />
         <Route path="/member/equipment" element={<KetersediaanAlatMember />} />
-        
+        <Route path="/member/notifications" element={<MemberNotifications />} />
 
           {/* <Route path="/member-booking" element={<HalamanBooking />} /> */}
         </Route>
