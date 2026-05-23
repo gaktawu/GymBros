@@ -26,6 +26,7 @@ import Bayar from "./pages/bayar";
 import Membership from "./pages/membership";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/editprofile";
+import Payment from "./pages/PaymentPage";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/member/bayar" element={<Bayar />} />
         <Route path="/member/profile" element={<Profile />} />
         <Route path="/member/edit-profile" element={<EditProfile />} />
+        <Route path="/member/bayarkelas" element={<Payment />} />
           {/* <Route path="/member-booking" element={<HalamanBooking />} /> */}
         </Route>
 
