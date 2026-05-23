@@ -19,6 +19,9 @@ import AddMember from "./pages/addmember";
 import AdminNotifications from "./pages/notifikasi";
 import Reports from "./pages/Reports";
 import ManajemenKelas from "./pages/kelolakelas";
+import KelolaAlatAdmin from "./pages/StatusAlat";
+import KetersediaanAlatMember from "./pages/KetersediaanAlat";
+
 
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
@@ -43,6 +46,8 @@ export default function App() {
           <Route path="/admin/tambahmember" element={<AddMember />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/manage-classes" element={<ManajemenKelas />} />
+          <Route path="/admin/manage-equipment" element={<KelolaAlatAdmin />} />
+          
           
           {/* <Route path="/admin-alat" element={<HalamanKelolaAlat />} /> */}
         </Route>
@@ -52,7 +57,8 @@ export default function App() {
         <Route path="/contohmember" element={<DashboardMember />} />
         <Route path="/member/dashboardmember" element={<DashboardMember />} />
         <Route path="/member/booking" element={<ClassSchedule />} />
-          <Route path="/member/reports" element={<Reports />} />
+        <Route path="/member/reports" element={<Reports />} />
+        <Route path="/member/equipment" element={<KetersediaanAlatMember />} />
         
 
           {/* <Route path="/member-booking" element={<HalamanBooking />} /> */}
