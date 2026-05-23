@@ -18,7 +18,14 @@ import DashboardAdmin from "./pages/dashboardadmin";
 import AddMember from "./pages/addmember";
 import AdminNotifications from "./pages/notifikasi";
 import Reports from "./pages/Reports";
-
+import ManajemenKelas from "./pages/kelolakelas";
+import KelolaAlatAdmin from "./pages/StatusAlat";
+import KetersediaanAlatMember from "./pages/KetersediaanAlat";
+import MemberNotifications from "./pages/NotifikasiMember";
+import Bayar from "./pages/bayar";
+import Membership from "./pages/membership";
+import Profile from "./pages/Profile";
+import EditProfile from "./pages/editprofile";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -41,6 +48,9 @@ export default function App() {
           <Route path="/admin/add-member" element={<AdminManageMembers />} />
           <Route path="/admin/tambahmember" element={<AddMember />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
+          <Route path="/admin/manage-classes" element={<ManajemenKelas />} />
+          <Route path="/admin/manage-equipment" element={<KelolaAlatAdmin />} />
+          
           
           {/* <Route path="/admin-alat" element={<HalamanKelolaAlat />} /> */}
         </Route>
@@ -50,9 +60,13 @@ export default function App() {
         <Route path="/contohmember" element={<DashboardMember />} />
         <Route path="/member/dashboardmember" element={<DashboardMember />} />
         <Route path="/member/booking" element={<ClassSchedule />} />
-          <Route path="/member/reports" element={<Reports />} />
-        
-
+        <Route path="/member/reports" element={<Reports />} />
+        <Route path="/member/equipment" element={<KetersediaanAlatMember />} />
+        <Route path="/member/notifications" element={<MemberNotifications />} />
+        <Route path="/member/membership" element={<Membership />} />
+        <Route path="/member/bayar" element={<Bayar />} />
+        <Route path="/member/profile" element={<Profile />} />
+        <Route path="/member/edit-profile" element={<EditProfile />} />
           {/* <Route path="/member-booking" element={<HalamanBooking />} /> */}
         </Route>
 

@@ -1,0 +1,613 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+const Bayar = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const paket = location.state?.paket || null;
+
+  // ── STATE ──────────────────────────────────────────────────
+  const [metodeBayar, setMetodeBayar] = useState('qris');
+  const [step, setStep] = useState('pilih'); // pilih | bayar | sukses | batal
+  const [namaPengirim, setNamaPengirim] = useState('');
+  const [nomorHP, setNomorHP] = useState('');
+  const [showBatalModal, setShowBatalModal] = useState(false);
+  const [alasanBatal, setAlasanBatal] = useState('');
+  const [batalBerhasil, setBatalBerhasil] = useState(false);
+  const [histori, setHistori] = useState([]);
+  const [loadingHistori, setLoadingHistori] = useState(true);
+
+  const formatRupiah = (n) => 'Rp ' + n.toLocaleString('id-ID');
+
+  // ── USE EFFECT ─────────────────────────────────────────────
+  useEffect(() => {
+    document.title = 'Gymbros | Pembayaran';
+    const ori = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = '#111315';
+
+    // [AXIOS] Ambil histori transaksi min 10 item
+    axios
+      .get('https://jsonplaceholder.typicode.com/todos?_limit=10')
+      .then((res) => {
+        const metodeList = ['QRIS', 'GoPay', 'OVO', 'mBanking'];
+        const mapped = res.data.map((item, i) => ({
+          id: item.id,
+          nama: ['Paket 1 Bulan', 'Paket 6 Bulan', 'Paket 12 Bulan'][i % 3],
+          metode: metodeList[i % 4],
+          status: item.completed ? 'Lunas' : 'Pending',
+          tanggal: (1 + i) + ' Mei 2026',
+          nominal: [250000, 1200000, 2500000][i % 3],
+        }));
+        setHistori(mapped);
+        setLoadingHistori(false);
+      })
+      .catch(() => setLoadingHistori(false));
+
+    return () => { document.body.style.backgroundColor = ori; };
+  }, []);
+
+  // ── METODE BAYAR DATA ──────────────────────────────────────
+  const metodeList = [
+    {
+      id: 'qris',
+      label: 'QRIS',
+      icon: '🔳',
+      deskripsi: 'Scan QR dengan aplikasi apapun',
+    },
+    {
+      id: 'gopay',
+      label: 'GoPay',
+      icon: '💚',
+      deskripsi: 'Transfer via GoPay / Gojek',
+    },
+    {
+      id: 'ovo',
+      label: 'OVO',
+      icon: '💜',
+      deskripsi: 'Transfer via OVO',
+    },
+    {
+      id: 'mbanking',
+      label: 'mBanking',
+      icon: '🏦',
+      deskripsi: 'Transfer bank BCA / Mandiri / BNI',
+    },
+  ];
+
+  // ── HANDLER ────────────────────────────────────────────────
+  const handleLanjut = (e) => {
+    e.preventDefault();
+    setStep('bayar');
+  };
+
+  const handleKonfirmasiOK = () => {
+    setStep('sukses');
+  };
+
+  const handleBatalKirim = (e) => {
+    e.preventDefault();
+    setShowBatalModal(false);
+    setBatalBerhasil(true);
+    setTimeout(() => {
+      navigate('/member/membership');
+    }, 2500);
+  };
+
+  // ── UI PER METODE ──────────────────────────────────────────
+  const renderUIBayar = () => {
+    // QRIS — tampilkan QR code
+    if (metodeBayar === 'qris') {
+      return (
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-xs text-gray-400 text-center">
+            Scan QR Code di bawah menggunakan aplikasi e-wallet atau mobile banking manapun.
+          </p>
+          {/* QR Code placeholder menggunakan API qr */}
+          <div className="p-4 bg-white rounded-2xl shadow-lg">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=GYMBROS-PAYMENT-${paket?.id || 'MEMBERSHIP'}-${paket?.hargaDiskon || '250000'}`}
+              alt="QR Code Pembayaran Gymbros"
+              className="w-44 h-44 rounded-lg"
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-500">Kode pembayaran</p>
+            <p className="text-sm font-black text-[#C2A676] tracking-widest mt-0.5">
+              GYMBROS-{(paket?.id || 'MBR').toUpperCase()}-{Math.floor(Math.random() * 90000) + 10000}
+            </p>
+          </div>
+          <div className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs text-gray-400">Total Pembayaran</p>
+            <p className="text-xl font-black text-white mt-0.5">
+              {formatRupiah(paket?.hargaDiskon || 250000)}
+            </p>
+          </div>
+          <p className="text-[11px] text-yellow-400 text-center">
+            ⏱ QR berlaku selama 15 menit. Jangan tutup halaman ini.
+          </p>
+          <button
+            onClick={handleKonfirmasiOK}
+            className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black text-sm py-3 rounded-xl transition-all active:scale-95 shadow-md"
+          >
+            ✅ OK — Saya Sudah Bayar
+          </button>
+        </div>
+      );
+    }
+
+    // GOPAY — tampilkan nomor GoPay
+    if (metodeBayar === 'gopay') {
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="text-xs text-gray-400">
+            Transfer ke nomor GoPay berikut, lalu klik OK setelah pembayaran selesai.
+          </p>
+          <div className="bg-[#25282c] border border-white/10 rounded-2xl p-5 text-center">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <span className="text-3xl">💚</span>
+              <p className="text-lg font-black text-white">GoPay</p>
+            </div>
+            <p className="text-xs text-gray-500 mb-1">Nomor GoPay Tujuan</p>
+            <p className="text-2xl font-black text-green-400 tracking-widest">
+              0821-0000-1234
+            </p>
+            <p className="text-xs text-gray-500 mt-1">a.n. <strong className="text-white">Gymbros Indonesia</strong></p>
+          </div>
+          <div className="bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 flex justify-between items-center">
+            <span className="text-xs text-gray-400">Nominal Transfer</span>
+            <span className="text-sm font-black text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+          </div>
+          {/* [HTML] input type="tel" untuk no HP */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              Nomor HP GoPay Anda (verifikasi)
+            </label>
+            <input
+              type="tel"
+              placeholder="Contoh: 0812-xxxx-xxxx"
+              value={nomorHP}
+              onChange={(e) => setNomorHP(e.target.value)}
+              className="w-full bg-[#25282c] border border-white/10 text-[#E0E0E0] text-sm rounded-xl px-4 py-2.5 placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/60 transition-colors"
+            />
+          </div>
+          <button
+            onClick={handleKonfirmasiOK}
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-black text-sm py-3 rounded-xl transition-all active:scale-95 shadow-md"
+          >
+            ✅ OK — Transfer Sudah Dilakukan
+          </button>
+        </div>
+      );
+    }
+
+    // OVO — tampilkan nomor OVO
+    if (metodeBayar === 'ovo') {
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="text-xs text-gray-400">
+            Transfer ke nomor OVO berikut, lalu klik OK setelah pembayaran selesai.
+          </p>
+          <div className="bg-[#25282c] border border-white/10 rounded-2xl p-5 text-center">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <span className="text-3xl">💜</span>
+              <p className="text-lg font-black text-white">OVO</p>
+            </div>
+            <p className="text-xs text-gray-500 mb-1">Nomor OVO Tujuan</p>
+            <p className="text-2xl font-black text-purple-400 tracking-widest">
+              0822-0000-5678
+            </p>
+            <p className="text-xs text-gray-500 mt-1">a.n. <strong className="text-white">Gymbros Indonesia</strong></p>
+          </div>
+          <div className="bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 flex justify-between items-center">
+            <span className="text-xs text-gray-400">Nominal Transfer</span>
+            <span className="text-sm font-black text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+          </div>
+          {/* [HTML] input type="tel" */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              Nomor HP OVO Anda (verifikasi)
+            </label>
+            <input
+              type="tel"
+              placeholder="Contoh: 0812-xxxx-xxxx"
+              value={nomorHP}
+              onChange={(e) => setNomorHP(e.target.value)}
+              className="w-full bg-[#25282c] border border-white/10 text-[#E0E0E0] text-sm rounded-xl px-4 py-2.5 placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/60 transition-colors"
+            />
+          </div>
+          <button
+            onClick={handleKonfirmasiOK}
+            className="w-full bg-purple-700 hover:bg-purple-600 text-white font-black text-sm py-3 rounded-xl transition-all active:scale-95 shadow-md"
+          >
+            ✅ OK — Transfer Sudah Dilakukan
+          </button>
+        </div>
+      );
+    }
+
+    // MBANKING — tampilkan rekening bank
+    if (metodeBayar === 'mbanking') {
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="text-xs text-gray-400">
+            Transfer ke salah satu rekening berikut, lalu isi nama pengirim dan klik OK.
+          </p>
+          <div className="space-y-3">
+            {[
+              { bank: 'BCA', norek: '1234 5678 90', an: 'Gymbros Indonesia', warna: 'text-blue-400' },
+              { bank: 'Mandiri', norek: '0987 6543 21', an: 'Gymbros Indonesia', warna: 'text-yellow-400' },
+              { bank: 'BNI', norek: '5566 7788 99', an: 'Gymbros Indonesia', warna: 'text-orange-400' },
+            ].map((b) => (
+              <div key={b.bank} className="bg-[#25282c] border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className={'text-sm font-black ' + b.warna}>{b.bank}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">a.n. {b.an}</p>
+                </div>
+                <p className="text-sm font-black text-white tracking-widest">{b.norek}</p>
+              </div>
+            ))}
+          </div>
+          <div className="bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 flex justify-between items-center">
+            <span className="text-xs text-gray-400">Nominal Transfer</span>
+            <span className="text-sm font-black text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+          </div>
+          {/* [HTML] input type="text" nama pengirim */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              Nama Pengirim (sesuai rekening)
+            </label>
+            <input
+              type="text"
+              placeholder="Nama lengkap sesuai buku rekening"
+              value={namaPengirim}
+              onChange={(e) => setNamaPengirim(e.target.value)}
+              className="w-full bg-[#25282c] border border-white/10 text-[#E0E0E0] text-sm rounded-xl px-4 py-2.5 placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/60 transition-colors"
+            />
+          </div>
+          <button
+            onClick={handleKonfirmasiOK}
+            className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black text-sm py-3 rounded-xl transition-all active:scale-95 shadow-md"
+          >
+            ✅ OK — Transfer Sudah Dilakukan
+          </button>
+        </div>
+      );
+    }
+  };
+
+  // ── RENDER ─────────────────────────────────────────────────
+  return (
+    <main className="w-full max-w-5xl mx-auto space-y-6 text-[#E0E0E0]">
+
+      {/* ══ NOTIFIKASI BATAL BERHASIL ════════════════════════ */}
+      {batalBerhasil && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
+          <div className="bg-[#1A1C1E] border border-white/10 rounded-3xl p-8 text-center shadow-2xl max-w-sm w-full">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-4xl">
+              ❌
+            </div>
+            <h3 className="text-lg font-black text-white uppercase mb-2">Pembayaran Dibatalkan</h3>
+            <p className="text-xs text-gray-400">
+              Pesanan Anda telah berhasil dibatalkan. Anda akan diarahkan kembali ke halaman membership.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ══ SUKSES PEMBAYARAN ════════════════════════════════ */}
+      {/* [CONDITIONAL RENDER] tampil hanya jika step === 'sukses' */}
+      {step === 'sukses' && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-8 shadow-2xl text-center">
+            {/* Logo centang hijau */}
+            <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/40 flex items-center justify-center">
+              <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-black text-white uppercase mb-1">Pembayaran Berhasil!</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Terima kasih! Membership <strong className="text-[#C2A676]">
+              Paket {paket?.durasi || '1 Bulan'}</strong> Anda telah aktif.
+            </p>
+            <div className="bg-[#25282c] border border-white/5 rounded-xl p-4 mb-5 text-left space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Metode</span>
+                <span className="font-bold text-white uppercase">{metodeBayar}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Nominal</span>
+                <span className="font-bold text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Status</span>
+                <span className="font-bold text-green-400">✓ LUNAS</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">ID Transaksi</span>
+                <span className="font-mono text-gray-300">TRX-{Date.now().toString().slice(-8)}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/member/dashboardmember')}
+              className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black text-sm py-3 rounded-xl transition-all active:scale-95 shadow-md"
+            >
+              Kembali ke Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══ HEADER RINGKASAN ═════════════════════════════════ */}
+      <header className="bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl shadow-xl">
+        <p className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">
+          PROSES PEMBAYARAN
+        </p>
+        <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
+          Checkout & Bayar
+        </h1>
+        {paket ? (
+          <div className="mt-3 flex flex-wrap gap-3">
+            <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Paket Dipilih</p>
+              <p className="text-sm font-black text-[#C2A676]">Paket {paket.durasi}</p>
+            </div>
+            <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total Bayar</p>
+              <p className="text-sm font-black text-white">{formatRupiah(paket.hargaDiskon)}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-yellow-400 mt-2">
+            ⚠️ Tidak ada paket dipilih.{' '}
+            <button onClick={() => navigate('/member/membership')} className="underline text-[#C2A676]">
+              Pilih paket dulu
+            </button>
+          </p>
+        )}
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* ══ FORM PILIH METODE ════════════════════════════ */}
+        {/* [CONDITIONAL RENDER] tampil saat step === 'pilih' */}
+        {step === 'pilih' && (
+          <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
+            <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
+              Pilih Metode Pembayaran
+            </h2>
+            {/* [HTML SEMANTIC] <form> dengan input type="radio" */}
+            <form onSubmit={handleLanjut} className="space-y-4">
+              <div className="space-y-3">
+                {metodeList.map((m) => (
+                  <label
+                    key={m.id}
+                    className={
+                      'flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ' +
+                      (metodeBayar === m.id
+                        ? 'border-[#C2A676]/60 bg-[#C2A676]/5'
+                        : 'border-white/10 bg-[#25282c] hover:border-[#C2A676]/30')
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="metodeBayar"
+                      value={m.id}
+                      checked={metodeBayar === m.id}
+                      onChange={() => setMetodeBayar(m.id)}
+                      className="accent-[#C2A676] w-4 h-4 shrink-0"
+                    />
+                    <span className="text-2xl">{m.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-white">{m.label}</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">{m.deskripsi}</p>
+                    </div>
+                    {metodeBayar === m.id && (
+                      <span className="text-[#C2A676] text-xs font-black">✓</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBatalModal(true)}
+                  className="flex-1 bg-[#25282c] hover:bg-red-900/30 text-red-400 text-sm font-black py-2.5 rounded-xl border border-red-500/20 transition-colors"
+                >
+                  Batalkan
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] text-sm font-black py-2.5 rounded-xl transition-all active:scale-95 shadow-md"
+                >
+                  Lanjut →
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* ══ INSTRUKSI BAYAR PER METODE ═══════════════════ */}
+        {/* [CONDITIONAL RENDER] tampil saat step === 'bayar' */}
+        {step === 'bayar' && (
+          <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-black tracking-widest text-white uppercase">
+                {metodeList.find((m) => m.id === metodeBayar)?.icon}{' '}
+                {metodeList.find((m) => m.id === metodeBayar)?.label}
+              </h2>
+              <button
+                onClick={() => setStep('pilih')}
+                className="text-xs text-gray-400 hover:text-white border border-white/10 px-3 py-1.5 rounded-full transition-colors"
+              >
+                ← Ganti Metode
+              </button>
+            </div>
+            {renderUIBayar()}
+            <button
+              onClick={() => setShowBatalModal(true)}
+              className="w-full mt-3 text-xs text-red-400 hover:text-red-300 py-2 transition-colors"
+            >
+              Batalkan Pesanan
+            </button>
+          </section>
+        )}
+
+        {/* ══ RINGKASAN PESANAN ════════════════════════════ */}
+        <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg h-fit">
+          <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
+            Ringkasan Pesanan
+          </h2>
+          {paket ? (
+            <div className="space-y-3">
+              <div className="bg-[#25282c] border border-white/5 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Paket</p>
+                <p className="text-lg font-black text-[#C2A676]">Paket {paket.durasi}</p>
+              </div>
+              <ul className="space-y-2">
+                {paket.benefit.map((b) => (
+                  <li key={b} className="flex items-start gap-2 text-xs text-gray-400">
+                    <span className="text-[#C2A676] font-black mt-0.5 shrink-0">✓</span>
+                    {b.toLowerCase().includes('personal trainer')
+                      ? <span className="text-[#C2A676] font-bold">{b}</span>
+                      : b}
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-white/10 pt-3 space-y-2">
+                {paket.diskonPersen > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Harga Normal</span>
+                    <span className="line-through text-gray-500">
+                      Rp {paket.hargaNormal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                )}
+                {paket.diskonPersen > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-green-400">Diskon {paket.diskonPersen}%</span>
+                    <span className="text-green-400">
+                      - Rp {(paket.hargaNormal - paket.hargaDiskon).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-sm font-black text-white">Total</span>
+                  <span className="text-sm font-black text-[#C2A676]">
+                    {formatRupiah(paket.hargaDiskon)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">Belum ada paket yang dipilih.</p>
+          )}
+        </section>
+      </div>
+
+      {/* ══ RIWAYAT TRANSAKSI (AXIOS) ════════════════════════ */}
+      <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
+        <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
+          Riwayat Transaksi
+        </h2>
+        {/* [LOADING INDICATOR] */}
+        {loadingHistori ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-[#C2A676] border-t-transparent animate-spin" />
+            <p className="text-xs text-gray-400 tracking-wider">Memuat riwayat...</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {histori.map((h) => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between p-4 bg-[#25282c] border border-white/5 rounded-2xl hover:border-[#C2A676]/20 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#1A1C1E] border border-white/5 flex items-center justify-center text-sm">
+                    {h.metode === 'QRIS' ? '🔳' : h.metode === 'GoPay' ? '💚' : h.metode === 'OVO' ? '💜' : '🏦'}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">{h.nama}</p>
+                    <p className="text-[10px] text-gray-500">{h.metode} · {h.tanggal}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black text-[#C2A676]">{formatRupiah(h.nominal)}</p>
+                  <span className={
+                    'text-[10px] font-black px-2 py-0.5 rounded-full ' +
+                    (h.status === 'Lunas' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400')
+                  }>
+                    {h.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ══ MODAL PEMBATALAN ════════════════════════════════ */}
+      {showBatalModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setShowBatalModal(false)} />
+          <div className="relative w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 shadow-2xl">
+            <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center text-3xl">
+              ⚠️
+            </div>
+            <h3 className="text-lg font-black text-white uppercase text-center mb-1">
+              Batalkan Pesanan?
+            </h3>
+            <p className="text-xs text-gray-400 text-center mb-4">
+              Pesanan paket <strong className="text-[#C2A676]">
+              {paket?.durasi || 'Membership'}</strong> akan dibatalkan.
+              Tindakan ini tidak dapat diurungkan.
+            </p>
+
+            {/* [HTML] form dengan textarea alasan */}
+            <form onSubmit={handleBatalKirim} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Alasan Pembatalan
+                </label>
+                <select
+                  value={alasanBatal}
+                  onChange={(e) => setAlasanBatal(e.target.value)}
+                  required
+                  className="w-full bg-[#25282c] border border-white/10 text-[#E0E0E0] text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/40 transition-colors"
+                >
+                  <option value="">-- Pilih alasan --</option>
+                  <option>Ingin ganti paket yang lain</option>
+                  <option>Salah memilih paket</option>
+                  <option>Ingin ganti metode pembayaran</option>
+                  <option>Berubah pikiran</option>
+                  <option>Lainnya</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowBatalModal(false)}
+                  className="flex-1 bg-[#25282c] hover:bg-[#333] text-gray-300 text-sm font-medium py-2.5 rounded-xl border border-white/10 transition-colors"
+                >
+                  Tidak, Kembali
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-red-600 hover:bg-red-500 text-white text-sm font-black py-2.5 rounded-xl transition-all active:scale-95"
+                >
+                  Ya, Batalkan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+};
+
+export default Bayar;
