@@ -30,6 +30,7 @@ export default function MemberLayout() {
     { name: "Booking", path: "/member/booking" },
     { name: "Equipment", path: "/member/equipment" },
     { name: "Reports", path: "/member/reports" },
+    { name: "Membership", path: "/member/membership" },
   ];
 
   const handleLogoutClick = (e) => {
@@ -169,14 +170,6 @@ export default function MemberLayout() {
               className="h-full w-full object-cover"
             />
           </Link>
-
-          {/* Tombol Logout Desktop */}
-          <button
-            onClick={handleLogoutClick}
-            className="hidden md:flex items-center rounded-full bg-[#af0909] px-4 py-2 text-sm font-medium text-gray-300 ring-1 ring-white/10 transition hover:bg-red-700 hover:text-white"
-          >
-            Logout
-          </button>
         </div>
 
         {/* ================= MODAL MOBILE MENU ================= */}
