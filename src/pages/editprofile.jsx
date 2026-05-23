@@ -10,8 +10,8 @@ export default function EditProfile() {
     email: "faiz@student.amikom.ac.id",
     telepon: "081234567890",
     tanggalLahir: "2004-05-12",
-    paketMembership: "Paket 6 Bulan (Elite Bro)", // Tetap disimpan di state agar tidak hilang
-    masaBerlaku: "2026-05-01",                  // Tetap disimpan di state agar tidak hilang
+    paketMembership: "Paket 6 Bulan (Elite Bro)", 
+    masaBerlaku: "2026-05-01",                  
     avatar: "https://i.pravatar.cc/150?img=11"
   });
 
