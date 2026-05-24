@@ -13,14 +13,14 @@ const PaymentPage = () => {
   const [isFetching, setIsFetching] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
-  const [paymentStep, setPaymentStep] = useState(1); 
+  const [paymentStep, setPaymentStep] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState('qris');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isCopied, setIsCopied] = useState(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  
+
   const [warningModal, setWarningModal] = useState({ isOpen: false, message: '' });
 
   useEffect(() => {
@@ -40,7 +40,7 @@ const PaymentPage = () => {
         const response = await axios.get(API_URL);
         const classes = response.data?.classes || [];
         const found = classes.find(c => c.id === parseInt(classIdParam, 10));
-        
+
         if (found) {
           setActiveClass(found);
         } else {
@@ -61,10 +61,10 @@ const PaymentPage = () => {
       id: 'qris', name: 'QRIS', description: 'Scan QR dengan aplikasi apapun',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-400">
-          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-          <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+          <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
         </svg>
       )
     },
@@ -72,8 +72,8 @@ const PaymentPage = () => {
       id: 'gopay', name: 'GoPay', description: 'Transfer via GoPay / Gojek',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" fill="#00AA13" fillOpacity="0.2" stroke="#00AA13" strokeWidth="1.5"/>
-          <path d="M8 12C8 9.5 9.5 8 12 8C14.5 8 16 9.5 16 12C16 14.5 14.5 16 12 16" stroke="#00AA13" strokeWidth="1.5" strokeLinecap="round"/>
+          <circle cx="12" cy="12" r="10" fill="#00AA13" fillOpacity="0.2" stroke="#00AA13" strokeWidth="1.5" />
+          <path d="M8 12C8 9.5 9.5 8 12 8C14.5 8 16 9.5 16 12C16 14.5 14.5 16 12 16" stroke="#00AA13" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       )
     },
@@ -81,8 +81,8 @@ const PaymentPage = () => {
       id: 'ovo', name: 'OVO', description: 'Transfer via OVO',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" fill="#4D2C8B" fillOpacity="0.2" stroke="#4D2C8B" strokeWidth="1.5"/>
-          <circle cx="12" cy="12" r="4" fill="#4D2C8B" fillOpacity="0.3"/>
+          <circle cx="12" cy="12" r="10" fill="#4D2C8B" fillOpacity="0.2" stroke="#4D2C8B" strokeWidth="1.5" />
+          <circle cx="12" cy="12" r="4" fill="#4D2C8B" fillOpacity="0.3" />
         </svg>
       )
     },
@@ -90,7 +90,7 @@ const PaymentPage = () => {
       id: 'mbanking', name: 'mBanking', description: 'Transfer bank BCA / Mandiri / BNI',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-400">
-          <path d="M3 21H21M4 18H20M6 18V13L12 8L18 13V18M12 8V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M3 21H21M4 18H20M6 18V13L12 8L18 13V18M12 8V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )
     }
@@ -125,7 +125,7 @@ const PaymentPage = () => {
         savedBookings.push(activeClass.id);
         localStorage.setItem('bookedClasses', JSON.stringify(savedBookings));
       }
-      
+
       setTimeout(() => {
         setShowSuccess(false);
         navigate('/member/booking');
@@ -144,7 +144,7 @@ const PaymentPage = () => {
 
   return (
     <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] bg-[#111315] pb-12 relative">
-      
+
       {warningModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setWarningModal({ isOpen: false, message: '' })} />
@@ -152,7 +152,7 @@ const PaymentPage = () => {
             <div className="w-12 h-12 bg-red-950/50 border border-red-500/50 text-red-400 rounded-full flex items-center justify-center mx-auto font-bold text-xl">!</div>
             <h3 className="text-white font-black text-sm uppercase tracking-wider">Perhatian</h3>
             <p className="text-xs text-gray-400 leading-relaxed">{warningModal.message}</p>
-            <button 
+            <button
               onClick={() => setWarningModal({ isOpen: false, message: '' })}
               className="w-full py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-xs uppercase tracking-widest transition-colors"
             >
@@ -191,7 +191,7 @@ const PaymentPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-4">
           <div className="bg-[#1a1c1f] border border-white/5 rounded-3xl p-6 shadow-lg">
-            
+
             {paymentStep === 1 && (
               <div>
                 <h4 className="text-sm font-black text-white uppercase tracking-wider mb-4">Pilih Metode Pembayaran</h4>
@@ -205,21 +205,21 @@ const PaymentPage = () => {
                     {paymentMethods.map((method) => {
                       const isSelected = selectedPayment === method.id;
                       return (
-                         <button
-                           key={method.id}
-                           type="button"
-                           onClick={() => setSelectedPayment(method.id)}
-                           className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${isSelected ? 'bg-[#C2A676]/10 border-[#C2A676]/50 shadow-md' : 'bg-[#1e2023] border-white/5 hover:border-white/15'}`}
-                         >
-                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? 'border-[#C2A676]' : 'border-gray-600'}`}>
-                             {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#C2A676]" />}
-                           </div>
-                           <div className="w-8 h-8 flex items-center justify-center shrink-0">{method.icon}</div>
-                           <div className="flex-1 min-w-0">
-                             <p className="text-sm font-bold text-white">{method.name}</p>
-                             <p className="text-xs text-gray-500">{method.description}</p>
-                           </div>
-                         </button>
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setSelectedPayment(method.id)}
+                          className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${isSelected ? 'bg-[#C2A676]/10 border-[#C2A676]/50 shadow-md' : 'bg-[#1e2023] border-white/5 hover:border-white/15'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? 'border-[#C2A676]' : 'border-gray-600'}`}>
+                            {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#C2A676]" />}
+                          </div>
+                          <div className="w-8 h-8 flex items-center justify-center shrink-0">{method.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white">{method.name}</p>
+                            <p className="text-xs text-gray-500">{method.description}</p>
+                          </div>
+                        </button>
                       );
                     })}
                   </form>
@@ -227,8 +227,21 @@ const PaymentPage = () => {
 
                 <div className="flex gap-3 mt-6">
                   <button onClick={() => navigate('/member/booking')} className="flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest border border-white/10 text-gray-400 hover:text-white transition-all">Batal</button>
-                  <button onClick={() => setPaymentStep(2)} disabled={!activeClass || !!fetchError} className="flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest bg-[#C2A676] text-[#111315] hover:bg-white transition-all disabled:opacity-50">Lanjut Pembayaran</button>
-                </div>
+                  <button
+                    onClick={() => setPaymentStep(2)}
+                    disabled={!activeClass || !!fetchError}
+                    className="flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest bg-[#C2A676] text-[#111315] hover:bg-white transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 group shadow-lg hover:shadow-[#C2A676]/20"
+                  >
+                    <span>Lanjut Pembayaran</span>
+                    <svg
+                      className="w-4 h-4 transform transition-transform duration-300 group-hover:translate-x-1.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </button>                </div>
               </div>
             )}
 
@@ -260,14 +273,14 @@ const PaymentPage = () => {
                         <p className="text-2xl font-black text-[#C2A676]">{formatCurrency(classPrice)}</p>
                       </div>
                       <div className="space-y-2">
-                         <label className="text-xs font-black tracking-widest text-gray-400 uppercase">Nomor Handphone yang Terdaftar</label>
-                         <input 
-                           type="tel"
-                           value={phoneNumber}
-                           onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                           placeholder="Contoh: 08123456789"
-                           className="w-full bg-[#111315] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-[#C2A676]/50"
-                         />
+                        <label className="text-xs font-black tracking-widest text-gray-400 uppercase">Nomor Handphone yang Terdaftar</label>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Contoh: 08123456789"
+                          className="w-full bg-[#111315] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-[#C2A676]/50"
+                        />
                       </div>
                     </div>
                   )}
@@ -299,10 +312,10 @@ const PaymentPage = () => {
             )}
 
             {paymentStep === 3 && (
-               <div className="text-center py-12 space-y-4">
-                 <div className="w-16 h-16 bg-green-950/50 border border-green-500 text-green-400 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
-                 <h4 className="text-lg font-black text-white uppercase tracking-wider">Transaksi Berhasil</h4>
-               </div>
+              <div className="text-center py-12 space-y-4">
+                <div className="w-16 h-16 bg-green-950/50 border border-green-500 text-green-400 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
+                <h4 className="text-lg font-black text-white uppercase tracking-wider">Transaksi Berhasil</h4>
+              </div>
             )}
           </div>
         </div>
