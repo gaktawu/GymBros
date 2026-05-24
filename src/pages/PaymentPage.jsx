@@ -21,7 +21,6 @@ const PaymentPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   
-  // Custom Modal Warning State (Menggantikan alert bawaan browser)
   const [warningModal, setWarningModal] = useState({ isOpen: false, message: '' });
 
   useEffect(() => {
@@ -121,7 +120,6 @@ const PaymentPage = () => {
       setShowSuccess(true);
       setPaymentStep(3);
 
-      // SIMPAN DATA TRANSAKSI KE LOCALSTORAGE AGAR HALAMAN BOOKING DAPAT MEMBACA STATUSNYA
       const savedBookings = JSON.parse(localStorage.getItem('bookedClasses')) || [];
       if (!savedBookings.includes(activeClass.id)) {
         savedBookings.push(activeClass.id);
@@ -145,9 +143,8 @@ const PaymentPage = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] bg-[#111315] pb-12 relative">
+    <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] bg-[#111315] pb-12 relative">
       
-      {/* Custom Modal Warning HTML/Tailwind */}
       {warningModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setWarningModal({ isOpen: false, message: '' })} />
@@ -172,7 +169,6 @@ const PaymentPage = () => {
         </div>
       )}
 
-      {/* Header Info */}
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
         <div>
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">
@@ -205,12 +201,13 @@ const PaymentPage = () => {
                     <button onClick={() => navigate('/member/booking')} className="text-xs text-[#C2A676] hover:underline">Kembali ke Jadwal</button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
                     {paymentMethods.map((method) => {
                       const isSelected = selectedPayment === method.id;
                       return (
                          <button
                            key={method.id}
+                           type="button"
                            onClick={() => setSelectedPayment(method.id)}
                            className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${isSelected ? 'bg-[#C2A676]/10 border-[#C2A676]/50 shadow-md' : 'bg-[#1e2023] border-white/5 hover:border-white/15'}`}
                          >
@@ -225,7 +222,7 @@ const PaymentPage = () => {
                          </button>
                       );
                     })}
-                  </div>
+                  </form>
                 )}
 
                 <div className="flex gap-3 mt-6">
@@ -331,7 +328,7 @@ const PaymentPage = () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

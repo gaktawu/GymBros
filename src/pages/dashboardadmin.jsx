@@ -268,7 +268,7 @@ export default function DashboardAdmin() {
                         <p className="text-xs text-[#888888] mt-1">Kelola paket membership gym Anda</p>
                       </div>
                       
-                      <div className="flex items-center justify-center gap-3">
+                      <form className="flex items-center justify-center gap-3" onSubmit={(e) => e.preventDefault()}>
                         <div className="relative w-full max-w-sm">
                           <span className="absolute inset-y-0 left-3 flex items-center text-[#888888]"><Icon name="Search" className="w-4 h-4" /></span>
                           <input type="text" placeholder="Cari berdasarkan nama..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full pl-10 pr-4 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" />
@@ -278,7 +278,7 @@ export default function DashboardAdmin() {
                           <option value="active">Aktif</option>
                           <option value="inactive">Nonaktif</option>
                         </select>
-                      </div>
+                      </form>
                     </div>
 
                     <div className="overflow-x-auto">

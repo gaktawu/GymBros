@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 const AddMember = () => {
   const navigate = useNavigate();
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [successAnim, setSuccessAnim] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -20,14 +24,21 @@ const AddMember = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => setSuccessAnim(true), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    // Generate ID acak untuk member dummy baru
     const randomIdNumber = Math.floor(10000 + Math.random() * 90000);
 
     const newMember = {
@@ -37,125 +48,158 @@ const AddMember = () => {
       plan: formData.plan,
       status: formData.status,
       joined: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      image: null // Akan fallback ke inisial nama di tabel
+      image: null
     };
 
-    // Ambil data lokal yang sudah ada, tambahkan yang baru, lalu simpan kembali
     const existingLocalMembers = JSON.parse(localStorage.getItem('dummyMembers')) || [];
     localStorage.setItem('dummyMembers', JSON.stringify([newMember, ...existingLocalMembers]));
 
-    // Kembali ke halaman tabel
-    navigate('/admin/add-member'); 
+    setIsSubmitting(false);
+    setIsSuccess(true);
+    setTimeout(() => {
+      navigate('/admin/add-member');
+    }, 2000);
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
+    <main className="w-full max-w-3xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
 
       {/* HEADER */}
-      <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col items-start gap-2 overflow-hidden shadow-xl">
+      <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col items-start gap-2 overflow-hidden shadow-xl transition-all duration-500 hover:shadow-2xl hover:shadow-[#C2A676]/5 hover:border-[#C2A676]/20">
         <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase">REGISTRATION PANEL</h4>
         <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">ADD NEW MEMBER</h3>
       </div>
 
       {/* FORM CARD */}
-      <div className="bg-[#1e2023] border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="bg-[#1e2023] border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl transition-all duration-500 hover:border-white/10">
+        {isSuccess ? (
+          <div className={`flex flex-col items-center justify-center gap-4 py-12 text-center transition-all duration-700 ease-out ${successAnim ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}`}>
+            <div className="w-16 h-16 rounded-full bg-[#C2A676]/20 flex items-center justify-center mb-2 transition-transform duration-500 hover:scale-110">
+              <svg className="w-8 h-8 text-[#C2A676]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight">Member Added Successfully</h3>
+            <p className="text-sm text-gray-400">Redirecting to members list...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* First Name */}
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">First Name</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* First Name */}
+              <div className="group transition-all duration-500">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="John"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Last Name */}
+              <div className="group transition-all duration-500">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Doe"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="group transition-all duration-500">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Email Address</label>
               <input
-                type="text"
-                name="firstName"
+                type="email"
+                name="email"
                 required
-                value={formData.firstName}
+                value={formData.email}
                 onChange={handleChange}
-                placeholder="John"
-                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 transition-colors"
+                placeholder="johndoe@gymbro.com"
+                disabled={isSubmitting}
+                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
-            {/* Last Name */}
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                required
-                value={formData.lastName}
-                onChange={handleChange}
-                placeholder="Doe"
-                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 transition-colors"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Plan Type */}
+              <div className="group transition-all duration-500">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Membership Plan</label>
+                <select
+                  name="plan"
+                  value={formData.plan}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                >
+                  <option value="Basic Bro">Basic Bro</option>
+                  <option value="Elite Bro">Elite Bro</option>
+                </select>
+              </div>
+
+              {/* Status */}
+              <div className="group transition-all duration-500">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Account Status</label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Expired">Expired</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* Email */}
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Email Address</label>
-            <input
-              type="email"
-              name="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="johndoe@gymbro.com"
-              className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 transition-colors"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Plan Type */}
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Membership Plan</label>
-              <select
-                name="plan"
-                value={formData.plan}
-                onChange={handleChange}
-                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors cursor-pointer"
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-white/5 mt-8">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                disabled={isSubmitting}
+                className="flex-1 rounded-2xl bg-[#25282c] border border-white/5 px-6 py-4 text-xs font-black uppercase tracking-widest text-white hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                <option value="Basic Bro">Basic Bro</option>
-                <option value="Elite Bro">Elite Bro</option>
-              </select>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Account Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors cursor-pointer"
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 rounded-2xl bg-[#C2A676] px-6 py-4 text-xs font-black uppercase tracking-widest text-[#111315] hover:bg-[#d4b88a] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#C2A676]/20 active:translate-y-0 active:scale-95 transition-all duration-300 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
               >
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Expired">Expired</option>
-              </select>
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-[#111315]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save Member Data</span>
+                )}
+              </button>
             </div>
-          </div>
 
-          {/* ACTION BUTTONS */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-white/5 mt-8">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex-1 rounded-2xl bg-[#25282c] border border-white/5 px-6 py-4 text-xs font-black uppercase tracking-widest text-white hover:bg-white/5 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 rounded-2xl bg-[#C2A676] px-6 py-4 text-xs font-black uppercase tracking-widest text-[#111315] hover:bg-[#d4b88a] transition-colors shadow-lg"
-            >
-              Save Member Data
-            </button>
-          </div>
-
-        </form>
+          </form>
+        )}
       </div>
-    </div>
+    </main>
   );
 };
 
