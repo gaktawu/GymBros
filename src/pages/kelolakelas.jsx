@@ -294,7 +294,7 @@ function ManajemenKelas() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-gray-300 p-6 font-sans">
+    <main className="min-h-screen bg-[#0f0f0f] text-gray-300 p-6 font-sans">
       <style>{`
         @keyframes scaleIn {
           0% { transform: scale(0.9); opacity: 0; }
@@ -321,7 +321,7 @@ function ManajemenKelas() {
               <h2 className="text-lg font-semibold text-white text-center mb-1">Manajemen Kelas Gym</h2>
               <p className="text-sm text-gray-500 text-center mb-6">Kelola jadwal dan harga sesi instruktur</p>
               
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <form className="flex flex-col sm:flex-row gap-3 mb-4" onSubmit={(e) => e.preventDefault()}>
                 <div className="relative flex-1">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                     <IconSearch />
@@ -343,7 +343,7 @@ function ManajemenKelas() {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-              </div>
+              </form>
             </div>
 
             <div className="overflow-x-auto">
@@ -566,7 +566,7 @@ function ManajemenKelas() {
         onClose={() => setDeleteModalState({ isOpen: false, id: null })} 
         onConfirm={confirmDelete} 
       />
-    </div>
+    </main>
   );
 }
 
