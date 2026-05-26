@@ -117,7 +117,8 @@ const AdminManageMembers = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
+    /* Mengubah pembungkus utama menjadi tag <main> */
+    <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
       <style>{SCROLLBAR_STYLES}</style>
 
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 overflow-hidden shadow-xl">
@@ -332,7 +333,7 @@ const AdminManageMembers = () => {
         </div>
       )}
 
-    </div>
+    </main> /* Penutup tag <main> */
   );
 };
 

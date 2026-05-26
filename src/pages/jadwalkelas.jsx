@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -32,21 +32,11 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) => {
   );
 };
 
-const BookingConfirmationModal = ({
-  isOpen,
-  onClose,
-  classItem,
-  onConfirm,
-  isLoading
-}) => {
+const BookingConfirmationModal = ({ isOpen, onClose, classItem, onConfirm, isLoading }) => {
   if (!classItem) return null;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Konfirmasi Pemesanan"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title="Konfirmasi Pemesanan">
       <div className="space-y-4">
         <div className="bg-[#25282c] rounded-2xl p-4 border border-white/5">
           <p className="text-[10px] font-black tracking-widest text-[#C2A676] uppercase mb-1">
@@ -71,7 +61,7 @@ const BookingConfirmationModal = ({
             Manfaat yang Didapat
           </p>
           <ul className="space-y-1.5">
-            {classItem.benefits.map((benefit, index) => (
+            {classItem.benefits?.map((benefit, index) => (
               <li key={index} className="flex items-start gap-2 text-xs text-gray-300">
                 <span className="text-[#C2A676] mt-0.5">✓</span>
                 {benefit}
@@ -114,13 +104,7 @@ const BookingConfirmationModal = ({
   );
 };
 
-const CancellationModal = ({
-  isOpen,
-  onClose,
-  classItem,
-  onConfirm,
-  isLoading
-}) => {
+const CancellationModal = ({ isOpen, onClose, classItem, onConfirm, isLoading }) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -150,7 +134,7 @@ const CancellationModal = ({
 
   if (!classItem) return null;
 
-  const priceValue = parseInt(classItem.price.replace(/[^0-9]/g, ''));
+  const priceValue = parseInt(classItem.price.replace(/[^0-9]/g, '')) || 0;
   const cancellationFee = Math.round(priceValue * 0.1);
   const formattedFee = new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -159,11 +143,7 @@ const CancellationModal = ({
   }).format(cancellationFee);
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title="Batalkan Pesanan"
-    >
+    <Modal isOpen={isOpen} onClose={handleClose} title="Batalkan Pesanan">
       <div className="space-y-4">
         <div className="bg-[#25282c] rounded-2xl p-4 border border-white/5">
           <h4 className="text-sm font-black text-white uppercase tracking-tight">
@@ -238,12 +218,16 @@ const ClassSchedule = () => {
   const [isFetching, setIsFetching] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const navigate = useNavigate();
+  
   const [bookedClasses, setBookedClasses] = useState(() => {
     return JSON.parse(localStorage.getItem('bookedClasses')) || [];
   });
+  
   const [viewMode, setViewMode] = useState('all');
   const [selectedDay, setSelectedDay] = useState('Sen');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterDate, setFilterDate] = useState("");
 
   const [bookingModal, setBookingModal] = useState({ isOpen: false, classItem: null });
   const [cancelModal, setCancelModal] = useState({ isOpen: false, classItem: null });
@@ -258,11 +242,6 @@ const ClassSchedule = () => {
     return () => {
       document.body.style.backgroundColor = originalBodyBg;
     };
-  }, []);
-
-  useEffect(() => {
-    const savedBookings = JSON.parse(localStorage.getItem('bookedClasses')) || [];
-    setBookedClasses(savedBookings);
   }, []);
 
   useEffect(() => {
@@ -282,41 +261,32 @@ const ClassSchedule = () => {
     fetchData();
   }, []);
 
-  const classesData = data?.classes || [];
-  const days = data?.days || [];
-  const categories = data?.categories?.map(c => c.key) || ['Semua', 'Kekuatan', 'Kardio', 'HIIT', 'Fleksibilitas'];
+  const classesData = useMemo(() => data?.classes || [], [data]);
+  const days = useMemo(() => data?.days || [], [data]);
+  const categories = useMemo(() => data?.categories?.map(c => c.key) || ['Semua', 'Kekuatan', 'Kardio', 'HIIT', 'Fleksibilitas'], [data]);
 
-  const openBookingModal = useCallback((classItem) => {
-    setBookingModal({ isOpen: true, classItem });
-  }, []);
-
-  const closeBookingModal = useCallback(() => {
-    setBookingModal({ isOpen: false, classItem: null });
-  }, []);
-
-  const openCancelModal = useCallback((classItem) => {
-    setCancelModal({ isOpen: true, classItem });
-  }, []);
-
-  const closeCancelModal = useCallback(() => {
-    setCancelModal({ isOpen: false, classItem: null });
-  }, []);
+  const openBookingModal = useCallback((classItem) => setBookingModal({ isOpen: true, classItem }), []);
+  const closeBookingModal = useCallback(() => setBookingModal({ isOpen: false, classItem: null }), []);
+  const openCancelModal = useCallback((classItem) => setCancelModal({ isOpen: true, classItem }), []);
+  const closeCancelModal = useCallback(() => setCancelModal({ isOpen: false, classItem: null }), []);
 
   const handleBookingConfirm = useCallback(() => {
     setIsProcessingBooking(true);
-
     setTimeout(() => {
       const classId = bookingModal.classItem?.id;
       navigate(`/member/bayarkelas?classId=${classId}`);
       closeBookingModal();
     }, 1500);
-  }, [bookingModal.classItem, closeBookingModal]);
+  }, [bookingModal.classItem, closeBookingModal, navigate]);
 
   const handleCancellationConfirm = useCallback((reason) => {
     setIsProcessingCancellation(true);
-
     setTimeout(() => {
-      setBookedClasses(prev => prev.filter(id => id !== cancelModal.classItem.id));
+      setBookedClasses(prev => {
+        const updated = prev.filter(id => id !== cancelModal.classItem.id);
+        localStorage.setItem('bookedClasses', JSON.stringify(updated));
+        return updated;
+      });
       setIsProcessingCancellation(false);
       closeCancelModal();
     }, 1200);
@@ -330,23 +300,34 @@ const ClassSchedule = () => {
     }
   }, [bookedClasses, openBookingModal, openCancelModal]);
 
-  const filteredClasses = classesData.filter(item => {
-    if (viewMode === 'booked') {
-      return bookedClasses.includes(item.id);
-    }
-    const matchDay = item.day === selectedDay;
-    const matchCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
-    return matchDay && matchCategory;
-  });
+  const filteredClasses = useMemo(() => {
+    return classesData.filter(item => {
+      if (viewMode === 'booked') {
+        return bookedClasses.includes(item.id);
+      }
+      const matchDay = item.day === selectedDay;
+      const matchCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
+      const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchDay && matchCategory && matchSearch;
+    });
+  }, [classesData, viewMode, bookedClasses, selectedDay, selectedCategory, searchQuery]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    alert(`Mencari ruang tempur: "${searchQuery}" ${filterDate ? `untuk target tanggal: ${filterDate}` : ''}`);
+  };
 
   const getIntensityStyle = (intensity) => {
-    if (intensity === 'Tinggi' || intensity === 'Ekstrem') {
-      return 'text-red-400 bg-red-950/20';
+    switch (intensity) {
+      case 'Tinggi':
+      case 'Ekstrem':
+        return 'text-red-400 bg-red-950/20';
+      case 'Sedang':
+        return 'text-yellow-400 bg-yellow-950/20';
+      default:
+        return 'text-green-400 bg-green-950/20';
     }
-    if (intensity === 'Sedang') {
-      return 'text-yellow-400 bg-yellow-950/20';
-    }
-    return 'text-green-400 bg-green-950/20';
   };
 
   if (isFetching) {
@@ -375,8 +356,7 @@ const ClassSchedule = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none animate-fade-in bg-[#111315]">
-
+    <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none animate-fade-in bg-[#111315]">
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 overflow-hidden shadow-xl">
         <div className="z-10">
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">
@@ -441,6 +421,31 @@ const ClassSchedule = () => {
             })}
           </div>
 
+          <div className="bg-[#1e2023] border border-white/5 p-5 rounded-3xl shadow-lg">
+            <h4 className="text-xs font-black text-gray-400 tracking-wider uppercase mb-3">Saring Medan Latihan</h4>
+            <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="text" 
+                placeholder="Ketik nama kelas (misal: Powerlifting, HIIT)..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-[#25282c] border border-white/10 px-4 py-2.5 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#C2A676] transition-colors"
+              />
+              <input 
+                type="date" 
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="bg-[#25282c] border border-white/10 px-4 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-[#C2A676] transition-colors color-scheme-dark"
+              />
+              <button 
+                type="submit"
+                className="bg-[#C2A676] hover:bg-[#b09365] text-black font-black text-xs px-6 py-2.5 rounded-xl uppercase tracking-wider transition-colors"
+              >
+                Cari
+              </button>
+            </form>
+          </div>
+
           <div className="flex flex-wrap gap-2 pt-1">
             {categories.map((cat) => (
               <button
@@ -475,7 +480,6 @@ const ClassSchedule = () => {
                     <span className="text-[10px] font-black tracking-widest px-2.5 py-0.5 bg-[#25282c] border border-white/5 text-[#C2A676] rounded-full uppercase">
                       {item.category}
                     </span>
-
                     {viewMode === 'booked' && (
                       <span className="text-[10px] font-black text-[#C2A676] bg-[#C2A676]/10 px-2.5 py-0.5 rounded-full uppercase">
                         🗓️ {item.day}
@@ -558,7 +562,7 @@ const ClassSchedule = () => {
         onConfirm={handleCancellationConfirm}
         isLoading={isProcessingCancellation}
       />
-    </div>
+    </main>
   );
 };
 

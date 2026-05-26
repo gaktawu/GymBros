@@ -1,6 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react'; // 1. Menambahkan useState
 
 const DashboardMember = () => {
+  // State untuk mensimulasikan check-in (Conditional Rendering)
+  const [isCheckedIn, setIsCheckedIn] = useState(false); 
+
   const memberData = {
     name: "ALEXANDER BRO",
     id: "GB-99210",
@@ -23,18 +26,15 @@ const DashboardMember = () => {
 
   useEffect(() => {
     document.title = "Gymbros | Dasbor Member";
-
     const originalBodyBg = document.body.style.backgroundColor;
-
     document.body.style.backgroundColor = "#111315";
-
     return () => {
       document.body.style.backgroundColor = originalBodyBg;
     };
   }, []);
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none animate-fade-in bg-[#111315]">
+    <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none animate-fade-in bg-[#111315]">
       
       {/* BAGIAN HERO / WELCOME */}
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 overflow-hidden shadow-xl hover:scale-[1.01] transition-transform duration-300">
@@ -170,9 +170,24 @@ const DashboardMember = () => {
             />
           </div>
 
-          <div className="w-full">
+          <div className="w-full space-y-3">
             <p className="text-xs font-black text-white tracking-widest uppercase">{memberData.name}</p>
-            <div className="mt-2 flex items-center justify-center gap-2">
+            
+            {/* 3. IMPLEMENTASI CONDITIONAL RENDERING */}
+            {isCheckedIn ? (
+              <div className="p-2 bg-green-500/10 border border-green-500/30 rounded-xl text-green-500 text-xs font-bold uppercase tracking-wider">
+                Selesai Check-In! Selamat Berlatih 💪
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsCheckedIn(true)}
+                className="w-full py-2 bg-[#C2A676] hover:bg-[#b09365] active:scale-95 transition-all text-black font-black text-xs rounded-xl uppercase tracking-wider"
+              >
+                Simulasi Scan QR
+              </button>
+            )}
+
+            <div className="flex items-center justify-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">Status: {memberData.status}</span>
             </div>
@@ -181,7 +196,7 @@ const DashboardMember = () => {
 
       </div>
 
-    </div>
+    </main>
   );
 };
 
