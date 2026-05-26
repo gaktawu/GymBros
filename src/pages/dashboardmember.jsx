@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react'; // 1. Menambahkan useState
+import React, { useEffect, useState } from 'react';
 
 const DashboardMember = () => {
-  // State untuk mensimulasikan check-in (Conditional Rendering)
   const [isCheckedIn, setIsCheckedIn] = useState(false); 
 
   const memberData = {
@@ -36,7 +35,6 @@ const DashboardMember = () => {
   return (
     <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none animate-fade-in bg-[#111315]">
       
-      {/* BAGIAN HERO / WELCOME */}
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 overflow-hidden shadow-xl hover:scale-[1.01] transition-transform duration-300">
         <div className="z-10">
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">AREA MEMBER</h4>
@@ -50,10 +48,8 @@ const DashboardMember = () => {
         </div>
       </div>
 
-      {/* METRIC UTAMA */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* KAPASITAS GYM */}
         <div className="bg-[#1e2023] border border-white/5 p-5 rounded-3xl shadow-lg flex flex-col justify-between">
           <div className="flex justify-between items-center mb-3">
             <div>
@@ -80,7 +76,6 @@ const DashboardMember = () => {
           </div>
         </div>
 
-        {/* TARGET BULANAN */}
         <div className="bg-[#1e2023] border border-white/5 p-5 rounded-3xl shadow-lg flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-black text-gray-400 tracking-wider uppercase">PANTAU TARGET</h4>
@@ -103,12 +98,10 @@ const DashboardMember = () => {
 
       </div>
 
-      {/* STATISTIK & JADWAL */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <div className="lg:col-span-2 space-y-6">
           
-          {/* STATS COUNTER */}
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-[#1e2023] border border-white/5 p-4 text-center rounded-2xl shadow-md hover:border-[#C2A676]/30 transition-colors">
               <p className="text-2xl md:text-4xl font-black text-[#C2A676]">{memberData.stats.attendanceThisMonth}</p>
@@ -124,7 +117,6 @@ const DashboardMember = () => {
             </div>
           </div>
 
-          {/* JADWAL KELAS */}
           <div className="bg-[#1e2023] border border-white/5 p-6 rounded-3xl shadow-lg">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-sm font-black tracking-widest text-white uppercase">Kelas Terjadwal Hari Ini</h4>
@@ -145,7 +137,6 @@ const DashboardMember = () => {
             </div>
           </div>
 
-          {/* BRO-TIP */}
           <div className="bg-[#1A1C1E] border-l-4 border-[#C2A676] p-4 rounded-r-2xl shadow-md">
             <p className="text-xs font-black tracking-wider text-[#C2A676] uppercase">💡 BRO-TIP HARI INI</p>
             <p className="text-xs text-gray-300 mt-1 italic">
@@ -155,7 +146,6 @@ const DashboardMember = () => {
 
         </div>
 
-        {/* QR CODE / DIGITAL PASS */}
         <div className="bg-[#1e2023] border border-white/5 shadow-lg p-6 rounded-3xl flex flex-col items-center justify-between text-center min-h-[350px]">
           <div>
             <h4 className="text-sm font-black tracking-widest text-white uppercase">GYM PASS DIGITAL</h4>
@@ -173,7 +163,6 @@ const DashboardMember = () => {
           <div className="w-full space-y-3">
             <p className="text-xs font-black text-white tracking-widest uppercase">{memberData.name}</p>
             
-            {/* 3. IMPLEMENTASI CONDITIONAL RENDERING */}
             {isCheckedIn ? (
               <div className="p-2 bg-green-500/10 border border-green-500/30 rounded-xl text-green-500 text-xs font-bold uppercase tracking-wider">
                 Selesai Check-In! Selamat Berlatih 💪
