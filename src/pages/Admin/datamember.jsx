@@ -11,7 +11,7 @@ const SCROLLBAR_STYLES = `
 
 const INITIAL_EDIT_STATE = { id: "", name: "", email: "", plan: "Basic Bro", status: "Active" };
 
-const AdminManageMembers = () => {
+const AdminManageMembers = () => {  
   const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,7 +117,7 @@ const AdminManageMembers = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
+    <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
       <style>{SCROLLBAR_STYLES}</style>
 
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 overflow-hidden shadow-xl">
@@ -162,7 +162,7 @@ const AdminManageMembers = () => {
           className="px-6 py-3 bg-[#C2A676] text-[#111315] hover:bg-[#d4b88a] rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-lg whitespace-nowrap"
         >
           + Add Member
-        </button>
+        </button>       
       </div>
 
       <div className="bg-[#1e2023] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
@@ -332,7 +332,7 @@ const AdminManageMembers = () => {
         </div>
       )}
 
-    </div>
+    </main> 
   );
 };
 

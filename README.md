@@ -88,7 +88,7 @@ Database (MongoDB / MySQL)
 ## Clone Repository
 
 ```bash
-git clone https://github.com/your-username/gym-management-system.git
+git clone https://github.com/gaktawu/GymBros
 ```
 
 ## Frontend Setup
