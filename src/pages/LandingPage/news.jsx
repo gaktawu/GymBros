@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import Footer from '../components/Footer';
+import Footer from "../../components/Footer";
 
 const NewsPage = () => {
   const [news, setNews] = useState([]);
