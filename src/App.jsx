@@ -4,29 +4,30 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // JANGAN ADA YANG DIHAPUS
 
 // 1. IMPORT HALAMAN DARI FOLDER PAGES DI SINI
-import NamaHalamanIni from "./pages/contoh";
+import NamaHalamanIni from "./pages/Member/contoh";
 import AdminLayout from "./components/AdminLayout";
 import MemberLayout from "./components/MemberLayout";
 import Footer from "./components/Footer";
-import LandingPage from "./pages/Landingpage";
-import Login from "./pages/login";
-import News from "./pages/news";
-import DashboardMember from "./pages/dashboardmember";
-import ClassSchedule from "./pages/jadwalkelas";
-import AdminManageMembers from "./pages/datamember";
-import DashboardAdmin from "./pages/dashboardadmin";
-import AddMember from "./pages/addmember";
-import AdminNotifications from "./pages/notifikasi";
-import Reports from "./pages/Reports";
-import ManajemenKelas from "./pages/kelolakelas";
-import KelolaAlatAdmin from "./pages/StatusAlat";
-import KetersediaanAlatMember from "./pages/KetersediaanAlat";
-import MemberNotifications from "./pages/NotifikasiMember";
-import Bayar from "./pages/bayar";
-import Membership from "./pages/membership";
-import Profile from "./pages/Profile";
-import EditProfile from "./pages/editprofile";
-import Payment from "./pages/PaymentPage";
+import LandingPage from "./pages/LandingPage/Landingpage";
+import Login from "./pages/LandingPage/login";
+import News from "./pages/LandingPage/news";
+import DashboardMember from "./pages/Member/dashboardmember";
+import ClassSchedule from "./pages/Member/jadwalkelas";
+import AdminManageMembers from "./pages/Admin/datamember";
+import DashboardAdmin from "./pages/Admin/dashboardadmin";
+import AddMember from "./pages/Admin/addmember";
+import AdminNotifications from "./pages/Admin/notifikasi";
+import Reports from "./pages/Member/reports";
+import ManajemenKelas from "./pages/Admin/kelolakelas";
+import KelolaAlatAdmin from "./pages/Admin/StatusAlat";
+import KetersediaanAlatMember from "./pages/Member/KetersediaanAlat";
+import MemberNotifications from "./pages/Member/NotifikasiMember";
+import Bayar from "./pages/Member/bayar";
+import Membership from "./pages/Member/membership";
+import Profile from "./pages/Member/profile";
+import EditProfile from "./pages/Member/editprofile";
+import Payment from "./pages/Member/PaymentPage";
+import DashboardCoach from "./pages/Coach/DashboardCoach";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/landingpage" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/news" element={<News />} />
+        <Route path="/Dashboardcoach" element={<DashboardCoach />} />
         
       
         {/* kalo ada header di sini:     (pilih admin atau member) */}

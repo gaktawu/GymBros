@@ -12,50 +12,7 @@ const STATUS_CFG = {
   rusak: { label: 'Rusak', color: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)' },
 };
 
-const generateNextId = (list) => {
-  if (!list.length) return 'EQ001';
-  const max = Math.max(...list.map(e => parseInt(e.id.replace('EQ', ''), 10)));
-  return `EQ${String(max + 1).padStart(3, '0')}`;
-};
-
-const StatusPill = memo(({ status }) => {
-  const cfg = STATUS_CFG[status] || STATUS_CFG.baik;
-  return (
-    <span className="status-pill" style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}>
-      <span className="status-dot" style={{ background: cfg.color }} />
-      {cfg.label}
-    </span>
-  );
-});
-
-const StatCard = memo(({ label, value, color, icon }) => (
-  <div className="stat-card">
-    <div className="stat-icon" style={{ background: `${color}15`, borderColor: `${color}30` }}>
-      {icon}
-    </div>
-    <div>
-      <div className="stat-value" style={{ color }}>{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  </div>
-));
-
-const TableRow = memo(({ item, selected, onSelect }) => {
-  const isSel = selected?.id === item.id;
-  return (
-    <tr className={isSel ? 'row-selected' : 'row-default'}>
-      <td className="cell-id">{item.id}</td>
-      <td className="cell-name" style={{ color: isSel ? '#C2A676' : '#E0E0E0' }}>{item.name}</td>
-      <td className="cell-cat">
-        <span className="cat-text">{CAT_ICONS[item.category]} {item.category}</span>
-      </td>
-      <td className="cell-status"><StatusPill status={item.status} /></td>
-      <td className="cell-action">
-        <button className="btn-edit" onClick={() => onSelect(item)}>Edit</button>
-      </td>
-    </tr>
-  );
-});
+const INITIAL_FORM_STATE = { name: '', category: '', status: '' };
 
 const GLOBAL_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap');
@@ -163,12 +120,72 @@ td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
 .status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid;}
 `;
 
+
+const generateNextId = (list) => {
+  if (!list.length) return 'EQ001';
+  const ids = list.map(e => parseInt(e.id.replace('EQ', ''), 10));
+  const max = Math.max(...ids);
+  return `EQ${String(max + 1).padStart(3, '0')}`;
+};
+
+
+const StatusPill = memo(({ status }) => {
+  const cfg = STATUS_CFG[status] || STATUS_CFG.baik;
+  return (
+    <span className="status-pill" style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}>
+      <span className="status-dot" style={{ background: cfg.color }} />
+      {cfg.label}
+    </span>
+  );
+});
+
+const StatCard = memo(({ label, value, color, icon }) => {
+  const iconStyle = useMemo(() => ({
+    background: `${color}15`,
+    borderColor: `${color}30`
+  }), [color]);
+
+  return (
+    <div className="stat-card">
+      <div className="stat-icon" style={iconStyle}>
+        {icon}
+      </div>
+      <div>
+        <div className="stat-value" style={{ color }}>{value}</div>
+        <div className="stat-label">{label}</div>
+      </div>
+    </div>
+  );
+});
+
+const TableRow = memo(({ item, selectedId, onSelect }) => {
+  const isSel = selectedId === item.id;
+  
+  const handleEditClick = useCallback(() => {
+    onSelect(item);
+  }, [item, onSelect]);
+
+  return (
+    <tr className={isSel ? 'row-selected' : 'row-default'}>
+      <td className="cell-id">{item.id}</td>
+      <td className="cell-name" style={{ color: isSel ? '#C2A676' : '#E0E0E0' }}>{item.name}</td>
+      <td className="cell-cat">
+        <span className="cat-text">{CAT_ICONS[item.category]} {item.category}</span>
+      </td>
+      <td className="cell-status"><StatusPill status={item.status} /></td>
+      <td className="cell-action">
+        <button className="btn-edit" onClick={handleEditClick}>Edit</button>
+      </td>
+    </tr>
+  );
+});
+
 export default function KelolaAlatAdmin() {
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ name: '', category: '', status: '' });
+  const [form, setForm] = useState(INITIAL_FORM_STATE);
   const [filterCat, setFilterCat] = useState('Semua');
   const [filterSts, setFilterSts] = useState('Semua');
   const [search, setSearch] = useState('');
@@ -195,8 +212,13 @@ export default function KelolaAlatAdmin() {
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const handleSelect = useCallback((item) => {
     setSelected(item);
@@ -207,29 +229,36 @@ export default function KelolaAlatAdmin() {
 
   const handleNew = useCallback(() => {
     setSelected(null);
-    setForm({ name: '', category: '', status: '' });
+    setForm(INITIAL_FORM_STATE);
     setDelConfirm(false);
     setShowForm(true);
   }, []);
 
   const handleReset = useCallback(() => {
     setSelected(null);
-    setForm({ name: '', category: '', status: '' });
+    setForm(INITIAL_FORM_STATE);
     setDelConfirm(false);
     setShowForm(false);
   }, []);
 
+  const handleClearForm = useCallback(() => {
+    setForm(INITIAL_FORM_STATE);
+    showToast('Form berhasil di-reset.', 'success');
+  }, [showToast]);
+
   const handleSimpan = useCallback(() => {
-    if (!form.name.trim() || !form.category || !form.status) {
+    const trimmedName = form.name.trim();
+    if (!trimmedName || !form.category || !form.status) {
       showToast('Semua field wajib diisi!', 'error');
       return;
     }
+
     if (selected) {
-      setEquipment(prev => prev.map(e => e.id === selected.id ? { ...e, ...form } : e));
-      showToast(`Alat "${form.name}" berhasil diperbarui.`);
+      setEquipment(prev => prev.map(e => e.id === selected.id ? { ...e, ...form, name: trimmedName } : e));
+      showToast(`Alat "${trimmedName}" berhasil diperbarui.`);
     } else {
-      setEquipment(prev => [...prev, { id: generateNextId(prev), ...form }]);
-      showToast(`Alat "${form.name}" berhasil ditambahkan.`);
+      setEquipment(prev => [...prev, { id: generateNextId(prev), ...form, name: trimmedName }]);
+      showToast(`Alat "${trimmedName}" berhasil ditambahkan.`);
     }
     handleReset();
   }, [form, selected, showToast, handleReset]);
@@ -248,22 +277,30 @@ export default function KelolaAlatAdmin() {
     handleReset();
   }, [selected, delConfirm, showToast, handleReset]);
 
-  const filtered = useMemo(() => equipment.filter(e => {
-    const matchCat = filterCat === 'Semua' || e.category === filterCat;
-    const matchSts = filterSts === 'Semua' || e.status === filterSts;
-    const matchQ = e.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSts && matchQ;
-  }), [equipment, filterCat, filterSts, search]);
+  const filtered = useMemo(() => {
+    const lowerSearch = search.toLowerCase();
+    return equipment.filter(e => {
+      const matchCat = filterCat === 'Semua' || e.category === filterCat;
+      const matchSts = filterSts === 'Semua' || e.status === filterSts;
+      const matchQ = e.name.toLowerCase().includes(lowerSearch);
+      return matchCat && matchSts && matchQ;
+    });
+  }, [equipment, filterCat, filterSts, search]);
 
   const stats = useMemo(() => {
     let baik = 0, perawatan = 0, rusak = 0;
-    for (const e of equipment) {
-      if (e.status === 'baik') baik++;
-      else if (e.status === 'perawatan') perawatan++;
-      else if (e.status === 'rusak') rusak++;
+    for (let i = 0; i < equipment.length; i++) {
+      const status = equipment[i].status;
+      if (status === 'baik') baik++;
+      else if (status === 'perawatan') perawatan++;
+      else if (status === 'rusak') rusak++;
     }
     return { totalBaik: baik, totalPerawatan: perawatan, totalRusak: rusak };
   }, [equipment]);
+
+  const handleInputChange = useCallback((field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   return (
     <div className="admin-container">
@@ -355,7 +392,12 @@ export default function KelolaAlatAdmin() {
                       </td>
                     </tr>
                   ) : filtered.map(item => (
-                    <TableRow key={item.id} item={item} selected={selected} onSelect={handleSelect} />
+                    <TableRow 
+                      key={item.id} 
+                      item={item} 
+                      selectedId={selected?.id} 
+                      onSelect={handleSelect} 
+                    />
                   ))}
                 </tbody>
               </table>
@@ -384,7 +426,7 @@ export default function KelolaAlatAdmin() {
                 <input
                   className="input-base"
                   value={form.name}
-                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  onChange={e => handleInputChange('name', e.target.value)}
                   placeholder="cth. Smith Machine"
                 />
               </div>
@@ -394,7 +436,7 @@ export default function KelolaAlatAdmin() {
                 <select
                   className="input-base"
                   value={form.category}
-                  onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+                  onChange={e => handleInputChange('category', e.target.value)}
                 >
                   <option value="">— Pilih Kategori —</option>
                   {CATEGORIES.map(c => <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>)}
@@ -412,7 +454,7 @@ export default function KelolaAlatAdmin() {
                         key={s}
                         className={`status-btn ${active ? 'active' : ''}`}
                         style={active ? { borderColor: `${cfg.color}60`, background: cfg.bg, color: cfg.color } : {}}
-                        onClick={() => setForm(p => ({ ...p, status: s }))}
+                        onClick={() => handleInputChange('status', s)}
                       >
                         <span className="status-dot" style={active ? { background: cfg.color } : {}} />
                         {cfg.label}
@@ -427,13 +469,23 @@ export default function KelolaAlatAdmin() {
               </button>
 
               <div className="btn-grid">
-                <button
-                  className={`btn-del ${delConfirm ? 'confirm' : ''}`}
-                  style={delConfirm ? { background: 'rgba(248,113,113,0.2)', borderColor: 'rgba(248,113,113,0.5)' } : {}}
-                  onClick={handleHapus}
-                >
-                  {delConfirm ? '⚠ Yakin?' : '🗑 Hapus'}
-                </button>
+                {selected ? (
+                  <button
+                    className={`btn-del ${delConfirm ? 'confirm' : ''}`}
+                    style={delConfirm ? { background: 'rgba(248,113,113,0.2)', borderColor: 'rgba(248,113,113,0.5)' } : {}}
+                    onClick={handleHapus}
+                  >
+                    {delConfirm ? '⚠ Yakin?' : '🗑 Hapus'}
+                  </button>
+                ) : (
+                  <button 
+                    className="btn-cancel" 
+                    onClick={handleClearForm}
+                    style={{ borderColor: 'rgba(194,166,118,0.3)', color: '#C2A676' }}
+                  >
+                    🔄 Reset
+                  </button>
+                )}
                 <button className="btn-cancel" onClick={handleReset}>Batal</button>
               </div>
             </div>
