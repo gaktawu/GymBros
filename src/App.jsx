@@ -28,6 +28,7 @@ import Profile from "./pages/Member/profile";
 import EditProfile from "./pages/Member/editprofile";
 import Payment from "./pages/Member/PaymentPage";
 import DashboardCoach from "./pages/Coach/DashboardCoach";
+import Analystic from "./pages/Admin/analisis";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/manage-classes" element={<ManajemenKelas />} />
           <Route path="/admin/manage-equipment" element={<KelolaAlatAdmin />} />
+          <Route path="/admin/analytics" element={<Analystic />} />
           
           
           {/* <Route path="/admin-alat" element={<HalamanKelolaAlat />} /> */}

@@ -30,6 +30,7 @@ export default function AdminLayout() {
     { name: "Add Member", path: "/admin/add-member" },
     { name: "Manage Classes", path: "/admin/manage-classes" },
     { name: "Manage Equipment", path: "/admin/manage-equipment" },
+    { name: "Analytics", path: "/admin/analytics" },
   ];
 
   const handleLogoutClick = (e) => {
