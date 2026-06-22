@@ -8,55 +8,49 @@ export class AuthUseCase {
   }
 
   async register(data) {
-    // 1. Cek apakah email sudah terdaftar
     const existingUser = await this.authRepository.findByEmail(data.email);
     if (existingUser) {
-      throw new AppError('Email sudah digunakan', 400);
+      throw new AppError('Email sudah terdaftar', 400);
     }
 
-    // 2. Hash password
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(data.password, salt);
+    const hashedPassword = await bcrypt.hash(data.password, salt);
 
-    // 3. Simpan user ke database
-    const newUser = await this.authRepository.createUser({
+    const newUser = await this.authRepository.create({
       ...data,
-      passwordHash,
+      password: hashedPassword, // Melempar password yang sudah di-hash
     });
 
-    return newUser;
+    return newUser.toJSON(); 
   }
 
-  async login(email, password) {
-    // 1. Cari user berdasarkan email
-    const user = await this.authRepository.findByEmail(email);
+  async login(data) {
+    const user = await this.authRepository.findByEmail(data.email);
     if (!user) {
       throw new AppError('Email atau password salah', 401);
     }
 
-    // 2. Verifikasi status akun
-    if (user.status_akun === 'Nonaktif') {
-      throw new AppError('Akun Anda dinonaktifkan, silakan hubungi Admin', 403);
-    }
-
-    // 3. Verifikasi password
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
+    // Membandingkan dengan passwordHash dari database
+    const isMatch = await bcrypt.compare(data.password, user.passwordHash);
+    if (!isMatch) {
       throw new AppError('Email atau password salah', 401);
     }
 
-    // 4. Generate JWT
-    const payload = {
-      idUser: user.id_user,
-      peran: user.peran,
+    if (!user.isActive()) {
+      throw new AppError('Akun Anda tidak aktif, silakan hubungi admin', 403);
+    }
+
+    const JWT_SECRET = process.env.JWT_SECRET || 'GymBrosSecretKey2026_SangatAman';
+    // Tetap menggunakan label "role" untuk token agar tidak merusak Middleware auth Anda
+    const token = jwt.sign(
+      { id_user: user.idUser, role: user.peran }, 
+      JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
+
+    return {
+      user: user.toJSON(),
+      token,
     };
-
-    const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, { expiresIn: '1d' });
-    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
-
-    // Hapus password hash dari object user sebelum dikembalikan
-    delete user.password_hash;
-
-    return { user, accessToken, refreshToken };
   }
 }

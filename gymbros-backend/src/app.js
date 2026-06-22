@@ -19,7 +19,7 @@ import paymentRoutes from './modules/payments/presentation/payment.routes.js';
 import reportRoutes from './modules/reports/presentation/report.routes.js';
 import refundRoutes from './modules/refunds/presentation/refund.routes.js';
 import userReportRoutes from './modules/user-reports/presentation/userReport.routes.js';
-
+import usersRoutes from './modules/users/presentation/users.routes.js';
 
 
 
@@ -53,7 +53,7 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/refunds', refundRoutes);
 app.use('/api/v1/user-reports', userReportRoutes);
-
+app.use('/api/v1/users', usersRoutes);
 
 
 

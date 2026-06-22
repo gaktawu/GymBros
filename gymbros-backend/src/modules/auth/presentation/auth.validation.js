@@ -1,12 +1,13 @@
 import { z } from 'zod';
 
 export const registerSchema = z.object({
-  namaLengkap: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(150),
+  namaLengkap: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
   email: z.string().email('Format email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter'),
-  noTelepon: z.string().min(10, 'Nomor telepon tidak valid').optional(),
-  peran: z.enum(['Admin', 'Member', 'Coach']).default('Member'),
-  jenisKelamin: z.enum(['Laki-laki', 'Perempuan']).optional(),
+  noHp: z.string().min(10, 'Nomor HP tidak valid'),
+  role: z.enum(['Admin', 'Coach', 'Member'], {
+    errorMap: () => ({ message: 'Role harus Admin, Coach, atau Member' })
+  }),
 });
 
 export const loginSchema = z.object({
