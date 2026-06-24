@@ -4,6 +4,7 @@ import { UsersUseCase } from '../application/users.usecase.js';
 import { UsersController } from './users.controller.js';
 import { asyncHandler } from '../../../shared/core/asyncHandler.js';
 import { protect, restrictTo } from '../../../shared/middlewares/authMiddleware.js';
+import { uploadImage } from '../../../shared/middlewares/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -19,5 +20,12 @@ router.get('/profile', asyncHandler(usersController.getProfile));
 
 // HANYA Admin yang boleh melihat daftar seluruh pengguna di database
 router.get('/', restrictTo('Admin'), asyncHandler(usersController.getAllUsers));
+
+// HARUS HANYA ADA SATU INI
+router.patch(
+  '/profile',
+  uploadImage.single('avatar'),
+  asyncHandler(usersController.updateProfile)
+);
 
 export default router;

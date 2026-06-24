@@ -4,8 +4,6 @@ import cookieParser from 'cookie-parser';
 import { AppError } from './shared/core/AppError.js';
 import { globalErrorHandler } from './shared/middlewares/errorMiddleware.js';
 
-
-// 1. Import Router dari Modul
 import authRoutes from './modules/auth/presentation/auth.routes.js';
 import classRoutes from './modules/classes/presentation/class.routes.js';
 import membershipRoutes from './modules/memberships/presentation/membership.routes.js';
@@ -21,17 +19,19 @@ import refundRoutes from './modules/refunds/presentation/refund.routes.js';
 import userReportRoutes from './modules/user-reports/presentation/userReport.routes.js';
 import usersRoutes from './modules/users/presentation/users.routes.js';
 
-
-
-
 const app = express();
+
+app.use((req, res, next) => {
+  console.log('RAW Incoming:', req.method, req.url);
+  console.log('Content-Type:', req.headers['content-type']);
+  next();
+});
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Endpoint untuk test koneksi
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -39,7 +39,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 2. Daftarkan Routes
 app.use('/api/v1/classes', classRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/memberships', membershipRoutes);
@@ -55,19 +54,10 @@ app.use('/api/v1/refunds', refundRoutes);
 app.use('/api/v1/user-reports', userReportRoutes);
 app.use('/api/v1/users', usersRoutes);
 
-
-
-
-
-
-
-
-// Middleware untuk menangani endpoint yang tidak terdaftar (404 Not Found)
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-// Global Error Handling Middleware
 app.use(globalErrorHandler);
 
 export default app;
