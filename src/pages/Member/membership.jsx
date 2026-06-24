@@ -122,7 +122,6 @@ const Membership = () => {
         const mapped = res.data.map((item, i) => ({
           id: item.id,
           nama: namaList[i],
-          rating: 4 + (i % 2),
           ulasan: item.body.replace(/\n/g, ' ').slice(0, 90) + '...',
           paket: paketList[i % 3].durasi,
         }));
@@ -173,10 +172,7 @@ const Membership = () => {
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Anggota Aktif</p>
             <p className="text-sm font-black text-[#C2A676]">2.400+ Members</p>
           </div>
-          <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Rating</p>
-            <p className="text-sm font-black text-yellow-400">★ 4.9 / 5.0</p>
-          </div>
+          
           <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Hemat hingga</p>
             <p className="text-sm font-black text-green-400">17% Diskon</p>
@@ -383,44 +379,7 @@ const Membership = () => {
         </table>
       </section>
 
-      {/* ══ TESTIMONI (DATA DARI AXIOS API) ═════════════════ */}
-      <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
-        <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
-          Apa Kata Member Kami
-        </h2>
-
-        {/* [LOADING INDICATOR] tampil saat axios belum selesai */}
-        {loadingTestimoni ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <div className="w-8 h-8 rounded-full border-2 border-[#C2A676] border-t-transparent animate-spin" />
-            <p className="text-xs text-gray-400 tracking-wider">Memuat testimoni...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {testimoni.slice(0, 6).map((t) => (
-              <div
-                key={t.id}
-                className="bg-[#25282c] border border-white/5 rounded-2xl p-4 hover:border-[#C2A676]/30 transition-colors duration-200"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#C2A676]/20 flex items-center justify-center text-[#C2A676] text-xs font-black">
-                      {t.nama.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-white">{t.nama}</p>
-                      <p className="text-[10px] text-gray-500">Paket {t.paket}</p>
-                    </div>
-                  </div>
-                  <span className="text-yellow-400 text-xs">{'★'.repeat(t.rating)}</span>
-                </div>
-                <p className="text-[11px] text-gray-400 leading-relaxed">"{t.ulasan}"</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
+      
       {/* ══ MODAL SYARAT & KETENTUAN ═════════════════════════ */}
       {/* [CONDITIONAL RENDER] tampil hanya jika showSyarat === true */}
       {showSyarat && paketDipilih && (

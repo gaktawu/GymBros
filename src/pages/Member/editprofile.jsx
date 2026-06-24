@@ -6,6 +6,10 @@ export default function EditProfile() {
   const [modalSukses, setModalSukses] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
 
+  // State untuk modal logout
+  const [modalLogout, setModalLogout] = useState(false);
+  const [animasiLogout, setAnimasiLogout] = useState(false);
+
   const [formData, setFormData] = useState({
     namaLengkap: "Faiz Anang Riyadi",
     email: "faiz@student.amikom.ac.id",
@@ -66,13 +70,36 @@ export default function EditProfile() {
     navigate(-1); 
   };
 
+  // ===== HANDLER LOG OUT DENGAN VALIDASI & ANIMASI =====
+  const handleLogoutClick = () => {
+    setModalLogout(true);
+    setAnimasiLogout(true);
+  };
+
+  const handleConfirmLogout = () => {
+    // Animasi fade-out sebelum logout
+    setAnimasiLogout(false);
+    setTimeout(() => {
+      localStorage.removeItem('gymProfileData');
+      localStorage.removeItem('isLoggedIn');
+      navigate('/login');
+    }, 300);
+  };
+
+  const handleCancelLogout = () => {
+    setAnimasiLogout(false);
+    setTimeout(() => {
+      setModalLogout(false);
+    }, 300);
+  };
+
   return (
     <main className="min-h-screen bg-[#111315] p-6 md:p-10 font-sans text-[#E0E0E0] relative">
 
       {/* ================= MODAL SUKSES TEMA GYM ================= */}
       {modalSukses && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm">
-          <div className="bg-[#1A1C1E] p-8 rounded-xl border border-[#C2A676] shadow-2xl max-w-sm w-full text-center transform transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#1A1C1E] p-8 rounded-xl border border-[#C2A676] shadow-2xl max-w-sm w-full text-center transform transition-all animate-scaleIn">
             <div className="w-16 h-16 bg-[#C2A676] bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#C2A676]">
               <svg className="w-8 h-8 text-[#C2A676]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
             </div>
@@ -88,14 +115,62 @@ export default function EditProfile() {
         </div>
       )}
 
+      {/* ================= MODAL LOG OUT DENGAN VALIDASI & ANIMASI ================= */}
+      {modalLogout && (
+        <div 
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black backdrop-blur-sm transition-all duration-300 ${
+            animasiLogout ? 'bg-opacity-80' : 'bg-opacity-0'
+          }`}
+        >
+          <div 
+            className={`bg-[#1A1C1E] p-8 rounded-xl border border-[#C2A676] shadow-2xl max-w-sm w-full text-center transition-all duration-300 ${
+              animasiLogout ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'
+            }`}
+          >
+            {/* Icon Logout Animasi */}
+            <div className="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500 animate-pulse">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Konfirmasi Keluar</h3>
+            <p className="text-[#888888] mb-6">Apakah Anda yakin ingin keluar dari akun ini? Semua sesi aktif akan diakhiri.</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleCancelLogout}
+                className="flex-1 py-3 bg-[#111315] border border-[#333333] text-[#E0E0E0] font-bold rounded hover:bg-[#333333] transition-all"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleConfirmLogout}
+                className="flex-1 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all shadow-md active:scale-95"
+              >
+                Ya, Keluar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Konten Halaman Edit */}
-      <section className={`max-w-3xl mx-auto ${modalSukses ? 'pointer-events-none opacity-50' : ''}`}>
+      <section className={`max-w-3xl mx-auto ${modalSukses || modalLogout ? 'pointer-events-none opacity-50' : ''}`}>
 
         <div className="mb-6 border-b border-[#333333] pb-4 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-extrabold text-[#FFFFFF] tracking-tight mb-2">Edit Profil Saya</h1>
             <p className="text-[#888888] text-sm">Perbarui informasi identitas dan foto profil Anda.</p>
           </div>
+          {/* Tombol Log Out */}
+          <button
+            onClick={handleLogoutClick}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 bg-opacity-20 border border-red-600 text-red-400 font-semibold rounded-lg hover:bg-red-600 hover:text-white transition-all duration-300 active:scale-95"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            Keluar
+          </button>
         </div>
 
         <div className="bg-[#1A1C1E] p-8 rounded-xl border border-[#333333] shadow-lg">
