@@ -102,6 +102,35 @@ const INITIAL_FORM_STATE = {
 };
 
 export default function DashboardAdmin() {
+  // ==========================================
+  // FITUR KEAMANAN: PENGECEKAN TIKET MASUK (TOKEN)
+  // ==========================================
+  useEffect(() => {
+    // 1. Ambil tiket (token) dan identitas (user) dari localStorage
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+
+    // 2. Jika tidak ada tiket, usir kembali ke halaman login
+    if (!token || !userData) {
+      alert("Akses Ditolak: Anda harus login terlebih dahulu!");
+      window.location.href = '/login'; // Sesuaikan dengan route halaman login Anda
+      return;
+    }
+
+    // 3. Jika punya tiket, cek apakah dia benar-benar Admin
+    const user = JSON.parse(userData);
+    if (user.peran !== 'Admin') {
+      alert("Akses Ditolak: Halaman ini khusus untuk Administrator.");
+      window.location.href = '/login'; 
+      return;
+    }
+
+    // 4. Pasang tiket ke header Axios. 
+    // Jadi saat nanti kita ganti API dummy ke API asli, tiket ini otomatis ikut terkirim!
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  }, []);
+  // ==========================================
+
   const { classes, setClasses, totalMembers, totalReports, isLoading, lastUpdate, modalConfig, setModalConfig, toastConfig, showToast, fetchMembershipData } = useMembership();
   
   const [searchQuery, setSearchQuery] = useState('');

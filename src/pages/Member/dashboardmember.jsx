@@ -1,11 +1,48 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios'; // Pastikan axios di-import untuk pengaturan header tiket
 
 const DashboardMember = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false); 
+  const [activeUser, setActiveUser] = useState({ name: "ALEXANDER BRO", id: "GB-99210" });
 
+  // ==========================================
+  // FITUR KEAMANAN: PENGECEKAN TIKET MASUK (TOKEN)
+  // ==========================================
+  useEffect(() => {
+    // 1. Ambil tiket (token) dan data diri dari localStorage
+    const token = localStorage.getItem('token');
+    const userDataStr = localStorage.getItem('user');
+
+    // 2. Jika tidak ada tiket, usir kembali ke halaman login
+    if (!token || !userDataStr) {
+      alert("Akses Ditolak: Anda harus login terlebih dahulu!");
+      window.location.href = '/login'; // Sesuaikan dengan route login Anda
+      return;
+    }
+
+    // 3. Jika punya tiket, cek apakah dia benar-benar Member
+    const user = JSON.parse(userDataStr);
+    if (user.peran !== 'Member') {
+      alert("Akses Ditolak: Halaman ini khusus untuk Member Gym.");
+      window.location.href = '/login'; 
+      return;
+    }
+
+    // 4. Pasang tiket ke header Axios untuk request API masa depan
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    // 5. Update nama di layar menggunakan data asli dari database
+    setActiveUser({
+      name: user.namaLengkap.toUpperCase(),
+      id: `GB-${user.idUser.toString().padStart(5, '0')}` // Format ID menjadi GB-0000X
+    });
+  }, []);
+  // ==========================================
+
+  // Data dummy tetap dipertahankan sesuai permintaan
   const memberData = {
-    name: "ALEXANDER BRO",
-    id: "GB-99210",
+    name: activeUser.name,
+    id: activeUser.id,
     joinDate: "Januari 2026",
     planType: "KEANGGOTAAN ELITE BRO",
     status: "AKTIF",
@@ -38,7 +75,7 @@ const DashboardMember = () => {
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 overflow-hidden shadow-xl hover:scale-[1.01] transition-transform duration-300">
         <div className="z-10">
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">AREA MEMBER</h4>
-          <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">SELAMAT DATANG KEMBALI, BRO!</h3>
+          <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">SELAMAT DATANG KEMBALI, {memberData.name.split(' ')[0]}!</h3>
           <p className="text-xs md:text-sm text-gray-400 mt-1 max-w-xl">
             "Satu-satunya latihan yang buruk adalah latihan yang tidak pernah kamu lakukan." Konsistensimu mantap, terus lampaui batas kemampuanmu hari ini!
           </p>
@@ -154,7 +191,7 @@ const DashboardMember = () => {
           
           <div className="w-44 h-44 bg-white p-3 rounded-2xl flex items-center justify-center my-4 relative shadow-md group">
             <img 
-              src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Gymbros-Alex-GB-99210" 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Gymbros-${memberData.id}`} 
               alt="QR Code Tiket Masuk Gym" 
               className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
             />
@@ -162,6 +199,7 @@ const DashboardMember = () => {
 
           <div className="w-full space-y-3">
             <p className="text-xs font-black text-white tracking-widest uppercase">{memberData.name}</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest -mt-2">{memberData.id}</p>
             
             {isCheckedIn ? (
               <div className="p-2 bg-green-500/10 border border-green-500/30 rounded-xl text-green-500 text-xs font-bold uppercase tracking-wider">

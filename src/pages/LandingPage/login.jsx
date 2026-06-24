@@ -7,6 +7,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // State baru untuk efek loading
 
   useEffect(() => {
     if (isCoach) {
@@ -21,28 +22,58 @@ const LoginPage = () => {
     setPassword('');
   }, [isAdmin, isCoach]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault(); 
     setErrorMsg(''); 
+    setIsLoading(true);
 
-    if (isAdmin) {
-      if (email === 'admin@gymbros.com' && password === 'admin123') {
-        window.location.href = '/contohadmin';
+    try {
+      // 1. Kirim request ke Backend Node.js
+      const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      // 2. Cek apakah response dari backend sukses
+      if (response.ok && data.success) {
+        const loggedInUser = data.data.user;
+        const token = data.data.token;
+
+        // 3. Validasi Role: Pastikan user login di tab yang sesuai
+        const expectedRole = isAdmin ? 'Admin' : isCoach ? 'Coach' : 'Member';
+        
+        if (loggedInUser.peran !== expectedRole) {
+          setErrorMsg(`Gagal: Akun ini terdaftar sebagai ${loggedInUser.peran}, bukan ${expectedRole}.`);
+          setIsLoading(false);
+          return;
+        }
+
+        // 4. Simpan Token JWT dan Data User ke Local Storage Browser
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(loggedInUser));
+
+        // 5. Redirect ke halaman yang sesuai
+        if (expectedRole === 'Admin') {
+          window.location.href = '/contohadmin';
+        } else if (expectedRole === 'Coach') {
+          window.location.href = '/Dashboardcoach';
+        } else {
+          window.location.href = '/contohmember';
+        }
       } else {
-        setErrorMsg('Email atau Password Admin salah!');
+        // Tampilkan pesan error dari backend (misal: "Email atau password salah")
+        setErrorMsg(data.message || 'Login gagal. Silakan coba lagi.');
       }
-    } else if (isCoach) {
-      if (email === 'coach@gymbros.com' && password === 'coach123') {
-        window.location.href = '/Dashboardcoach';
-      } else {
-        setErrorMsg('Email atau Password Coach salah!');
-      }
-    } else {
-      if (email === 'member@gymbros.com' && password === 'member123') {
-        window.location.href = '/contohmember';
-      } else {
-        setErrorMsg('Email atau Password Member salah!');
-      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      setErrorMsg('Tidak dapat terhubung ke server. Pastikan backend menyala.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -176,13 +207,7 @@ const LoginPage = () => {
                 </div>
                 <input 
                   type="password" 
-                  placeholder={
-                    isAdmin 
-                      ? "Sandi: admin123" 
-                      : isCoach 
-                        ? "Sandi: coach123" 
-                        : "Sandi: member123"
-                  }
+                  placeholder="Masukkan password Anda"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={`w-full bg-[#111315] border rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-colors placeholder:text-[#555] ${
@@ -194,9 +219,14 @@ const LoginPage = () => {
 
               <button 
                 type="submit"
-                className="w-full py-4 bg-[#C2A676] text-[#111315] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white transition-colors mt-4"
+                disabled={isLoading}
+                className={`w-full py-4 font-black uppercase tracking-[0.2em] rounded-xl transition-colors mt-4 ${
+                  isLoading 
+                    ? 'bg-[#555] text-[#888] cursor-not-allowed' 
+                    : 'bg-[#C2A676] text-[#111315] hover:bg-white'
+                }`}
               >
-                {isAdmin ? "Access Dashboard" : isCoach ? "Access Coach Panel" : "Start Training"}
+                {isLoading ? "Memproses..." : (isAdmin ? "Access Dashboard" : isCoach ? "Access Coach Panel" : "Start Training")}
               </button>
             </form>
           </div>

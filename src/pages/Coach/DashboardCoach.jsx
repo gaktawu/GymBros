@@ -22,6 +22,42 @@ export default function DashboardCoach() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [manualCompletion, setManualCompletion] = useState(new Set());
+  
+  // State tambahan untuk menyimpan nama Coach yang login
+  const [coachName, setCoachName] = useState("Coach");
+
+  // ==========================================
+  // FITUR KEAMANAN: PENGECEKAN TIKET MASUK (TOKEN)
+  // ==========================================
+  useEffect(() => {
+    document.title = "Gymbros | Dashboard Coach";
+    
+    // 1. Ambil tiket (token) dan data diri dari localStorage
+    const token = localStorage.getItem('token');
+    const userDataStr = localStorage.getItem('user');
+
+    // 2. Jika tidak ada tiket, usir kembali ke halaman login
+    if (!token || !userDataStr) {
+      alert("Akses Ditolak: Anda harus login terlebih dahulu!");
+      window.location.href = '/login'; // Sesuaikan dengan route login Anda
+      return;
+    }
+
+    // 3. Jika punya tiket, cek apakah dia benar-benar Coach
+    const user = JSON.parse(userDataStr);
+    if (user.peran !== 'Coach') {
+      alert("Akses Ditolak: Halaman ini khusus untuk Pelatih/Coach.");
+      window.location.href = '/login'; 
+      return;
+    }
+
+    // 4. Pasang tiket ke header Axios untuk API di masa depan
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    // 5. Tampilkan nama Coach di UI
+    setCoachName(user.namaLengkap);
+  }, []);
+  // ==========================================
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -109,8 +145,8 @@ export default function DashboardCoach() {
     <div className="min-h-screen bg-[#0f0f11] text-slate-100 font-sans selection:bg-emerald-500/30">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8 animate-[fadeIn_0.5s_ease-out]">
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
-            Dashboard Coach
+          <h1 className="text-3xl font-bold tracking-tight text-white mb-2 uppercase">
+            Dashboard {coachName}
           </h1>
           <p className="text-sm text-slate-400 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
