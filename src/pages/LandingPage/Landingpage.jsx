@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import Footer from "../../components/Footer";
 
+// FITUR BARU: Fungsi untuk memformat angka menjadi format Rupiah
+const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
+  style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+}).format(angka);
+
 const LandingPage = () => {
   const [hoveredCard, setHoveredCard] = useState(1);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // FITUR BARU: State untuk menyimpan data paket dari database
+  const [membershipPlans, setMembershipPlans] = useState([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
   const cardsData = [
     {
@@ -23,9 +32,7 @@ const LandingPage = () => {
     }
   ];
 
-
-useEffect(() => {
-
+  useEffect(() => {
     document.title = "Gymbros | Unleash Your Potential";
 
     const handleResize = () => {
@@ -37,7 +44,6 @@ useEffect(() => {
 
     const hash = window.location.hash; 
     if (hash) {
-  
       setTimeout(() => {
         const element = document.querySelector(hash);
         if (element) {
@@ -45,8 +51,28 @@ useEffect(() => {
         }
       }, 100);
     }
- 
     
+    // FITUR BARU: Mengambil data paket langsung dari Backend
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/v1/paket-membership');
+        const data = await response.json();
+        if (data.success) {
+          // Mengamankan properti baik berupa camelCase maupun snake_case, dan memfilter yang aktif
+          const activePlans = data.data.filter(pkg => 
+            pkg.status_aktif === 'Tersedia' || pkg.statusAktif === 'Tersedia' || pkg.status_aktif === true
+          );
+          setMembershipPlans(activePlans);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data paket dari database:", error);
+      } finally {
+        setIsLoadingPlans(false);
+      }
+    };
+
+    fetchPlans();
+
     // Cleanup function
     return () => window.removeEventListener('resize', handleResize);
   }, []); 
@@ -86,14 +112,13 @@ useEffect(() => {
             animation: popBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
           }
           
-          /* Tambahan agar scroll keseluruhan halaman menjadi halus */
           html {
             scroll-behavior: smooth;
           }
         `}
       </style>
 
-      {/* HEADER & NAVBAR (Tag Semantik) */}
+      {/* HEADER & NAVBAR */}
       <header className="fixed top-0 w-full z-50 bg-[#111315]/80 backdrop-blur-md">
         <nav className="flex items-center justify-between px-5 md:px-10 py-2">
           <h1 className="text-2xl md:text-3xl font-black tracking-widest text-[#555] uppercase mt-2">GYMBROS</h1>
@@ -106,8 +131,11 @@ useEffect(() => {
             <li onClick={() => scrollToSection('facility')} className="cursor-pointer hover:text-white transition-colors">
               Facility
             </li>
+            {/* TAMBAHAN LINK PRICING */}
+            <li onClick={() => scrollToSection('pricing')} className="cursor-pointer hover:text-white transition-colors">
+              Pricing
+            </li>
             <li className="cursor-pointer hover:text-white transition-colors">
-              {/* Link ke halaman lain */}
               <a href="/news">News</a>
             </li>
           </ul>
@@ -146,17 +174,15 @@ useEffect(() => {
 
             {/* List Menu Mobile */}
             <ul className="flex flex-col">
-              <li 
-                onClick={() => scrollToSection('about')} 
-                className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer"
-              >
+              <li onClick={() => scrollToSection('about')} className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
                 About Us
               </li>
-              <li 
-                onClick={() => scrollToSection('facility')} 
-                className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer"
-              >
+              <li onClick={() => scrollToSection('facility')} className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
                 Facility
+              </li>
+              {/* TAMBAHAN LINK PRICING */}
+              <li onClick={() => scrollToSection('pricing')} className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
+                Pricing
               </li>
               <li className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
                 <a href="/news" className="block w-full">News</a>
@@ -169,7 +195,7 @@ useEffect(() => {
         </div>
       )}
 
-      {/* MAIN CONTENT (Tag Semantik) */}
+      {/* MAIN CONTENT */}
       <main>
         {/* HERO SECTION */}
         <section id="about" className="relative w-full min-h-[90vh] md:min-h-[85vh] flex items-center justify-between px-5 md:px-10 overflow-hidden pt-24 md:pt-28 pb-10 md:pb-0">
@@ -293,9 +319,69 @@ useEffect(() => {
             })}
           </div>
         </section>
+
+        {/* FITUR BARU: PRICING SECTION (DATABASE INTEGRATION) */}
+        <section id="pricing" className="relative z-20 pb-20 md:pb-32 pt-10 px-5 md:px-10 flex flex-col items-center">
+          <div className="text-center mb-12 md:mb-16">
+            <h4 className="text-[#888] font-bold tracking-[0.2em] md:tracking-[0.3em] uppercase text-xs md:text-sm mb-2">Join The Brotherhood</h4>
+            <h2 className="text-3xl md:text-5xl font-black text-white uppercase leading-tight">
+              MEMBERSHIP PLANS
+            </h2>
+          </div>
+
+          <div className="w-full max-w-6xl">
+            {isLoadingPlans ? (
+              <div className="flex justify-center items-center h-40">
+                 {/* Animasi Loading Keren */}
+                 <div className="w-10 h-10 border-4 border-[#C2A676] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : membershipPlans.length === 0 ? (
+              <div className="text-center text-[#888] italic bg-[#1A1C1E] p-10 rounded-2xl border border-[#333]">
+                Belum ada paket membership yang tersedia saat ini. Silakan hubungi Admin.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {membershipPlans.map((plan) => (
+                  <div key={plan.id_paket || plan.idPaket} className="bg-[#1A1C1E] border border-[#333] p-8 rounded-2xl flex flex-col justify-between hover:border-[#C2A676]/50 transition-all duration-300 group shadow-xl hover:-translate-y-2">
+                    <div>
+                      <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-2">PAKET GYMBROS</h4>
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-4 group-hover:text-[#C2A676] transition-colors">
+                        {plan.nama_paket || plan.namaPaket}
+                      </h3>
+                      <div className="text-3xl md:text-4xl font-black text-white mb-2">
+                        {formatRupiah(plan.harga)}
+                      </div>
+                      <p className="text-xs text-[#888] font-medium mb-8">
+                        Masa Aktif: <span className="text-white font-bold">{plan.durasi_hari || plan.durasiHari} Hari</span>
+                      </p>
+                      
+                      {/* Daftar Fasilitas (Bisa disesuaikan nanti) */}
+                      <ul className="space-y-4 mb-10">
+                        <li className="flex items-center text-sm text-[#AAA]">
+                          <span className="text-[#C2A676] mr-3 font-bold">✓</span> Full Access to Gym Area
+                        </li>
+                        <li className="flex items-center text-sm text-[#AAA]">
+                          <span className="text-[#C2A676] mr-3 font-bold">✓</span> Free Locker & Shower
+                        </li>
+                        <li className="flex items-center text-sm text-[#AAA]">
+                          <span className="text-[#C2A676] mr-3 font-bold">✓</span> All Group Classes Include
+                        </li>
+                      </ul>
+                    </div>
+                    
+                    <a href="/login" className="block w-full py-4 border border-[#C2A676] bg-transparent hover:bg-[#C2A676] text-[#C2A676] hover:text-[#111315] font-black text-xs uppercase tracking-widest rounded-xl text-center transition-colors">
+                      Daftar Sekarang
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
       </main>
 
-      {/* FOOTER (Tag Semantik) */}
+      {/* FOOTER */}
       <footer>
         <Footer />
       </footer>
