@@ -108,6 +108,9 @@ const LoginPage = () => {
                 <a href="/landingpage#facility">Facility</a>
               </li>
               <li className="cursor-pointer hover:text-white transition-colors">
+                <a href="/landingpage#pricing">Pricing</a>
+              </li>
+              <li className="cursor-pointer hover:text-white transition-colors">
                 <a href="/news">News</a>
               </li>
             </ul>

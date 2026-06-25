@@ -14,6 +14,7 @@ const AddMember = () => {
     plan: 'Basic Bro',
     status: 'Active'
   });
+  
 
   useEffect(() => {
     document.title = "Gymbros Admin | Add New Member";
