@@ -13,10 +13,12 @@ const classRepository = new ClassRepository();
 const classUseCase = new ClassUseCase(classRepository);
 const classController = new ClassController(classUseCase);
 
+router.get('/', asyncHandler(classController.getAllClasses));
+
 router.use(protect);
 
 // Semua yang login (Admin, Coach, Member) bisa melihat jadwal kelas
-router.get('/', asyncHandler(classController.getAllClasses));
+
 
 // Hanya Admin (atau mungkin ke depan Coach) yang bisa membuat jadwal
 router.post(

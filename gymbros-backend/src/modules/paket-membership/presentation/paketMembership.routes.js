@@ -14,12 +14,14 @@ const paketRepository = new PaketMembershipRepository();
 const paketUseCase = new PaketMembershipUseCase(paketRepository);
 const paketController = new PaketMembershipController(paketUseCase);
 
+
+router.get('/', asyncHandler(paketController.getAllPaket));
 // 2. Definisi Rute
 // Semua route di bawah ini mewajibkan pengguna untuk login terlebih dahulu
 router.use(protect);
 
 // Semua role (Admin, Coach, Member) bisa melihat daftar paket yang tersedia
-router.get('/', asyncHandler(paketController.getAllPaket));
+
 
 // Hanya Admin yang bisa membuat paket baru dan mengubah status paket
 router.post(
