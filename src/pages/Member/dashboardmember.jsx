@@ -33,12 +33,17 @@ const DashboardMember = () => {
       return;
     }
 
-    // Set Header Auth
+    // Set Header Auth secara eksplisit untuk keamanan
+    const config = {
+      headers: { Authorization: `Bearer ${token}` }
+    };
+    
+    // Set global default axios
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
     setActiveUser({
-      name: user.namaLengkap.toUpperCase(),
-      id: `GB-${user.idUser.toString().padStart(5, '0')}`
+      name: user.namaLengkap ? user.namaLengkap.toUpperCase() : 'MEMBER',
+      id: user.idUser ? `GB-${user.idUser.toString().padStart(5, '0')}` : 'GB-00000'
     });
 
     // Fungsi Fetching Data Dashboard
@@ -47,26 +52,32 @@ const DashboardMember = () => {
         setIsLoading(true);
 
         // 1. Ambil Data Membership Aktif
-        // Endpoint: GET /api/v1/memberships/my-active
-        const membershipRes = await axios.get(`${API_BASE_URL}/memberships/my-active`);
-        if (membershipRes.data && membershipRes.data.data) {
-          setMembership(membershipRes.data.data); 
+        try {
+          const membershipRes = await axios.get(`${API_BASE_URL}/memberships/my-active`, config);
+          if (membershipRes.data && membershipRes.data.data) {
+            setMembership(membershipRes.data.data); 
+          }
+        } catch (memError) {
+          if (memError.response?.status === 404) {
+            setMembership(null); // Wajar jika belum beli paket
+          } else {
+            console.error("Gagal mengambil data membership:", memError);
+          }
         }
 
-        // 2. Ambil Jadwal Kelas
-        // Endpoint: GET /api/v1/classes
-        const classesRes = await axios.get(`${API_BASE_URL}/classes`);
-        if (classesRes.data && classesRes.data.data) {
-          // Ambil 2 kelas terdekat sebagai contoh
-          setUpcomingClasses(classesRes.data.data.slice(0, 2)); 
+        // 2. Ambil Jadwal Kelas (Dengan Safe Parsing seperti di NewsPage)
+        try {
+          const classesRes = await axios.get(`${API_BASE_URL}/classes`, config);
+          const dataList = classesRes.data?.data || classesRes.data || [];
+          
+          if (Array.isArray(dataList)) {
+            // Ambil 2 kelas terdekat
+            setUpcomingClasses(dataList.slice(0, 2)); 
+          }
+        } catch (clsError) {
+          console.error("Gagal mengambil data kelas:", clsError);
         }
 
-      } catch (error) {
-        console.error("Gagal mengambil data dashboard:", error);
-        // Tangani jika member belum punya paket aktif
-        if (error.response?.status === 404) {
-          setMembership(null);
-        }
       } finally {
         setIsLoading(false);
       }
@@ -81,13 +92,15 @@ const DashboardMember = () => {
   // ==========================================
   const handleCheckIn = async () => {
     try {
-      // Endpoint: POST /api/v1/attendance/checkin
-      const response = await axios.post(`${API_BASE_URL}/attendance/checkin`);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      
+      const response = await axios.post(`${API_BASE_URL}/attendance/checkin`, {}, config);
       setIsCheckedIn(true);
       alert(response.data.message || "Berhasil Check-In ke Gym!");
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Gagal melakukan Check-In.");
+      alert(error.response?.data?.message || "Gagal melakukan Check-In. Pastikan paket aktif atau Anda belum check-in hari ini.");
     }
   };
 
@@ -101,11 +114,16 @@ const DashboardMember = () => {
   }, []);
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-[#C2A676] font-black text-2xl">MEMUAT DATA...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#111315] gap-4">
+         <div className="w-12 h-12 border-4 border-[#333] border-t-[#C2A676] rounded-full animate-spin"></div>
+         <div className="text-[#C2A676] font-black text-xl tracking-widest uppercase animate-pulse">MEMUAT DATA...</div>
+      </div>
+    );
   }
 
   // Fallback data jika membership kosong / belum beli
-  const planName = membership?.paket?.namaPaket || "BELUM BERLANGGANAN";
+  const planName = membership?.paket?.namaPaket || membership?.paket_membership?.nama_paket || "BELUM BERLANGGANAN";
   const planStatus = membership ? "AKTIF" : "NONAKTIF";
 
   return (
@@ -152,17 +170,29 @@ const DashboardMember = () => {
               <a href="/member/booking" className="text-[11px] font-black tracking-wider text-[#C2A676] uppercase hover:underline">Lihat Semua Jadwal →</a>
             </div>
             <div className="space-y-3">
-              {upcomingClasses.length > 0 ? upcomingClasses.map((cls) => (
-                <div key={cls.idKelas} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#25282c] border border-white/5 rounded-2xl hover:border-[#C2A676]/40 transition-all duration-300 group">
-                  <div>
-                    <h5 className="text-sm font-black text-white uppercase group-hover:text-[#C2A676] transition-colors">{cls.namaKelas}</h5>
-                    <p className="text-xs text-gray-400 mt-0.5">Kapasitas: <span className="text-[#C2A676] font-medium">{cls.kapasitas} Orang</span></p>
+              {upcomingClasses.length > 0 ? upcomingClasses.map((cls) => {
+                // PENGAMANAN DATA SUPABASE
+                const id = cls.idKelas || cls.id_kelas || Math.random();
+                const nama = cls.namaKelas || cls.nama_kelas || "Kelas Gym";
+                const kapasitas = cls.kapasitas || 0;
+                
+                const rawDate = cls.waktuMulai || cls.waktu_mulai;
+                const timeText = (rawDate && !isNaN(new Date(rawDate).getTime())) 
+                  ? new Date(rawDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+                  : '--:--';
+
+                return (
+                  <div key={id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#25282c] border border-white/5 rounded-2xl hover:border-[#C2A676]/40 transition-all duration-300 group">
+                    <div>
+                      <h5 className="text-sm font-black text-white uppercase group-hover:text-[#C2A676] transition-colors">{nama}</h5>
+                      <p className="text-xs text-gray-400 mt-0.5">Kapasitas: <span className="text-[#C2A676] font-medium">{kapasitas} Orang</span></p>
+                    </div>
+                    <div className="text-xs font-bold bg-[#1e2023] border border-white/5 px-3 py-1.5 rounded-xl text-gray-300 text-center sm:text-right mt-2 sm:mt-0">
+                      ⏰ {timeText}
+                    </div>
                   </div>
-                  <div className="text-xs font-bold bg-[#1e2023] border border-white/5 px-3 py-1.5 rounded-xl text-gray-300 text-center sm:text-right mt-2 sm:mt-0">
-                    ⏰ {new Date(cls.waktuMulai).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <p className="text-sm text-gray-500 italic text-center py-4">Belum ada kelas yang dijadwalkan.</p>
               )}
             </div>

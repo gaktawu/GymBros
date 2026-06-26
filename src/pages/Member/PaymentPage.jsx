@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
-const API_URL = 'https://api.npoint.io/a2f67ac9f64763665cd2';
+const API_URL = 'http://localhost:5000/api/v1';
 
 const PaymentPage = () => {
   const [searchParams] = useSearchParams();
@@ -28,33 +28,35 @@ const PaymentPage = () => {
     document.body.style.backgroundColor = "#111315";
   }, []);
 
-  useEffect(() => {
-    const fetchClassDetails = async () => {
-      if (!classIdParam) {
-        setIsFetching(false);
-        return;
+useEffect(() => {
+  const fetchClassDetails = async () => {
+    if (!classIdParam) return;
+
+    try {
+      setIsFetching(true);
+      // Panggil backend Anda (bukan npoint)
+      const response = await axios.get(`${API_BASE_URL}/classes/${classIdParam}`);
+      const cls = response.data.data; // Sesuaikan dengan struktur response backend Anda
+
+      if (cls) {
+        setActiveClass({
+          id: cls.idKelas || cls.id_kelas,
+          name: cls.namaKelas || cls.nama_kelas,
+          category: cls.status || "General",
+          day: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleDateString('id-ID', { weekday: 'long' }),
+          time: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          price: cls.harga ? `Rp ${cls.harga.toLocaleString('id-ID')}` : "Rp 0"
+        });
       }
+    } catch (err) {
+      setFetchError('Kelas tidak ditemukan di database.');
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
-      try {
-        setIsFetching(true);
-        const response = await axios.get(API_URL);
-        const classes = response.data?.classes || [];
-        const found = classes.find(c => c.id === parseInt(classIdParam, 10));
-
-        if (found) {
-          setActiveClass(found);
-        } else {
-          setFetchError('Kelas tidak ditemukan dalam database.');
-        }
-      } catch (err) {
-        setFetchError('Gagal memuat data. Silakan periksa koneksi Anda.');
-      } finally {
-        setIsFetching(false);
-      }
-    };
-
-    fetchClassDetails();
-  }, [classIdParam]);
+  fetchClassDetails();
+}, [classIdParam]);
 
   const paymentMethods = [
     {

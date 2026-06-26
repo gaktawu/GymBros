@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Footer from "../../components/Footer";
+import PublicHeader from '../../components/PublicHeader';
 
-// FITUR BARU: Fungsi untuk memformat angka menjadi format Rupiah
+
+
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
   style: 'currency', currency: 'IDR', minimumFractionDigits: 0
 }).format(angka);
@@ -10,7 +12,6 @@ const LandingPage = () => {
   const [hoveredCard, setHoveredCard] = useState(1);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // FITUR BARU: State untuk menyimpan data paket dari database
   const [membershipPlans, setMembershipPlans] = useState([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
@@ -76,21 +77,16 @@ const LandingPage = () => {
     // Cleanup function
     return () => window.removeEventListener('resize', handleResize);
   }, []); 
-
-  // Fungsi untuk scroll halus ke bagian tertentu
   const scrollToSection = (sectionId) => {
     const section = document.getElementById(sectionId);
     if (section) {
       section.scrollIntoView({ behavior: 'smooth' });
     }
-    // Tutup menu mobile jika sedang terbuka
     setIsMobileMenuOpen(false);
   };
 
   return (
     <div className="min-h-screen bg-[#111315] text-[#E0E0E0] font-sans overflow-x-hidden selection:bg-[#C2A676] selection:text-[#111315]">
-      
-      {/* Custom Keyframes */}
       <style>
         {`
           @keyframes marquee {
@@ -118,96 +114,18 @@ const LandingPage = () => {
         `}
       </style>
 
-      {/* HEADER & NAVBAR */}
-      <header className="fixed top-0 w-full z-50 bg-[#111315]/80 backdrop-blur-md">
-        <nav className="flex items-center justify-between px-5 md:px-10 py-2">
-          <h1 className="text-2xl md:text-3xl font-black tracking-widest text-[#555] uppercase mt-2">GYMBROS</h1>
-          
-          {/* Menu Desktop */}
-          <ul className="hidden md:flex gap-8 text-xs font-bold tracking-widest uppercase text-[#BFBFBF] items-center">
-            <li onClick={() => scrollToSection('about')} className="cursor-pointer hover:text-white transition-colors">
-              About Us
-            </li>
-            <li onClick={() => scrollToSection('facility')} className="cursor-pointer hover:text-white transition-colors">
-              Facility
-            </li>
-            {/* TAMBAHAN LINK PRICING */}
-            <li onClick={() => scrollToSection('pricing')} className="cursor-pointer hover:text-white transition-colors">
-              Pricing
-            </li>
-            <li className="cursor-pointer hover:text-white transition-colors">
-              <a href="/news">News</a>
-            </li>
-          </ul>
+     <header>
+      <PublicHeader />
+     </header>
 
-          {/* Tombol Login Desktop */}
-          <a href="/login" className="hidden md:block px-8 py-2 border border-[#C2A676] text-[#C2A676] rounded-full hover:bg-[#C2A676] hover:text-[#111315] transition-colors font-bold uppercase tracking-wider text-sm">
-            Login
-          </a>
-
-          {/* Tombol Hamburger Mobile */}
-          <button 
-            className="md:hidden flex flex-col gap-1.5 p-2 focus:outline-none"
-            onClick={() => setIsMobileMenuOpen(true)}
-          >
-            <span className="w-6 h-0.5 bg-[#C2A676] block rounded"></span>
-            <span className="w-6 h-0.5 bg-[#C2A676] block rounded"></span>
-            <span className="w-6 h-0.5 bg-[#C2A676] block rounded"></span>
-          </button>
-        </nav>
-      </header>
-
-      {/* POPUP MOBILE MENU */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 md:hidden">
-          <div className="bg-[#222426] w-full max-w-sm rounded-2xl shadow-2xl border border-[#333] animate-pop-bounce p-6 relative">
-            
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[#AAA] text-sm font-semibold tracking-wide">Navigation</h3>
-              <button 
-                onClick={() => setIsMobileMenuOpen(false)} 
-                className="w-8 h-8 rounded-full border border-[#444] flex items-center justify-center text-[#AAA] hover:bg-[#444] hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* List Menu Mobile */}
-            <ul className="flex flex-col">
-              <li onClick={() => scrollToSection('about')} className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
-                About Us
-              </li>
-              <li onClick={() => scrollToSection('facility')} className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
-                Facility
-              </li>
-              {/* TAMBAHAN LINK PRICING */}
-              <li onClick={() => scrollToSection('pricing')} className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
-                Pricing
-              </li>
-              <li className="py-4 border-b border-[#333] text-white font-bold hover:text-[#C2A676] transition-colors cursor-pointer">
-                <a href="/news" className="block w-full">News</a>
-              </li>
-              <li className="py-4 text-[#C2A676] font-bold hover:text-white transition-colors cursor-pointer mt-2">
-                <a href="/login" className="block w-full">Login</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* MAIN CONTENT */}
       <main>
-        {/* HERO SECTION */}
         <section id="about" className="relative w-full min-h-[90vh] md:min-h-[85vh] flex items-center justify-between px-5 md:px-10 overflow-hidden pt-24 md:pt-28 pb-10 md:pb-0">
-          
-          {/* Layer 1: Giant Background Text (Z-0) */}
           <div className="absolute top-[40%] md:top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 pointer-events-none w-full text-center mt-8">
             <h1 className="text-[30vw] md:text-[22vw] font-black leading-[0.8] text-[#1A1C1E] tracking-tighter select-none">
               GYM<br />BROS
             </h1>
           </div>
 
-          {/* Layer 2: Model Image (Z-10) */}
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[60%] md:h-[85%] w-full z-10 pointer-events-none flex items-end justify-center">
             <img 
               src="https://img.pikbest.com/origin/10/52/11/42MpIkbEsTBF8.png!bw700" 
@@ -216,17 +134,14 @@ const LandingPage = () => {
             />
           </div>
 
-          {/* Layer 3: Transparent Foreground Text (Z-20) */}
           <div className="absolute top-[40%] md:top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none w-full text-center mt-8">
             <h1 className="text-[30vw] md:text-[22vw] font-black leading-[0.8] text-[#c2a6760e] tracking-tighter select-none">
               GYM<br />BROS
             </h1>
           </div>
 
-          {/* Layer 4: Foreground Content (Z-30) */}
           <div className="relative z-30 flex flex-col md:flex-row w-full justify-between items-center md:items-center h-[80vh] md:h-full pointer-events-none">
             
-            {/* Left Stats */}
             <div className="flex flex-col gap-6 md:gap-12 w-full md:w-1/3 pointer-events-auto text-center md:text-left mt-5 md:mt-0 items-center md:items-start">
               <div>
                 <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-lg">
@@ -242,7 +157,6 @@ const LandingPage = () => {
               </div>
             </div>
 
-            {/* Right Info */}
             <div className="flex flex-col gap-6 w-full md:w-1/3 items-center md:items-end text-center md:text-right pointer-events-auto pb-5 md:pb-0">
               <p className="text-xs md:text-sm font-semibold text-[#E0E0E0] uppercase tracking-widest md:leading-loose leading-relaxed max-w-sm drop-shadow-md">
                 Join the Gymbros Community. Unleash your potential in a powerful, supportive atmosphere. Find your bro, find your strength.
@@ -255,7 +169,6 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* SLANTED MARQUEE */}
         <div className="relative w-[110vw] -ml-[5vw] bg-[#222526] border-y-2 border-[#444] py-3 md:py-4 -rotate-3 z-30 shadow-2xl mt-4 md:-mt-4">
           <div className="overflow-hidden">
             <div className="animate-marquee items-center text-3xl md:text-6xl font-black text-transparent [-webkit-text-stroke:1px_#666] md:[-webkit-text-stroke:2px_#666] tracking-widest uppercase flex">
@@ -268,7 +181,6 @@ const LandingPage = () => {
           </div>
         </div>
 
-        {/* SERVICES SECTION */}
         <section id="facility" className="relative z-20 py-20 md:py-32 px-5 md:px-10 flex flex-col items-center pt-24">
           <div className="text-center mb-12 md:mb-16">
             <h4 className="text-[#888] font-bold tracking-[0.2em] md:tracking-[0.3em] uppercase text-xs md:text-sm mb-2">The Gymbros Difference</h4>
@@ -277,7 +189,6 @@ const LandingPage = () => {
             </h2>
           </div>
 
-          {/* Interactive Cards Container */}
           <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-6 h-auto md:h-[500px] w-full max-w-6xl">
             {cardsData.map((card, index) => {
               const isHovered = hoveredCard === index;
@@ -320,7 +231,6 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* FITUR BARU: PRICING SECTION (DATABASE INTEGRATION) */}
         <section id="pricing" className="relative z-20 pb-20 md:pb-32 pt-10 px-5 md:px-10 flex flex-col items-center">
           <div className="text-center mb-12 md:mb-16">
             <h4 className="text-[#888] font-bold tracking-[0.2em] md:tracking-[0.3em] uppercase text-xs md:text-sm mb-2">Join The Brotherhood</h4>
@@ -332,7 +242,6 @@ const LandingPage = () => {
           <div className="w-full max-w-6xl">
             {isLoadingPlans ? (
               <div className="flex justify-center items-center h-40">
-                 {/* Animasi Loading Keren */}
                  <div className="w-10 h-10 border-4 border-[#C2A676] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : membershipPlans.length === 0 ? (
@@ -355,7 +264,6 @@ const LandingPage = () => {
                         Masa Aktif: <span className="text-white font-bold">{plan.durasi_hari || plan.durasiHari} Hari</span>
                       </p>
                       
-                      {/* Daftar Fasilitas (Bisa disesuaikan nanti) */}
                       <ul className="space-y-4 mb-10">
                         <li className="flex items-center text-sm text-[#AAA]">
                           <span className="text-[#C2A676] mr-3 font-bold">✓</span> Full Access to Gym Area
@@ -381,7 +289,6 @@ const LandingPage = () => {
 
       </main>
 
-      {/* FOOTER */}
       <footer>
         <Footer />
       </footer>

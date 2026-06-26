@@ -15,7 +15,7 @@ export class ClassRepository {
       harga: row.harga,
     });
     
-    // Menambahkan ekstra data jika di-join dengan tabel users
+
     if (row.nama_pelatih) {
       gymClass.namaPelatih = row.nama_pelatih;
     }
@@ -35,6 +35,16 @@ export class ClassRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
+  // kalo ga perlu login
+  async findAll() {
+    const query = `
+      SELECT * FROM kelas 
+      ORDER BY waktu_mulai ASC
+    `;
+    const result = await db.query(query);
+    return result.rows;
+  }
+ 
   async findAllClasses(role = 'Member') {
   let query = `
     SELECT k.*, u.nama_lengkap AS nama_pelatih 
