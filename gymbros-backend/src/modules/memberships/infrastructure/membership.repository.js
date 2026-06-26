@@ -17,9 +17,8 @@ export class MembershipRepository {
 
   async findActiveByUserId(idUser) {
     const query = `
-      SELECT * FROM membership 
-      WHERE id_user = $1 AND status = 'Aktif'
-      LIMIT 1
+      SELECT * FROM user_memberships 
+      WHERE id_user = $1 AND tanggal_berakhir >= NOW() AND status = 'Aktif';
     `;
     const result = await db.query(query, [idUser]);
     return this._mapToDomain(result.rows[0]);
@@ -48,5 +47,22 @@ export class MembershipRepository {
     `;
     const result = await db.query(query);
     return result.rows.map(row => this._mapToDomain(row));
+  }
+
+  async softDelete(idMembership) {
+    const query = `
+    UPDATE user_memberships 
+    SET is_deleted = true, deleted_at = NOW()
+    WHERE id_membership = $1
+    RETURNING *
+  `;
+    const result = await db.query(query, [idMembership]);
+    return result.rows[0];
+  }
+
+  async findById(idMembership) {
+    const query = `SELECT * FROM user_memberships WHERE id_membership = $1`;
+    const result = await db.query(query, [idMembership]);
+    return result.rows[0];
   }
 }

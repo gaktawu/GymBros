@@ -35,4 +35,23 @@ export class MembershipController {
       data: membership,
     });
   };
+
+  async softDeleteMembership(req, res, next) {
+    try {
+      const { id_membership } = req.params;
+
+      // Panggil UseCase
+      const result = await membershipUseCase.softDeleteUserMembership(id_membership);
+
+      // Kembalikan response sukses
+      return res.status(200).json({
+        status: 'success',
+        message: 'Membership berhasil dihapus (soft delete). Member tetap bisa menggunakan akses hingga masa aktif habis.',
+        data: result
+      });
+    } catch (error) {
+      // Lempar error ke errorMiddleware.js
+      next(error);
+    }
+  }
 }

@@ -60,7 +60,7 @@ export class CoachingRepository {
   async createPackageMock(idMember, idCoach) {
     // Kita mock id_payment sementara
     const mockIdPayment = `PAY-MOCK-${Date.now()}`;
-    
+
     // Insert dummy payment dulu agar foreign key lolos
     await db.query(`
       INSERT INTO payments (id_payment, id_user, kategori_transaksi, total_tagihan, total_dibayar, metode, status)
@@ -90,7 +90,7 @@ export class CoachingRepository {
         RETURNING *
       `;
       const sesiResult = await client.query(updateSesiQuery, [idPaketCoaching, idSesi]);
-      
+
       if (sesiResult.rowCount === 0) {
         throw new Error('Sesi tidak tersedia atau sudah dibooking');
       }
@@ -119,8 +119,8 @@ export class CoachingRepository {
     const query = `
       UPDATE public.paket_coaching_member 
       SET is_deleted = TRUE, deleted_at = NOW() 
-      WHERE id_paket = $1 RETURNING *;
+      WHERE id_paket_coaching = $1 RETURNING *;
     `;
-    return await this.db.query(query, [id]);
+    return await db.query(query, [id]);
   }
 }
