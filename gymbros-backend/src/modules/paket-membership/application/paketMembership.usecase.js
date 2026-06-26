@@ -27,4 +27,6 @@ export class PaketMembershipUseCase {
 
     return await this.paketMembershipRepository.updateStatus(idPaket, statusAktif);
   }
+
+  
 }

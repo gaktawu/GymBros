@@ -11,13 +11,15 @@ const AddMember = () => {
     firstName: '',
     lastName: '',
     email: '',
-    plan: 'Basic Bro',
-    status: 'Active'
+    phone: '',
+    gender: 'Laki-laki',
+    role: 'Anggota',
+    plan: 'Basic Bro'
   });
   
 
   useEffect(() => {
-    document.title = "Gymbros Admin | Add New Member";
+    document.title = "Admin Gymbros | Tambah Anggota Baru";
     const originalBodyBg = document.body.style.backgroundColor;
     document.body.style.backgroundColor = "#111315";
     return () => {
@@ -46,9 +48,12 @@ const AddMember = () => {
       id: `GB-${randomIdNumber}`,
       name: `${formData.firstName} ${formData.lastName}`.toUpperCase(),
       email: formData.email.toLowerCase(),
+      phone: formData.phone,
+      gender: formData.gender,
+      role: formData.role,
       plan: formData.plan,
-      status: formData.status,
-      joined: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      status: 'Aktif',
+      joined: new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }),
       image: null
     };
 
@@ -67,8 +72,8 @@ const AddMember = () => {
 
       {/* HEADER */}
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col items-start gap-2 overflow-hidden shadow-xl transition-all duration-500 hover:shadow-2xl hover:shadow-[#C2A676]/5 hover:border-[#C2A676]/20">
-        <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase">REGISTRATION PANEL</h4>
-        <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">ADD NEW MEMBER</h3>
+        <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase">PANEL REGISTRASI</h4>
+        <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">TAMBAH ANGGOTA BARU</h3>
       </div>
 
       {/* FORM CARD */}
@@ -80,16 +85,16 @@ const AddMember = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-black text-white uppercase tracking-tight">Member Added Successfully</h3>
-            <p className="text-sm text-gray-400">Redirecting to members list...</p>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight">Anggota Berhasil Ditambahkan</h3>
+            <p className="text-sm text-gray-400">Mengalihkan ke daftar anggota...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* First Name */}
+              {/* Nama Depan */}
               <div className="group transition-all duration-500">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">First Name</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Nama Depan</label>
                 <input
                   type="text"
                   name="firstName"
@@ -102,9 +107,9 @@ const AddMember = () => {
                 />
               </div>
 
-              {/* Last Name */}
+              {/* Nama Belakang */}
               <div className="group transition-all duration-500">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Last Name</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Nama Belakang</label>
                 <input
                   type="text"
                   name="lastName"
@@ -118,57 +123,90 @@ const AddMember = () => {
               </div>
             </div>
 
-            {/* Email */}
-            <div className="group transition-all duration-500">
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Email Address</label>
-              <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="johndoe@gymbro.com"
-                disabled={isSubmitting}
-                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Email */}
+              <div className="group transition-all duration-500">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Alamat Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="johndoe@gymbro.com"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Nomor Telepon */}
+              <div className="group transition-all duration-500">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Nomor Telepon</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  required
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+62 812-3456-7890"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Plan Type */}
+              {/* Jenis Kelamin */}
               <div className="group transition-all duration-500">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Membership Plan</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Jenis Kelamin</label>
                 <select
-                  name="plan"
-                  value={formData.plan}
+                  name="gender"
+                  value={formData.gender}
                   onChange={handleChange}
                   disabled={isSubmitting}
                   className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
                 >
-                  <option value="Basic Bro">Basic Bro</option>
-                  <option value="Elite Bro">Elite Bro</option>
+                  <option value="Laki-laki">Laki-laki</option>
+                  <option value="Perempuan">Perempuan</option>
                 </select>
               </div>
 
-              {/* Status */}
+              {/* Peran */}
               <div className="group transition-all duration-500">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Account Status</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Peran</label>
                 <select
-                  name="status"
-                  value={formData.status}
+                  name="role"
+                  value={formData.role}
                   onChange={handleChange}
                   disabled={isSubmitting}
                   className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
                 >
-                  <option value="Active">Active</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Expired">Expired</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Anggota">Member</option>
+                  <option value="Pelatih">Coach</option>
                 </select>
               </div>
             </div>
 
-            {/* ACTION BUTTONS */}
+            {/* Paket Keanggotaan */}
+            <div className="group transition-all duration-500">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Paket Keanggotaan</label>
+              <select
+                name="plan"
+                value={formData.plan}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+              >
+                <option value="Basic Bro">Basic Bro</option>
+                <option value="Elite Bro">Elite Bro</option>
+              </select>
+            </div>
+
+            {/* TOMBOL AKSI */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-white/5 mt-8">
               <button
                 type="button"
@@ -176,7 +214,7 @@ const AddMember = () => {
                 disabled={isSubmitting}
                 className="flex-1 rounded-2xl bg-[#25282c] border border-white/5 px-6 py-4 text-xs font-black uppercase tracking-widest text-white hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
@@ -189,10 +227,10 @@ const AddMember = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Saving...</span>
+                    <span>Menyimpan...</span>
                   </>
                 ) : (
-                  <span>Save Member Data</span>
+                  <span>Simpan Data Anggota</span>
                 )}
               </button>
             </div>

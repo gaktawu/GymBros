@@ -12,12 +12,26 @@ export class ClassController {
     });
   };
 
-  getAllClasses = async (req, res) => {
-    const classes = await this.classUseCase.getAllClasses();
-    res.status(200).json({
-      success: true,
-      message: 'Daftar kelas berhasil diambil',
-      data: classes,
-    });
+  async getAllClasses(req, res, next) {
+    try {
+      // Ambil peran user dari middleware autentikasi (misal: 'Admin' atau 'Member')
+      const userRole = req.user ? req.user.peran : 'Member'; 
+      
+      const classes = await classUseCase.getAllClasses(userRole);
+      
+      return res.status(200).json({
+        status: 'success',
+        data: classes
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
+  deleteClass = async (req, res) => {
+    const { id } = req.params;
+    await this.classUseCase.softDeleteClassById(id); // Pastikan panggil method ini di UseCase
+    res.status(200).json({ success: true, message: 'Kelas berhasil dihapus (soft delete)' });
   };
 }

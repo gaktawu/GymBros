@@ -49,4 +49,16 @@ export class UsersController {
       data: updatedProfile,
     });
   };
+
+  deleteUser = async (req, res) => {
+    const { id } = req.params;
+
+    // Memanggil UseCase untuk menghapus user secara permanen
+    await this.usersUseCase.hardDeleteUser(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'User dan seluruh data transaksional terkait berhasil dihapus permanen dari sistem.',
+    });
+  };
 }

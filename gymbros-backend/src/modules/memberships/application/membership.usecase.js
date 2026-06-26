@@ -1,48 +1,58 @@
-import { AppError } from '../../../shared/core/AppError.js';
+import { snap } from '../../../shared/config/midtrans.js';
 
 export class MembershipUseCase {
-  // Inject dua repository sekaligus untuk kolaborasi lintas modul
   constructor(membershipRepository, paketMembershipRepository) {
     this.membershipRepository = membershipRepository;
     this.paketMembershipRepository = paketMembershipRepository;
   }
 
-  async subscribe(idUser, idPaket) {
-    // 1. ATURAN BISNIS KETAT: Cek apakah member sudah punya membership aktif
-    const activeMembership = await this.membershipRepository.findActiveByUserId(idUser);
-    if (activeMembership) {
-      throw new AppError('Anda masih memiliki membership yang aktif. Tidak dapat membeli membership baru.', 400);
-    }
+  async purchaseMembership(userId, paketId) {
+    // 1. Ambil detail paket (untuk mendapatkan harga)
+    const paket = await this.paketMembershipRepository.findById(paketId);
+    if (!paket) throw new Error('Paket tidak ditemukan');
 
-    // 2. Ambil data paket untuk mengkalkulasi durasi
-    const paket = await this.paketMembershipRepository.findById(idPaket);
-    if (!paket) {
-      throw new AppError('Paket membership tidak ditemukan', 404);
-    }
+    // 2. Simpan ke database dengan status PENDING
+    // Pastikan di repository/domain Anda menyimpan transaction_status = 'PENDING'
+    const membershipData = {
+      id_user: userId,
+      id_paket: paketId,
+      status: 'Pending', // <-- Status awal pending
+      // ...tanggal mulai/selesai dll
+    };
+    const savedMembership = await this.membershipRepository.create(membershipData);
 
-    if (paket.statusAktif !== 'Tersedia') {
-      throw new AppError('Paket membership ini saat ini tidak tersedia untuk dibeli', 400);
-    }
+    // 3. Buat Custom Order ID dengan Prefix
+    // Format: MBR-[ID_DB]
+    const orderId = `MBR-${savedMembership.id_membership}`;
 
-    // 3. Kalkulasi Tanggal Mulai dan Berakhir
-    const tglMulai = new Date();
-    const tglBerakhir = new Date();
-    // Menambahkan durasi hari dari paket ke tanggal saat ini
-    tglBerakhir.setDate(tglMulai.getDate() + paket.durasiHari);
+    // 4. Siapkan parameter untuk Midtrans Snap
+    const parameter = {
+      transaction_details: {
+        order_id: orderId,
+        gross_amount: paket.harga
+      },
+      customer_details: {
+        // ... ambil dari data user jika ada
+        first_name: "Member",
+        email: "member@gymbros.com"
+      }
+    };
 
-    // 4. Simpan ke database (Simulasi langsung Aktif. Di dunia nyata mungkin statusnya 'Pending' menunggu modul Payment)
-    const newMembership = await this.membershipRepository.create({
-      idUser,
-      idPaket,
-      tglMulai,
-      tglBerakhir,
-      status: 'Aktif' 
-    });
+    // 5. Generate Snap Token
+    const snapTransaction = await snap.createTransaction(parameter);
+    
+    // KIRIM NOTIFIKASI OTOMATIS
+    await this.notificationUseCase.createNotification(
+      id_user,
+      "Membership Berhasil Diaktifkan",
+      "Halo! Paket membership Anda telah aktif. Selamat berlatih!"
+    );
 
-    return newMembership;
-  }
-
-  async getMyActiveMembership(idUser) {
-    return await this.membershipRepository.findActiveByUserId(idUser);
+    // 6. Return ke frontend
+    return {
+      order_id: orderId,
+      token: snapTransaction.token,
+      redirect_url: snapTransaction.redirect_url
+    };
   }
 }

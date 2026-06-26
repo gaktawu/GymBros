@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'https://api.npoint.io/71404f7b687ef9416db6';
+// Sesuaikan dengan URL Backend Anda
+const API_URL = 'http://localhost:5000/api/v1/equipments';
 
 const CATEGORIES     = ['Kardio', 'Beban', 'Mesin', 'Aksesoris'];
 const STATUSES       = ['baik', 'perawatan', 'rusak'];
-const CATEGORY_ICONS = { Kardio: '🏃', Beban: '🏋️', Mesin: '⚙️', Aksesoris: '🎽' };
+
+// ICON PREMIUM UPDATE: Lebih modern dan sleek
+const CATEGORY_ICONS = { 
+  Kardio: '☄️', 
+  Beban: '🦾', 
+  Mesin: '⚙️', 
+  Aksesoris: '⛓️' 
+};
 
 const STATUS_CFG = {
   baik:      { label: 'Baik',      color: '#4ADE80', bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.25)'  },
@@ -21,7 +29,7 @@ const StatusPill = ({ status }) => {
       borderRadius: 999, background: cfg.bg, border: `1px solid ${cfg.border}`,
       fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: cfg.color,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color, display: 'inline-block', boxShadow: `0 0 8px ${cfg.color}` }} />
       {cfg.label}
     </span>
   );
@@ -31,9 +39,10 @@ const StatCard = ({ label, value, color, icon, loading }) => (
   <div style={{
     background: '#16181A', border: '1px solid #252830', borderRadius: 16,
     padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16,
+    boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.2)'
   }}>
     <div style={{
-      width: 44, height: 44, borderRadius: 12, background: `${color}15`,
+      width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${color}15, transparent)`,
       border: `1px solid ${color}30`, display: 'flex', alignItems: 'center',
       justifyContent: 'center', fontSize: 20, flexShrink: 0,
     }}>{icon}</div>
@@ -73,14 +82,56 @@ export default function KetersediaanAlatMember() {
   const [filterSts, setFilterSts] = useState('Semua');
   const [search,    setSearch]    = useState('');
 
-  useEffect(() => {
+  // Fungsi Fetching Data
+  const fetchEquipment = () => {
+    setLoading(true);
+    setError(null);
+    
+    // 1. Cek Token Login
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Akses Ditolak: Anda harus login!");
+      window.location.href = '/login';
+      return;
+    }
+
+    // 2. Setup Headers
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    // 3. Panggil API Backend
     axios.get(API_URL)
       .then(res => {
-        const data = Array.isArray(res.data) ? res.data : res.data.equipment;
-        setEquipment(data || []);
+        const rawData = res.data.data || [];
+        
+// 4. Mapping Data dari Database ke format Frontend
+        const mappedData = rawData.map(item => {
+          // Ambil status aslinya lalu jadikan huruf kecil semua
+          let rawStatus = (item.statusKondisi || item.status || 'baik').toLowerCase();
+          
+          // PENERJEMAH STATUS (Dari Database ke UI)
+          if (rawStatus === 'available' || rawStatus === 'tersedia') rawStatus = 'baik';
+          if (rawStatus === 'maintenance' || rawStatus === 'perbaikan') rawStatus = 'perawatan';
+          if (rawStatus === 'broken' || rawStatus === 'rusak') rawStatus = 'rusak';
+
+          return {
+            id: item.idAlat || item.id,
+            name: item.namaAlat || item.name || 'Alat Gym',
+            category: item.kategori || item.category || 'Lainnya',
+            status: rawStatus // Masukkan status yang sudah diterjemahkan
+          };
+        });
+
+        setEquipment(mappedData);
       })
-      .catch(err => setError(`Gagal memuat data: ${err.message}`))
+      .catch(err => {
+        console.error("Fetch error:", err);
+        setError(err.response?.data?.message || `Gagal memuat data dari server.`);
+      })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchEquipment();
   }, []);
 
   const filtered = equipment.filter(e => {
@@ -235,7 +286,8 @@ export default function KetersediaanAlatMember() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                   <div style={{
                     width: 42, height: 42, borderRadius: 12,
-                    background: `${cfg.color}10`, border: `1px solid ${cfg.color}25`,
+                    background: `linear-gradient(135deg, ${cfg.color}20, transparent)`, 
+                    border: `1px solid ${cfg.color}25`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
                   }}>
                     {CATEGORY_ICONS[item.category] || '🏋️'}
@@ -250,7 +302,7 @@ export default function KetersediaanAlatMember() {
                   <span>{CATEGORY_ICONS[item.category] || '🏋️'}</span>
                   <span>{item.category}</span>
                   <span style={{ color: '#2A2D30' }}>·</span>
-                  <span style={{ color: '#3A3D42', fontSize: 11 }}>{item.id}</span>
+                  <span style={{ color: '#3A3D42', fontSize: 11 }}>ID: {item.id}</span>
                 </div>
 
                 <div style={{ marginTop: 14, height: 3, borderRadius: 999, background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
@@ -258,11 +310,12 @@ export default function KetersediaanAlatMember() {
                     height: '100%', borderRadius: 999, background: cfg.color,
                     width: item.status === 'baik' ? '100%' : item.status === 'perawatan' ? '40%' : '0%',
                     transition: 'width 0.8s ease',
+                    boxShadow: `0 0 10px ${cfg.color}`
                   }} />
                 </div>
                 <div style={{ marginTop: 6, fontSize: 11, color: '#555' }}>
                   {item.status === 'baik' ? 'Tersedia sekarang'
-                    : item.status === 'perawatan' ? 'Sedang dalam perawatan'
+                    : item.status === 'perawatan' ? 'Sedang dalam perbaikan'
                     : 'Tidak dapat digunakan'}
                 </div>
               </div>
@@ -285,25 +338,6 @@ export default function KetersediaanAlatMember() {
             Reset Filter
           </button>
         </div>
-      </div>
-
-      <div style={{
-        marginTop: 20, padding: '14px 20px', background: '#16181A',
-        border: '1px solid #252830', borderRadius: 14,
-        display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center',
-      }}>
-        <span style={{ fontSize: 11, color: '#555', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          Keterangan:
-        </span>
-        {Object.entries(STATUS_CFG).map(([key, cfg]) => (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
-            <span style={{ fontSize: 12, color: '#888' }}>{cfg.label}</span>
-          </div>
-        ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#333' }}>
-          Total: {equipment.length} alat terdaftar
-        </span>
       </div>
     </div>
   );

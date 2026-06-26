@@ -1,10 +1,19 @@
 import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import axios from 'axios';
 
-const API_URL = 'https://api.npoint.io/71404f7b687ef9416db6';
+// 1. Setup API Base URL sesuai Backend Anda
+const API_URL = 'http://localhost:5000/api/v1/equipments';
+
 const CATEGORIES = ['Kardio', 'Beban', 'Mesin', 'Aksesoris'];
 const STATUSES = ['baik', 'perawatan', 'rusak'];
-const CAT_ICONS = { Kardio: '🏃', Beban: '🏋️', Mesin: '⚙️', Aksesoris: '🎽' };
+
+// 2. ICON PREMIUM UPDATE (Hitam & Emas)
+const CAT_ICONS = { 
+  Kardio: '☄️', 
+  Beban: '🦾', 
+  Mesin: '⚙️', 
+  Aksesoris: '⛓️' 
+};
 
 const STATUS_CFG = {
   baik: { label: 'Baik', color: '#4ADE80', bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.25)' },
@@ -30,23 +39,23 @@ select option{background:#16181A;color:#E0E0E0;}
 .wrapper{max-width:1320px;margin:0 auto;padding:0 32px 60px;}
 .header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px;animation:fadeUp 0.4s ease both;}
 .header-left{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-.header-badge{width:32px;height:32px;border-radius:8px;background:rgba(194,166,118,0.15);border:1px solid rgba(194,166,118,0.3);display:flex;align-items:center;justify-content:center;font-size:15px;}
+.header-badge{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg, rgba(194,166,118,0.2), transparent);border:1px solid rgba(194,166,118,0.4);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 10px rgba(194,166,118,0.1);}
 .header-tag{font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;color:#C2A676;}
 h1{font-size:32px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em;line-height:1;}
-.btn-primary{display:flex;align-items:center;gap:8px;padding:11px 22px;background:#C2A676;color:#111315;border:none;border-radius:12px;font-weight:900;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(194,166,118,0.25);}
-.btn-primary:hover{background:#D4B87F;box-shadow:0 6px 28px rgba(194,166,118,0.4);}
+.btn-primary{display:flex;align-items:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg, #C2A676, #9f8455);color:#111315;border:1px solid #D4B87F;border-radius:12px;font-weight:900;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;box-shadow:0 4px 20px rgba(194,166,118,0.25);}
+.btn-primary:hover{background:linear-gradient(135deg, #D4B87F, #C2A676);box-shadow:0 6px 28px rgba(194,166,118,0.4);transform:translateY(-2px);}
 
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
-.stat-card{background:#16181A;border:1px solid #252830;border-radius:16px;padding:20px 22px;display:flex;align-items:center;gap:16px;}
+.stat-card{background:#16181A;border:1px solid #252830;border-radius:16px;padding:20px 22px;display:flex;align-items:center;gap:16px;box-shadow:inset 0 4px 20px rgba(0,0,0,0.2);}
 .stat-icon{width:44px;height:44px;border-radius:12px;border:1px solid;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
 .stat-value{font-size:26px;font-weight:900;line-height:1;}
-.stat-label{font-size:11px;color:#666;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:4px;}
+.stat-label{font-size:11px;color:#888;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:4px;}
 
 .main-grid{display:grid;gap:20px;align-items:start;}
 .main-grid.cols-2{grid-template-columns:1fr 370px;}
 .main-grid.cols-1{grid-template-columns:1fr;}
 
-.panel{background:#16181A;border:1px solid #252830;border-radius:20px;overflow:hidden;animation:fadeUp 0.4s ease 0.05s both;}
+.panel{background:#16181A;border:1px solid #252830;border-radius:20px;overflow:hidden;animation:fadeUp 0.4s ease 0.05s both;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
 .panel-header{padding:18px 22px;border-bottom:1px solid #252830;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
 .panel-title{margin:0;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#fff;flex-shrink:0;}
 .panel-count{padding:2px 10px;border-radius:999;font-size:11px;font-weight:700;background:rgba(194,166,118,0.12);color:#C2A676;border:1px solid rgba(194,166,118,0.25);}
@@ -59,24 +68,25 @@ h1{font-size:32px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em;lin
 
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
-th{padding:11px 20px;text-align:left;font-size:10px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#555;border-bottom:1px solid #252830;background:#0D0F10;}
+th{padding:11px 20px;text-align:left;font-size:10px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#888;border-bottom:1px solid #252830;background:#0D0F10;}
 td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
-.cell-id{font-size:11px;font-weight:700;color:#555;letter-spacing:0.08em;}
-.cell-name{font-size:14px;font-weight:600;}
-.cat-text{font-size:12px;color:#999;}
+.cell-id{font-size:11px;font-weight:700;color:#C2A676;letter-spacing:0.08em;}
+.cell-name{font-size:14px;font-weight:700;}
+.cat-text{font-size:12px;color:#999;display:flex;align-items:center;gap:6px;}
+.cat-icon-wrap{background:linear-gradient(135deg, rgba(194,166,118,0.15), transparent);border:1px solid rgba(194,166,118,0.3);padding:4px;border-radius:6px;font-size:10px;}
 .btn-edit{padding:5px 14px;border-radius:8px;border:1px solid rgba(194,166,118,0.3);background:rgba(194,166,118,0.08);color:#C2A676;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;}
-.btn-edit:hover{background:rgba(194,166,118,0.2);}
+.btn-edit:hover{background:rgba(194,166,118,0.2);box-shadow:0 0 10px rgba(194,166,118,0.2);}
 .row-selected{background:rgba(194,166,118,0.07);border-left:3px solid #C2A676;}
 .row-default{border-left:3px solid transparent;transition:all 0.15s;}
 .empty{text-align:center;padding:60px;color:#444;}
 .empty-icon{font-size:36px;margin-bottom:12px;}
 
-.panel-footer{padding:13px 22px;border-top:1px solid #252830;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#444;}
+.panel-footer{padding:13px 22px;border-top:1px solid #252830;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#666;}
 .panel-footer .highlight{color:#C2A676;font-weight:700;}
 .panel-footer .edit-mode{color:#C2A676;font-weight:600;}
 
-.form-panel{background:#16181A;border-radius:20px;padding:24px;position:sticky;top:90px;transition:border-color 0.3s;animation:fadeUp 0.3s ease both;}
-.form-panel.edit{border:1px solid rgba(194,166,118,0.4);box-shadow:0 20px 60px rgba(194,166,118,0.08);}
+.form-panel{background:#16181A;border-radius:20px;padding:24px;position:sticky;top:90px;transition:border-color 0.3s;animation:fadeUp 0.3s ease both;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+.form-panel.edit{border:1px solid rgba(194,166,118,0.4);box-shadow:0 20px 60px rgba(194,166,118,0.15);}
 .form-panel.add{border:1px solid #252830;}
 .form-header{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #252830;display:flex;align-items:flex-start;justify-content:space-between;}
 .form-sub{font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#C2A676;margin-bottom:4px;}
@@ -86,54 +96,55 @@ td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
 
 .input-base{width:100%;background:#0D0F10;border:1px solid #252830;border-radius:10px;color:#E0E0E0;padding:11px 14px;font-size:13px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;box-sizing:border-box;font-family:inherit;}
 .input-base:focus{border-color:#C2A676;box-shadow:0 0 0 3px rgba(194,166,118,0.1);}
-.label{display:block;font-size:10px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#666;margin-bottom:7px;}
+.label{display:block;font-size:10px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:7px;}
 .form-group{margin-bottom:16px;}
 .form-group:last-of-type{margin-bottom:22px;}
 
 .status-grid{display:flex;gap:8px;}
-.status-btn{flex:1;padding:10px 8px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:1px solid #252830;color:#555;}
+.status-btn{flex:1;padding:10px 8px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:1px solid #252830;color:#666;}
 .status-btn.active{border-color:transparent;}
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;transition:background 0.2s;}
 .status-btn:not(.active) .status-dot{background:#333;}
 
-.btn-save{width:100%;padding:13px;background:#C2A676;color:#111315;border:none;border-radius:10px;font-weight:900;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-bottom:10px;box-shadow:0 4px 20px rgba(194,166,118,0.2);}
-.btn-save:hover{background:#D4B87F;box-shadow:0 6px 28px rgba(194,166,118,0.35);}
+.btn-save{width:100%;padding:13px;background:linear-gradient(135deg, #C2A676, #9f8455);color:#111315;border:1px solid #D4B87F;border-radius:10px;font-weight:900;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;margin-bottom:10px;box-shadow:0 4px 20px rgba(194,166,118,0.2);}
+.btn-save:hover{background:linear-gradient(135deg, #D4B87F, #C2A676);box-shadow:0 6px 28px rgba(194,166,118,0.35);transform:translateY(-1px);}
 .btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .btn-del{padding:11px;border-radius:10px;cursor:pointer;font-weight:800;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.2s;background:transparent;color:#F87171;border:1px solid rgba(248,113,113,0.2);}
 .btn-del:hover{background:rgba(248,113,113,0.15);border-color:rgba(248,113,113,0.5);}
-.btn-del.confirm{background:rgba(248,113,113,0.2);border-color:rgba(248,113,113,0.5);}
-.btn-cancel{padding:11px;border-radius:10px;cursor:pointer;font-weight:800;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.2s;background:transparent;color:#555;border:1px solid #252830;}
-.btn-cancel:hover{border-color:#555;color:#fff;}
+.btn-cancel{padding:11px;border-radius:10px;cursor:pointer;font-weight:800;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.2s;background:transparent;color:#888;border:1px solid #252830;}
+.btn-cancel:hover{border-color:#888;color:#fff;}
 
 .loader{position:fixed;inset:0;background:#0D0F10;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;gap:16px;}
 .loader-spin{width:44px;height:44px;border:3px solid #252830;border-top:3px solid #C2A676;border-radius:50%;animation:spin 0.8s linear infinite;}
-.loader-text{color:#666;font-size:13px;font-weight:600;letter-spacing:0.1em;}
+.loader-text{color:#C2A676;font-size:13px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;}
 
-.toast{position:fixed;top:90px;right:24px;z-index:9999;padding:12px 20px;border-radius:12px;font-weight:700;font-size:13px;animation:slideIn 0.3s ease;backdrop-filter:blur(12px);display:flex;align-items:center;gap:8px;}
+.toast{position:fixed;top:90px;right:24px;z-index:9999;padding:12px 20px;border-radius:12px;font-weight:700;font-size:13px;animation:slideIn 0.3s ease;backdrop-filter:blur(12px);display:flex;align-items:center;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
 .toast.success{background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.4);color:#4ADE80;}
 .toast.error{background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.4);color:#F87171;}
 
-.error-box{position:fixed;top:90px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.4);color:#F87171;padding:12px 24px;border-radius:12px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:10;backdrop-filter:blur(12px);animation:slideIn 0.3s ease;}
+.error-box{position:fixed;top:90px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.4);color:#F87171;padding:12px 24px;border-radius:12px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:10px;backdrop-filter:blur(12px);animation:slideIn 0.3s ease;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
 .btn-retry{background:rgba(248,113,113,0.2);border:1px solid rgba(248,113,113,0.4);color:#F87171;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:0.08em;}
 .btn-retry:hover{background:rgba(248,113,113,0.3);}
 
 .status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid;}
 `;
 
-
+// Generator ID Jika Alat Baru
 const generateNextId = (list) => {
-  if (!list.length) return 'EQ001';
-  const ids = list.map(e => parseInt(e.id.replace('EQ', ''), 10));
+  if (!list || !list.length) return 'EQ001';
+  const ids = list.map(e => {
+    const num = parseInt(e.id.replace(/\D/g, ''), 10);
+    return isNaN(num) ? 0 : num;
+  });
   const max = Math.max(...ids);
   return `EQ${String(max + 1).padStart(3, '0')}`;
 };
-
 
 const StatusPill = memo(({ status }) => {
   const cfg = STATUS_CFG[status] || STATUS_CFG.baik;
   return (
     <span className="status-pill" style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}>
-      <span className="status-dot" style={{ background: cfg.color }} />
+      <span className="status-dot" style={{ background: cfg.color, boxShadow: `0 0 8px ${cfg.color}` }} />
       {cfg.label}
     </span>
   );
@@ -141,8 +152,9 @@ const StatusPill = memo(({ status }) => {
 
 const StatCard = memo(({ label, value, color, icon }) => {
   const iconStyle = useMemo(() => ({
-    background: `${color}15`,
-    borderColor: `${color}30`
+    background: `linear-gradient(135deg, ${color}20, transparent)`,
+    borderColor: `${color}40`,
+    color: color
   }), [color]);
 
   return (
@@ -160,17 +172,17 @@ const StatCard = memo(({ label, value, color, icon }) => {
 
 const TableRow = memo(({ item, selectedId, onSelect }) => {
   const isSel = selectedId === item.id;
-  
-  const handleEditClick = useCallback(() => {
-    onSelect(item);
-  }, [item, onSelect]);
+  const handleEditClick = useCallback(() => { onSelect(item); }, [item, onSelect]);
 
   return (
     <tr className={isSel ? 'row-selected' : 'row-default'}>
       <td className="cell-id">{item.id}</td>
-      <td className="cell-name" style={{ color: isSel ? '#C2A676' : '#E0E0E0' }}>{item.name}</td>
+      <td className="cell-name" style={{ color: isSel ? '#C2A676' : '#fff' }}>{item.name}</td>
       <td className="cell-cat">
-        <span className="cat-text">{CAT_ICONS[item.category]} {item.category}</span>
+        <span className="cat-text">
+          <span className="cat-icon-wrap">{CAT_ICONS[item.category] || '🏋️'}</span>
+          {item.category}
+        </span>
       </td>
       <td className="cell-status"><StatusPill status={item.status} /></td>
       <td className="cell-action">
@@ -193,14 +205,47 @@ export default function KelolaAlatAdmin() {
   const [delConfirm, setDelConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  // 3. Konfigurasi Token Authorization
+  const getAuthConfig = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Sesi habis atau Anda belum login sebagai Admin!");
+      window.location.href = '/login';
+      return null;
+    }
+    return { headers: { Authorization: `Bearer ${token}` } };
+  };
+
+  // 4. Fetch Data dari Database Asli
   const fetchData = useCallback(async () => {
+    const config = getAuthConfig();
+    if (!config) return;
+
     setLoading(true);
     setError(null);
     try {
-      const { data } = await axios.get(API_URL);
-      setEquipment(Array.isArray(data) ? data : data.equipment || data.data || []);
-    } catch {
-      setError('Gagal memuat data. Periksa koneksi Anda.');
+      const { data } = await axios.get(API_URL, config);
+      const rawData = data.data || [];
+
+      // PENERJEMAH DATABASE KE UI FRONTEND
+      const mappedData = rawData.map(item => {
+        let rawStatus = (item.statusKondisi || item.status || 'baik').toLowerCase();
+        if (rawStatus === 'available' || rawStatus === 'tersedia') rawStatus = 'baik';
+        if (rawStatus === 'maintenance' || rawStatus === 'perbaikan') rawStatus = 'perawatan';
+        if (rawStatus === 'broken' || rawStatus === 'rusak') rawStatus = 'rusak';
+
+        return {
+          id: item.idAlat || item.id,
+          name: item.namaAlat || item.name || 'Alat',
+          category: item.kategori || item.category || 'Lainnya',
+          status: rawStatus
+        };
+      });
+
+      setEquipment(mappedData);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Gagal memuat data dari server.');
     } finally {
       setLoading(false);
     }
@@ -241,41 +286,78 @@ export default function KelolaAlatAdmin() {
     setShowForm(false);
   }, []);
 
-  const handleClearForm = useCallback(() => {
-    setForm(INITIAL_FORM_STATE);
-    showToast('Form berhasil di-reset.', 'success');
-  }, [showToast]);
-
-  const handleSimpan = useCallback(() => {
+  // 5. Fungsi Create & Update ke Database Asli
+  const handleSimpan = useCallback(async () => {
     const trimmedName = form.name.trim();
     if (!trimmedName || !form.category || !form.status) {
       showToast('Semua field wajib diisi!', 'error');
       return;
     }
 
-    if (selected) {
-      setEquipment(prev => prev.map(e => e.id === selected.id ? { ...e, ...form, name: trimmedName } : e));
-      showToast(`Alat "${trimmedName}" berhasil diperbarui.`);
-    } else {
-      setEquipment(prev => [...prev, { id: generateNextId(prev), ...form, name: trimmedName }]);
-      showToast(`Alat "${trimmedName}" berhasil ditambahkan.`);
-    }
-    handleReset();
-  }, [form, selected, showToast, handleReset]);
+    const config = getAuthConfig();
+    if (!config) return;
 
-  const handleHapus = useCallback(() => {
-    if (!selected) {
-      showToast('Pilih alat dulu!', 'error');
-      return;
+    // Penerjemah Frontend ke Database
+    const dbStatus = form.status === 'baik' ? 'Available' : form.status === 'perawatan' ? 'Maintenance' : 'Broken';
+
+    setLoading(true);
+    try {
+      if (selected) {
+        // Mode UPDATE: Sesuai router backend -> PATCH /api/v1/equipments/:id/status
+        await axios.patch(`${API_URL}/${selected.id}/status`, {
+          statusKondisi: dbStatus
+        }, config);
+        
+        showToast(`Status Alat "${trimmedName}" berhasil diperbarui.`);
+      } else {
+        // Mode ADD NEW: POST /api/v1/equipments
+        const newId = generateNextId(equipment);
+        await axios.post(API_URL, {
+          idAlat: newId,
+          namaAlat: trimmedName,
+          kategori: form.category,
+          statusKondisi: dbStatus,
+          statusKetersediaan: 'Tersedia di Area Gym' // Default value
+        }, config);
+        
+        showToast(`Alat "${trimmedName}" berhasil ditambahkan.`);
+      }
+      
+      handleReset();
+      fetchData(); // Refresh tabel setelah simpan
+    } catch (err) {
+      console.error(err);
+      showToast(err.response?.data?.message || 'Gagal menyimpan data ke server.', 'error');
+    } finally {
+      setLoading(false);
     }
+  }, [form, selected, showToast, handleReset, equipment, fetchData]);
+
+  // 6. Fungsi Hapus (Opsional jika Backend belum mendukung Delete)
+  const handleHapus = useCallback(async () => {
+    if (!selected) return;
     if (!delConfirm) {
       setDelConfirm(true);
       return;
     }
-    setEquipment(prev => prev.filter(e => e.id !== selected.id));
-    showToast(`Alat "${selected.name}" dihapus.`, 'error');
-    handleReset();
-  }, [selected, delConfirm, showToast, handleReset]);
+
+    const config = getAuthConfig();
+    setLoading(true);
+    try {
+      // PERHATIAN: Jika backend belum ada route DELETE, API ini akan error 404
+      await axios.delete(`${API_URL}/${selected.id}`, config);
+      showToast(`Alat "${selected.name}" berhasil dihapus.`);
+      handleReset();
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      // Fallback jika API DELETE belum dibuat di backend
+      showToast('Backend belum mendukung penghapusan data secara permanen.', 'error');
+      handleReset();
+    } finally {
+      setLoading(false);
+    }
+  }, [selected, delConfirm, showToast, handleReset, fetchData]);
 
   const filtered = useMemo(() => {
     const lowerSearch = search.toLowerCase();
@@ -309,7 +391,7 @@ export default function KelolaAlatAdmin() {
       {loading && (
         <div className="loader">
           <div className="loader-spin" />
-          <span className="loader-text">Memuat data...</span>
+          <span className="loader-text">MEMPROSES...</span>
         </div>
       )}
 
@@ -341,7 +423,7 @@ export default function KelolaAlatAdmin() {
         </div>
 
         <div className="stats-grid">
-          <StatCard label="Total Alat" value={equipment.length} color="#888" icon="📦" />
+          <StatCard label="Total Alat" value={equipment.length} color="#C2A676" icon="📦" />
           <StatCard label="Kondisi Baik" value={stats.totalBaik} color="#4ADE80" icon="✅" />
           <StatCard label="Perawatan" value={stats.totalPerawatan} color="#C2A676" icon="🔧" />
           <StatCard label="Rusak" value={stats.totalRusak} color="#F87171" icon="⚠️" />
@@ -407,7 +489,7 @@ export default function KelolaAlatAdmin() {
               <span>
                 Menampilkan <span className="highlight">{filtered.length}</span> dari {equipment.length} alat
               </span>
-              {selected && <span className="edit-mode">✏️ Mode edit: {selected.name}</span>}
+              {selected && <span className="edit-mode">✏️ Mode edit aktif</span>}
             </div>
           </div>
 
@@ -415,8 +497,8 @@ export default function KelolaAlatAdmin() {
             <div className={`form-panel ${selected ? 'edit' : 'add'}`}>
               <div className="form-header">
                 <div>
-                  <div className="form-sub">{selected ? `Edit — ${selected.id}` : 'Tambah Baru'}</div>
-                  <h3 className="form-title">{selected ? 'Edit Detail Alat' : 'Alat Baru'}</h3>
+                  <div className="form-sub">{selected ? `Update — ${selected.id}` : 'Tambah Baru'}</div>
+                  <h3 className="form-title">{selected ? 'Ubah Status Alat' : 'Registrasi Alat'}</h3>
                 </div>
                 <button className="btn-close" onClick={handleReset}>✕</button>
               </div>
@@ -428,6 +510,8 @@ export default function KelolaAlatAdmin() {
                   value={form.name}
                   onChange={e => handleInputChange('name', e.target.value)}
                   placeholder="cth. Smith Machine"
+                  disabled={!!selected} // Disable nama saat mode edit karena API hanya update status
+                  style={selected ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                 />
               </div>
 
@@ -437,6 +521,8 @@ export default function KelolaAlatAdmin() {
                   className="input-base"
                   value={form.category}
                   onChange={e => handleInputChange('category', e.target.value)}
+                  disabled={!!selected} // Disable kategori saat mode edit
+                  style={selected ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                 >
                   <option value="">— Pilih Kategori —</option>
                   {CATEGORIES.map(c => <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>)}
@@ -453,10 +539,10 @@ export default function KelolaAlatAdmin() {
                       <button
                         key={s}
                         className={`status-btn ${active ? 'active' : ''}`}
-                        style={active ? { borderColor: `${cfg.color}60`, background: cfg.bg, color: cfg.color } : {}}
+                        style={active ? { borderColor: `${cfg.color}60`, background: cfg.bg, color: cfg.color, boxShadow: `0 0 15px ${cfg.bg}` } : {}}
                         onClick={() => handleInputChange('status', s)}
                       >
-                        <span className="status-dot" style={active ? { background: cfg.color } : {}} />
+                        <span className="status-dot" style={active ? { background: cfg.color, boxShadow: `0 0 8px ${cfg.color}` } : {}} />
                         {cfg.label}
                       </button>
                     );
@@ -465,7 +551,7 @@ export default function KelolaAlatAdmin() {
               </div>
 
               <button className="btn-save" onClick={handleSimpan}>
-                {selected ? '↑ Update Alat' : '+ Simpan Alat'}
+                {selected ? '↑ Update Status' : '+ Simpan Alat'}
               </button>
 
               <div className="btn-grid">
@@ -475,12 +561,12 @@ export default function KelolaAlatAdmin() {
                     style={delConfirm ? { background: 'rgba(248,113,113,0.2)', borderColor: 'rgba(248,113,113,0.5)' } : {}}
                     onClick={handleHapus}
                   >
-                    {delConfirm ? '⚠ Yakin?' : '🗑 Hapus'}
+                    {delConfirm ? '⚠ Yakin Hapus?' : '🗑 Hapus'}
                   </button>
                 ) : (
                   <button 
                     className="btn-cancel" 
-                    onClick={handleClearForm}
+                    onClick={() => { setForm(INITIAL_FORM_STATE); showToast('Form di-reset', 'success'); }}
                     style={{ borderColor: 'rgba(194,166,118,0.3)', color: '#C2A676' }}
                   >
                     🔄 Reset

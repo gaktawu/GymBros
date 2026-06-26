@@ -22,4 +22,10 @@ export class CoachingController {
     const bookedSession = await this.coachingUseCase.bookSession(idMember, idSesi);
     res.status(200).json({ success: true, message: 'Berhasil mem-booking sesi dengan Coach', data: bookedSession });
   };
+
+  deletePaketCoaching = async (req, res) => {
+    const { id } = req.params;
+    await this.coachingUseCase.softDeletePaketCoachingById(id);
+    res.status(200).json({ success: true, message: 'Paket coaching berhasil dihapus (soft delete)' });
+  };
 }

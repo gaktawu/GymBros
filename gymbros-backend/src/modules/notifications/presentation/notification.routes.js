@@ -14,8 +14,8 @@ const notificationController = new NotificationController(notificationUseCase);
 // Semua route mewajibkan login
 router.use(protect);
 
-// Endpoint untuk melihat dan membaca notifikasi
 router.get('/', asyncHandler(notificationController.getMyNotifications));
 router.patch('/:id/read', asyncHandler(notificationController.markAsRead));
+router.delete('/:id', asyncHandler(notificationController.deleteNotification));
 
 export default router;

@@ -1,35 +1,65 @@
 import { AppError } from '../../../shared/core/AppError.js';
 
 export class PaymentUseCase {
-  constructor(paymentRepository) {
-    this.paymentRepository = paymentRepository;
+  constructor(membershipRepo, classBookingRepo, coachingRepo) {
+    this.membershipRepo = membershipRepo;
+    this.classBookingRepo = classBookingRepo;
+    this.coachingRepo = coachingRepo;
   }
 
-  async createInvoice(idUser, data) {
-    // Di aplikasi nyata, totalTagihan tidak boleh diinput manual dari request client
-    // melainkan dihitung berdasarkan ID Paket yang dipilih untuk mencegah manipulasi harga.
-    return await this.paymentRepository.createInvoice({ idUser, ...data });
-  }
+  async processWebhook(notification) {
+    const orderId = notification.order_id;
+    const transactionStatus = notification.transaction_status;
+    const fraudStatus = notification.fraud_status;
 
-  async getInvoice(idPayment) {
-    const invoice = await this.paymentRepository.findById(idPayment);
-    if (!invoice) throw new AppError('Invoice tidak ditemukan', 404);
-    return invoice;
-  }
+    let localStatus = 'Pending';
 
-  // Simulasi Webhook dari Payment Gateway (misal: Midtrans/QRIS terbayar)
-  async simulateWebhookSuccess(idPayment) {
-    const invoice = await this.paymentRepository.findById(idPayment);
-    
-    if (!invoice) {
-      throw new AppError('Invoice tidak ditemukan', 404);
-    }
-    
-    if (!invoice.isPending()) {
-      throw new AppError('Pembayaran ini sudah lunas atau dibatalkan', 400);
+    // Pemetaan Status Midtrans -> Database Anda
+    if (transactionStatus == 'capture') {
+        if (fraudStatus == 'challenge'){ localStatus = 'Pending'; }
+        else if (fraudStatus == 'accept'){ localStatus = 'Aktif/Success'; }
+    } else if (transactionStatus == 'settlement'){
+        localStatus = 'Aktif/Success';
+    } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire'){
+        localStatus = 'Gagal/Batal';
+    } else if (transactionStatus == 'pending'){
+        localStatus = 'Pending';
     }
 
-    // Melunasi tagihan secara penuh
-    return await this.paymentRepository.processPaymentSuccess(idPayment, invoice.totalTagihan);
+    // Eksekusi Update berdasarkan Prefix Order ID
+    const dbId = orderId.split('-')[1]; // Mendapatkan ID aslinya
+    
+    if (orderId.startsWith('MBR-')) {
+       // Update status tabel membership
+       await this.membershipRepo.updateStatus(dbId, localStatus);
+    } 
+    else if (orderId.startsWith('KLS-')) {
+       // Update status tabel booking_kelas
+       await this.classBookingRepo.updateStatus(dbId, localStatus);
+    } 
+    else if (orderId.startsWith('CCH-')) {
+       // Update status tabel pemesanan coaching
+       await this.coachingRepo.updateStatus(dbId, localStatus);
+    }
+
+    if (localStatus === 'Aktif/Success') {
+    // 1. Update status di DB
+    await this.membershipRepo.updateStatus(dbId, 'Aktif');
+
+    // 2. Kirim Notifikasi ke Member
+    await this.notificationUseCase.createNotification(
+        userId,
+        "Pembayaran Berhasil!",
+        "Terima kasih, pembayaran Anda telah kami terima. Selamat menikmati layanan kami!"
+    );
+
+    // 3. Kirim Notifikasi ke Admin
+    // Asumsikan kita punya fungsi untuk ambil ID admin atau broadcast
+    await this.notificationUseCase.createNotification(
+        ADMIN_ID,
+        "Dana Diterima",
+        `Penerimaan dana sukses sebesar Rp${notification.gross_amount} dari ${userName}`
+    );
+}
   }
 }

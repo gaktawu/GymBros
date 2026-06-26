@@ -28,4 +28,6 @@ router.post(
   asyncHandler(classController.createClass)
 );
 
+router.delete('/:id', restrictTo('Admin'), asyncHandler(classController.deleteClass));
+
 export default router;

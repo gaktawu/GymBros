@@ -32,4 +32,16 @@ export class EquipmentController {
       data: updatedEq,
     });
   };
+
+  deleteEquipment = async (req, res) => {
+    const { id } = req.params; // Mengambil ID dari URL
+    
+    await this.equipmentUseCase.deleteEquipment(id);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Alat gym berhasil dihapus secara permanen',
+      data: null, // Data dikosongkan karena sudah dihapus
+    });
+  };
 }

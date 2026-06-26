@@ -114,4 +114,13 @@ export class CoachingRepository {
       client.release(); // Kembalikan koneksi ke pool
     }
   }
+
+  async softDeletePaketCoachingById(id) {
+    const query = `
+      UPDATE public.paket_coaching_member 
+      SET is_deleted = TRUE, deleted_at = NOW() 
+      WHERE id_paket = $1 RETURNING *;
+    `;
+    return await this.db.query(query, [id]);
+  }
 }

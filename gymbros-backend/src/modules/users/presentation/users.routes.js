@@ -21,11 +21,12 @@ router.get('/profile', asyncHandler(usersController.getProfile));
 // HANYA Admin yang boleh melihat daftar seluruh pengguna di database
 router.get('/', restrictTo('Admin'), asyncHandler(usersController.getAllUsers));
 
-// HARUS HANYA ADA SATU INI
 router.patch(
   '/profile',
   uploadImage.single('avatar'),
   asyncHandler(usersController.updateProfile)
 );
+
+router.delete('/:id', restrictTo('Admin'), asyncHandler(usersController.deleteUser));
 
 export default router;
