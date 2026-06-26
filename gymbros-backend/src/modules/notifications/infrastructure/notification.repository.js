@@ -37,8 +37,7 @@ export class NotificationRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
-  // Method ini bisa dipanggil oleh modul lain (seperti Cron Job atau Class Booking) 
-  // untuk mengirimkan notifikasi sistem ke user
+  
   async createSystemNotification(idUser, judul, pesan) {
     const query = `
       INSERT INTO notifications (id_user, judul, pesan, status_baca)
@@ -47,5 +46,16 @@ export class NotificationRepository {
     `;
     const result = await db.query(query, [idUser, judul, pesan]);
     return this._mapToDomain(result.rows[0]);
+  }
+
+  
+  async deleteByIdAndUserId(idNotifikasi, idUser) {
+    const query = `
+      DELETE FROM notifications 
+      WHERE id_notifikasi = $1 AND id_user = $2
+      RETURNING *;
+    `;
+    const result = await db.query(query, [idNotifikasi, idUser]);
+    return result.rowCount > 0; 
   }
 }

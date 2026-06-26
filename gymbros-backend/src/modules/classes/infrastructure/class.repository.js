@@ -35,16 +35,25 @@ export class ClassRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
-  async findAll() {
-    const query = `
-      SELECT k.*, u.nama_lengkap as nama_pelatih 
-      FROM kelas k
-      LEFT JOIN users u ON k.id_pelatih = u.id_user
-      ORDER BY k.waktu_mulai ASC
-    `;
-    const result = await db.query(query);
-    return result.rows.map(row => this._mapToDomain(row));
+  async findAllClasses(role = 'Member') {
+  let query = `
+    SELECT k.*, u.nama_lengkap AS nama_pelatih 
+    FROM kelas k
+    LEFT JOIN users u ON k.id_pelatih = u.id_user
+  `;
+  
+  if (role !== 'Admin') {
+    // Member hanya bisa melihat kelas yang TIDAK di-soft-delete
+    // dan Coach-nya masih Aktif (tidak di-soft-delete)
+    query += ` WHERE k.is_deleted = false AND u.status_akun = 'Aktif'`;
+  } else {
+    // Admin melihat semua status, baik kelasnya dihapus maupun pelatihnya nonaktif
+    query += ` ORDER BY k.waktu_mulai DESC`;
   }
+
+  const result = await db.query(query);
+  return result.rows;
+}
 
   async findById(idKelas) {
     const query = `
@@ -55,5 +64,14 @@ export class ClassRepository {
     `;
     const result = await db.query(query, [idKelas]);
     return this._mapToDomain(result.rows[0]);
+  }
+
+  async softDeleteClassById(id) {
+    const query = `
+      UPDATE public.kelas 
+      SET is_deleted = TRUE, deleted_at = NOW() 
+      WHERE id_kelas = $1 RETURNING *;
+    `;
+    return await this.db.query(query, [id]);
   }
 }

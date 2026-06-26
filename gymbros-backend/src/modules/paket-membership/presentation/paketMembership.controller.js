@@ -35,4 +35,10 @@ export class PaketMembershipController {
       data: updatedPaket,
     });
   };
+
+  deletePaket = async (req, res) => {
+    const { id } = req.params;
+    await this.paketMembershipUseCase.softDeletePaketById(id);
+    res.status(200).json({ success: true, message: 'Paket membership berhasil dihapus (soft delete)' });
+  };
 }

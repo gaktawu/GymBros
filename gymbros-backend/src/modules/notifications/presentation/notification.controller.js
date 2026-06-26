@@ -26,4 +26,16 @@ export class NotificationController {
       data: notification,
     });
   };
+
+  deleteNotification = async (req, res) => {
+    const idUser = req.user.id_user; // Dari token JWT
+    const { id } = req.params; // idNotifikasi
+
+    await this.notificationUseCase.deleteNotification(idUser, id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Notifikasi berhasil dihapus secara permanen',
+    });
+  };
 }

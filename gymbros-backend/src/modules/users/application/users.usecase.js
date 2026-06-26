@@ -48,4 +48,8 @@ export class UsersUseCase {
 
     return updatedUser.toJSON();
   }
+
+  async hardDeleteUser(id) {    
+    return await this.usersRepository.deleteUserById(id);
+  }
 }

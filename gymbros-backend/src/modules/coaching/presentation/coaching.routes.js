@@ -37,4 +37,6 @@ router.post(
   asyncHandler(coachingController.bookSession)
 );
 
+router.delete('/paket/:id', restrictTo('Admin'), asyncHandler(CoachingController.deletePaketCoaching));
+
 export default router;

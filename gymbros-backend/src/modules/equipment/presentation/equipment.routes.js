@@ -33,4 +33,12 @@ router.patch(
   asyncHandler(equipmentController.updateStatus)
 );
 
+router.delete(
+  '/:id', 
+  restrictTo('Admin'), 
+  asyncHandler(equipmentController.deleteEquipment)
+);
+
+
+
 export default router;

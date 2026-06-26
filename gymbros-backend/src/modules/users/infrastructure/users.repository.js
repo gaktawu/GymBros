@@ -52,8 +52,7 @@ export class UsersRepository {
     return publicUrlData.publicUrl;
   }
 
-  // --- FUNGSI 2: Query UPDATE Gabungan (Nama, No Telp, Foto) ---
-  // Fungsi ini dipanggil SATU KALI saja oleh Use Case agar database tidak timeout
+  
   async updateProfileCombined(id, updateData) {
     const fields = [];
     const values = [];
@@ -73,10 +72,9 @@ export class UsersRepository {
       values.push(updateData.fotoProfil);
     }
 
-    // Jika tidak ada data yang valid untuk diupdate, kembalikan null
     if (fields.length === 0) return null;
 
-    values.push(id); // Masukkan id_user sebagai parameter terakhir
+    values.push(id); 
     
     // Bangun query SQL secara dinamis
     const query = `
@@ -88,5 +86,11 @@ export class UsersRepository {
     
     const result = await db.query(query, values);
     return this._mapToDomain(result.rows[0]);
+  }
+
+  async deleteUserById(id) {
+    
+    const query = `DELETE FROM public.users WHERE id_user = $1;`;
+    return await db.query(query, [id]);
   }
 }

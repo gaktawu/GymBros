@@ -38,4 +38,6 @@ router.patch(
   asyncHandler(paketController.updateStatus)
 );
 
+router.delete('/:id', restrictTo('Admin'), asyncHandler(PaketMembershipController.deletePaket));
+
 export default router;

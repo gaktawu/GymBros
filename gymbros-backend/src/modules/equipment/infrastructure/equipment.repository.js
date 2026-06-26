@@ -31,6 +31,17 @@ export class EquipmentRepository {
     return statusMap[statusDomain];
   }
 
+  async delete(idAlat) {
+    const query = `
+      DELETE FROM equipment 
+      WHERE id_alat = $1 
+      RETURNING *
+    `;
+    const result = await db.query(query, [idAlat]);
+    return this._mapToDomain(result.rows[0]);
+  }
+
+
   async findAll() {
     const query = `SELECT * FROM equipment ORDER BY id_alat ASC`;
     const result = await db.query(query);
