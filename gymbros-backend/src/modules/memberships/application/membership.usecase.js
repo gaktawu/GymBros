@@ -40,7 +40,7 @@ export class MembershipUseCase {
 
     // 5. Generate Snap Token
     const snapTransaction = await snap.createTransaction(parameter);
-    
+
     // KIRIM NOTIFIKASI OTOMATIS
     await this.notificationUseCase.createNotification(
       id_user,
@@ -55,4 +55,19 @@ export class MembershipUseCase {
       redirect_url: snapTransaction.redirect_url
     };
   }
+
+  async softDeleteUserMembership(idMembership) {
+    // 1. Cek apakah membership dengan ID tersebut ada
+    const existingMembership = await this.membershipRepository.findById(idMembership);
+
+    if (!existingMembership) {
+      // Gunakan custom error handler yang sudah ada di sistem Anda
+      throw new AppError('Data membership tidak ditemukan', 404);
+    }
+
+    // 2. Jika ada, lanjutkan proses soft delete
+    const deletedData = await this.membershipRepository.softDelete(idMembership);
+    return deletedData;
+  }
+
 }
