@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, Outlet } from "react-router-dom";
+import axios from "axios";
 import Footer from "./Footer";
+
+const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export default function MemberLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoutPopupOpen, setIsLogoutPopupOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  
+  // State untuk menyimpan foto profil user
+  const [userAvatar, setUserAvatar] = useState("https://i.pravatar.cc/150?img=11"); // Gambar default
+  
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState([
@@ -33,6 +40,32 @@ export default function MemberLayout() {
     { name: "Membership", path: "/member/membership" },
   ];
 
+  // ==========================================
+  // FETCH FOTO PROFIL DARI DATABASE BACKEND
+  // ==========================================
+  useEffect(() => {
+    const fetchHeaderProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await axios.get(`${API_BASE_URL}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const userData = res.data.data;
+        // Gunakan fotoProfil (sesuai toJSON backend) atau fallback default
+        if (userData.fotoProfil || userData.avatar) {
+          setUserAvatar(userData.fotoProfil || userData.avatar);
+        }
+      } catch (err) {
+        console.error("Gagal memuat foto profil header:", err);
+      }
+    };
+
+    fetchHeaderProfile();
+  }, []);
+
   const handleLogoutClick = (e) => {
     e.preventDefault();
     setIsMobileMenuOpen(false);
@@ -41,6 +74,7 @@ export default function MemberLayout() {
 
   const confirmLogout = () => {
     setIsLogoutPopupOpen(false);
+    localStorage.clear(); // Pastikan sesi benar-benar dibersihkan
     navigate("/landingpage");
   };
 
@@ -158,14 +192,14 @@ export default function MemberLayout() {
             )}
           </div>
 
-          {/* Tombol Profil */}
+          {/* Tombol Profil dengan Foto Dinamis */}
           <Link
             to="/member/profile"
-            className="h-10 w-10 overflow-hidden rounded-full ring-1 ring-white/10 transition hover:ring-gray-300 shadow-md"
+            className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-white/10 transition hover:ring-[#C2A676] shadow-md"
             title="Pergi ke Profile"
           >
             <img
-              src="https://i1.sndcdn.com/artworks-r6seSP84nT6z4DJx-iG01PA-t1080x1080.png"
+              src={userAvatar}
               alt="Profile Menu"
               className="h-full w-full object-cover"
             />

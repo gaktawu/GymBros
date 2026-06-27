@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const formatRupiah = (n) => 'Rp ' + n?.toLocaleString('id-ID');
+const API_BASE_URL = 'http://localhost:5000/api/v1';
+const formatRupiah = (n) => 'Rp ' + (n || 0).toLocaleString('id-ID');
 
 const METODE_LIST = [
   { id: 'qris', label: 'QRIS', icon: '🔳', deskripsi: 'Scan QR dengan aplikasi apapun' },
@@ -18,8 +19,8 @@ const BANK_LIST = [
 ];
 
 const ALASAN_LIST = [
-  'Ingin ganti paket yang lain',
-  'Salah memilih paket',
+  'Ingin ganti pesanan yang lain',
+  'Salah memilih item',
   'Ingin ganti metode pembayaran',
   'Berubah pikiran',
   'Lainnya',
@@ -53,10 +54,10 @@ const PaymentMethodCard = memo(({ method, selected, onSelect }) => {
   );
 });
 
-const QRISPayment = memo(({ paket, onConfirm }) => {
+const QRISPayment = memo(({ item, onConfirm }) => {
   const kode = useMemo(
-    () => `GYMBROS-${(paket?.id || 'MBR').toUpperCase()}-${Math.floor(Math.random() * 90000) + 10000}`,
-    [paket?.id]
+    () => `GYMBROS-${(item?.type || 'PAY').toUpperCase()}-${Math.floor(Math.random() * 90000) + 10000}`,
+    [item?.type]
   );
 
   return (
@@ -66,7 +67,7 @@ const QRISPayment = memo(({ paket, onConfirm }) => {
       </p>
       <div className="p-4 bg-white rounded-2xl shadow-lg">
         <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=GYMBROS-PAYMENT-${paket?.id || 'MEMBERSHIP'}-${paket?.hargaDiskon || '250000'}`}
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=GYMBROS-${item?.id}-${item?.finalPrice}`}
           alt="QR Code Pembayaran Gymbros"
           className="w-44 h-44 rounded-lg"
         />
@@ -77,7 +78,7 @@ const QRISPayment = memo(({ paket, onConfirm }) => {
       </div>
       <div className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 text-center">
         <p className="text-xs text-gray-400">Total Pembayaran</p>
-        <p className="text-xl font-black text-white mt-0.5">{formatRupiah(paket?.hargaDiskon || 250000)}</p>
+        <p className="text-xl font-black text-white mt-0.5">{formatRupiah(item?.finalPrice)}</p>
       </div>
       <p className="text-[11px] text-yellow-400 text-center">⏱ QR berlaku selama 15 menit. Jangan tutup halaman ini.</p>
       <button
@@ -90,7 +91,7 @@ const QRISPayment = memo(({ paket, onConfirm }) => {
   );
 });
 
-const EWalletPayment = memo(({ type, paket, nomorHP, setNomorHP, onConfirm }) => {
+const EWalletPayment = memo(({ type, item, nomorHP, setNomorHP, onConfirm }) => {
   const config = {
     gopay: { color: 'green', icon: '💚', label: 'GoPay', phone: '0821-0000-1234', btnClass: 'bg-green-600 hover:bg-green-500' },
     ovo: { color: 'purple', icon: '💜', label: 'OVO', phone: '0822-0000-5678', btnClass: 'bg-purple-700 hover:bg-purple-600' },
@@ -114,7 +115,7 @@ const EWalletPayment = memo(({ type, paket, nomorHP, setNomorHP, onConfirm }) =>
       </div>
       <div className="bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 flex justify-between items-center">
         <span className="text-xs text-gray-400">Nominal Transfer</span>
-        <span className="text-sm font-black text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+        <span className="text-sm font-black text-[#C2A676]">{formatRupiah(item?.finalPrice)}</span>
       </div>
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -138,7 +139,7 @@ const EWalletPayment = memo(({ type, paket, nomorHP, setNomorHP, onConfirm }) =>
   );
 });
 
-const BankPayment = memo(({ paket, namaPengirim, setNamaPengirim, onConfirm }) => (
+const BankPayment = memo(({ item, namaPengirim, setNamaPengirim, onConfirm }) => (
   <div className="flex flex-col gap-4">
     <p className="text-xs text-gray-400">
       Transfer ke salah satu rekening berikut, lalu isi nama pengirim dan klik OK.
@@ -156,7 +157,7 @@ const BankPayment = memo(({ paket, namaPengirim, setNamaPengirim, onConfirm }) =
     </div>
     <div className="bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 flex justify-between items-center">
       <span className="text-xs text-gray-400">Nominal Transfer</span>
-      <span className="text-sm font-black text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+      <span className="text-sm font-black text-[#C2A676]">{formatRupiah(item?.finalPrice)}</span>
     </div>
     <div>
       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -179,43 +180,56 @@ const BankPayment = memo(({ paket, namaPengirim, setNamaPengirim, onConfirm }) =
   </div>
 ));
 
-const OrderSummary = memo(({ paket }) => {
-  if (!paket) {
-    return <p className="text-xs text-gray-500">Belum ada paket yang dipilih.</p>;
+const OrderSummary = memo(({ item }) => {
+  if (!item) {
+    return <p className="text-xs text-gray-500">Belum ada item yang dipilih.</p>;
   }
 
-  const diskonNominal = paket.diskonPersen > 0 ? paket.hargaNormal - paket.hargaDiskon : 0;
+  const isClass = item.type === 'class';
+  const diskonNominal = (item.price || 0) - (item.finalPrice || 0);
 
   return (
     <div className="space-y-3">
       <div className="bg-[#25282c] border border-white/5 rounded-2xl p-4">
-        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Paket</p>
-        <p className="text-lg font-black text-[#C2A676]">Paket {paket.durasi}</p>
+        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+          {isClass ? 'Kelas Gym' : 'Membership'}
+        </p>
+        <p className="text-lg font-black text-[#C2A676] uppercase">{item.name}</p>
       </div>
-      <ul className="space-y-2">
-        {paket.benefit.map((b) => (
-          <li key={b} className="flex items-start gap-2 text-xs text-gray-400">
-            <span className="text-[#C2A676] font-black mt-0.5 shrink-0">✓</span>
-            {b.toLowerCase().includes('personal trainer') ? <span className="text-[#C2A676] font-bold">{b}</span> : b}
-          </li>
-        ))}
-      </ul>
+
+      {/* Tampilan Dinamis Berdasarkan Tipe */}
+      {isClass ? (
+        <div className="px-1 text-xs text-gray-400 space-y-1">
+          <p>🗓 Jadwal: <strong className="text-white">{item.schedule}</strong></p>
+          <p>👨‍🏫 Pelatih: <strong className="text-white">{item.coach}</strong></p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {item.benefits?.map((b, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-xs text-gray-400">
+              <span className="text-[#C2A676] font-black mt-0.5 shrink-0">✓</span>
+              {b}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="border-t border-white/10 pt-3 space-y-2">
-        {paket.diskonPersen > 0 && (
+        {diskonNominal > 0 && (
           <>
             <div className="flex justify-between text-xs">
               <span className="text-gray-500">Harga Normal</span>
-              <span className="line-through text-gray-500">Rp {paket.hargaNormal.toLocaleString('id-ID')}</span>
+              <span className="line-through text-gray-500">{formatRupiah(item.price)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-green-400">Diskon {paket.diskonPersen}%</span>
-              <span className="text-green-400">- Rp {diskonNominal.toLocaleString('id-ID')}</span>
+              <span className="text-green-400">Diskon</span>
+              <span className="text-green-400">- {formatRupiah(diskonNominal)}</span>
             </div>
           </>
         )}
         <div className="flex justify-between">
-          <span className="text-sm font-black text-white">Total</span>
-          <span className="text-sm font-black text-[#C2A676]">{formatRupiah(paket.hargaDiskon)}</span>
+          <span className="text-sm font-black text-white">Total Tagihan</span>
+          <span className="text-sm font-black text-[#C2A676]">{formatRupiah(item.finalPrice)}</span>
         </div>
       </div>
     </div>
@@ -233,8 +247,8 @@ const TransactionItem = memo(({ item }) => {
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#1A1C1E] border border-white/5 flex items-center justify-center text-sm">{icon}</div>
         <div>
-          <p className="text-xs font-bold text-white">{item.nama}</p>
-          <p className="text-[10px] text-gray-500">{item.metode} · {item.tanggal}</p>
+          <p className="text-xs font-bold text-white uppercase">{item.nama_item}</p>
+          <p className="text-[10px] text-gray-500">{item.metode} · {new Date(item.tanggal).toLocaleDateString('id-ID')}</p>
         </div>
       </div>
       <div className="text-right">
@@ -249,7 +263,7 @@ const TransactionItem = memo(({ item }) => {
   );
 });
 
-const SuccessModal = memo(({ paket, metodeBayar, onClose }) => (
+const SuccessModal = memo(({ item, metodeBayar, onClose }) => (
   <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
     <div className="relative w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-8 shadow-2xl text-center">
@@ -260,7 +274,7 @@ const SuccessModal = memo(({ paket, metodeBayar, onClose }) => (
       </div>
       <h3 className="text-2xl font-black text-white uppercase mb-1">Pembayaran Berhasil!</h3>
       <p className="text-xs text-gray-400 mb-4">
-        Terima kasih! Membership <strong className="text-[#C2A676]">Paket {paket?.durasi || '1 Bulan'}</strong> Anda telah aktif.
+        Terima kasih! Pesanan <strong className="text-[#C2A676]">{item?.name}</strong> Anda telah berhasil diproses.
       </p>
       <div className="bg-[#25282c] border border-white/5 rounded-xl p-4 mb-5 text-left space-y-2">
         <div className="flex justify-between text-xs">
@@ -269,7 +283,7 @@ const SuccessModal = memo(({ paket, metodeBayar, onClose }) => (
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-gray-500">Nominal</span>
-          <span className="font-bold text-[#C2A676]">{formatRupiah(paket?.hargaDiskon || 250000)}</span>
+          <span className="font-bold text-[#C2A676]">{formatRupiah(item?.finalPrice)}</span>
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-gray-500">Status</span>
@@ -290,14 +304,14 @@ const SuccessModal = memo(({ paket, metodeBayar, onClose }) => (
   </div>
 ));
 
-const CancelModal = memo(({ paket, alasanBatal, setAlasanBatal, onSubmit, onClose }) => (
+const CancelModal = memo(({ item, alasanBatal, setAlasanBatal, onSubmit, onClose }) => (
   <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
     <div className="relative w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 shadow-2xl">
       <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center text-3xl">⚠️</div>
       <h3 className="text-lg font-black text-white uppercase text-center mb-1">Batalkan Pesanan?</h3>
       <p className="text-xs text-gray-400 text-center mb-4">
-        Pesanan paket <strong className="text-[#C2A676]">{paket?.durasi || 'Membership'}</strong> akan dibatalkan. Tindakan ini tidak dapat diurungkan.
+        Pesanan <strong className="text-[#C2A676]">{item?.name || 'ini'}</strong> akan dibatalkan.
       </p>
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
@@ -338,41 +352,41 @@ const CancelSuccessModal = memo(() => (
       <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-4xl">❌</div>
       <h3 className="text-lg font-black text-white uppercase mb-2">Pembayaran Dibatalkan</h3>
       <p className="text-xs text-gray-400">
-        Pesanan Anda telah berhasil dibatalkan. Anda akan diarahkan kembali ke halaman membership.
+        Pesanan Anda telah berhasil dibatalkan. Mengalihkan halaman...
       </p>
     </div>
   </div>
 ));
 
-const PaymentInstructions = memo(({ metode, paket, nomorHP, setNomorHP, namaPengirim, setNamaPengirim, onConfirm }) => {
+const PaymentInstructions = memo(({ metode, item, nomorHP, setNomorHP, namaPengirim, setNamaPengirim, onConfirm }) => {
   switch (metode) {
-    case 'qris': return <QRISPayment paket={paket} onConfirm={onConfirm} />;
-    case 'gopay': return <EWalletPayment type="gopay" paket={paket} nomorHP={nomorHP} setNomorHP={setNomorHP} onConfirm={onConfirm} />;
-    case 'ovo': return <EWalletPayment type="ovo" paket={paket} nomorHP={nomorHP} setNomorHP={setNomorHP} onConfirm={onConfirm} />;
-    case 'mbanking': return <BankPayment paket={paket} namaPengirim={namaPengirim} setNamaPengirim={setNamaPengirim} onConfirm={onConfirm} />;
+    case 'qris': return <QRISPayment item={item} onConfirm={onConfirm} />;
+    case 'gopay': return <EWalletPayment type="gopay" item={item} nomorHP={nomorHP} setNomorHP={setNomorHP} onConfirm={onConfirm} />;
+    case 'ovo': return <EWalletPayment type="ovo" item={item} nomorHP={nomorHP} setNomorHP={setNomorHP} onConfirm={onConfirm} />;
+    case 'mbanking': return <BankPayment item={item} namaPengirim={namaPengirim} setNamaPengirim={setNamaPengirim} onConfirm={onConfirm} />;
     default: return null;
   }
 });
 
-const Header = memo(({ paket, onNavigate }) => (
+const Header = memo(({ item, onNavigate }) => (
   <header className="bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl shadow-xl">
     <p className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">PROSES PEMBAYARAN</p>
     <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">Checkout & Bayar</h1>
-    {paket ? (
+    {item ? (
       <div className="mt-3 flex flex-wrap gap-3">
         <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Paket Dipilih</p>
-          <p className="text-sm font-black text-[#C2A676]">Paket {paket.durasi}</p>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Item Dipilih</p>
+          <p className="text-sm font-black text-[#C2A676] uppercase">{item.name}</p>
         </div>
         <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
           <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total Bayar</p>
-          <p className="text-sm font-black text-white">{formatRupiah(paket.hargaDiskon)}</p>
+          <p className="text-sm font-black text-white">{formatRupiah(item.finalPrice)}</p>
         </div>
       </div>
     ) : (
       <p className="text-sm text-yellow-400 mt-2">
-        ⚠️ Tidak ada paket dipilih.{' '}
-        <button onClick={onNavigate} className="underline text-[#C2A676]">Pilih paket dulu</button>
+        ⚠️ Tidak ada item dipilih.{' '}
+        <button onClick={onNavigate} className="underline text-[#C2A676]">Pilih pesanan dulu</button>
       </p>
     )}
   </header>
@@ -381,7 +395,9 @@ const Header = memo(({ paket, onNavigate }) => (
 export default function Bayar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const paket = location.state?.paket || null;
+  
+  // Menerima data dinamis (item) dari halaman sebelumnya
+  const item = location.state?.item || null;
 
   const [metodeBayar, setMetodeBayar] = useState('qris');
   const [step, setStep] = useState('pilih');
@@ -393,28 +409,35 @@ export default function Bayar() {
   const [histori, setHistori] = useState([]);
   const [loadingHistori, setLoadingHistori] = useState(true);
 
-  const goToMembership = useCallback(() => navigate('/member/membership'), [navigate]);
   const goToDashboard = useCallback(() => navigate('/member/dashboardmember'), [navigate]);
+  const goBack = useCallback(() => navigate(-1), [navigate]);
 
   useEffect(() => {
     document.title = 'Gymbros | Pembayaran';
     const ori = document.body.style.backgroundColor;
     document.body.style.backgroundColor = '#111315';
 
-    axios
-      .get('https://jsonplaceholder.typicode.com/todos?_limit=10')
-      .then((res) => {
-        const mapped = res.data.map((item, i) => ({
-          id: item.id,
-          nama: ['Paket 1 Bulan', 'Paket 6 Bulan', 'Paket 12 Bulan'][i % 3],
-          metode: METODE_LIST[i % 4].label,
-          status: item.completed ? 'Lunas' : 'Pending',
-          tanggal: `${1 + i} Mei 2026`,
-          nominal: [250000, 1200000, 2500000][i % 3],
-        }));
-        setHistori(mapped);
-      })
-      .finally(() => setLoadingHistori(false));
+    // FETCH RIWAYAT TRANSAKSI DARI BACKEND SUPABASE
+    const fetchHistory = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        // Pastikan endpoint ini ada di backend Anda. Jika belum, gunakan data fallback sementara
+        const res = await axios.get(`${API_BASE_URL}/transactions/my-history`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setHistori(res.data.data || []);
+      } catch (err) {
+        console.log("Endpoint riwayat belum tersedia, menggunakan data sementara.");
+        // Fallback Data Sementara (Jika endpoint belum jadi)
+        setHistori([
+          { id: 1, nama_item: 'Membership 1 Bulan', metode: 'QRIS', nominal: 250000, status: 'Lunas', tanggal: new Date().toISOString() },
+          { id: 2, nama_item: 'Kelas Yoga', metode: 'GoPay', nominal: 50000, status: 'Lunas', tanggal: new Date().toISOString() }
+        ]);
+      } finally {
+        setLoadingHistori(false);
+      }
+    };
+    fetchHistory();
 
     return () => { document.body.style.backgroundColor = ori; };
   }, []);
@@ -424,31 +447,38 @@ export default function Bayar() {
     setStep('bayar');
   }, []);
 
-  const handleKonfirmasiOK = useCallback(() => setStep('sukses'), []);
+  const handleKonfirmasiOK = useCallback(async () => {
+    // DISINI TEMPAT UNTUK POST DATA KE BACKEND (Contoh API Call)
+    // await axios.post(`${API_BASE_URL}/transactions`, { itemId: item.id, type: item.type, method: metodeBayar }, ...)
+    
+    setStep('sukses');
+  }, []);
+
   const handleGantiMetode = useCallback(() => setStep('pilih'), []);
 
   const handleBatalKirim = useCallback((e) => {
     e.preventDefault();
     setShowBatalModal(false);
     setBatalBerhasil(true);
-    setTimeout(goToMembership, 2500);
-  }, [goToMembership]);
+    setTimeout(() => {
+      goBack(); // Kembali ke halaman sebelumnya secara otomatis
+    }, 2500);
+  }, [goBack]);
 
   const handleCloseBatal = useCallback(() => setShowBatalModal(false), []);
   const handleOpenBatal = useCallback(() => setShowBatalModal(true), []);
-
   const metodeAktif = useMemo(() => METODE_LIST.find((m) => m.id === metodeBayar), [metodeBayar]);
 
   return (
-    <main className="w-full max-w-5xl mx-auto space-y-6 text-[#E0E0E0]">
+    <main className="w-full max-w-5xl mx-auto space-y-6 text-[#E0E0E0] pb-10">
       {batalBerhasil && <CancelSuccessModal />}
-      {step === 'sukses' && <SuccessModal paket={paket} metodeBayar={metodeBayar} onClose={goToDashboard} />}
+      {step === 'sukses' && <SuccessModal item={item} metodeBayar={metodeBayar} onClose={goToDashboard} />}
 
-      <Header paket={paket} onNavigate={goToMembership} />
+      <Header item={item} onNavigate={goBack} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {step === 'pilih' && (
-          <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
+          <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg h-fit">
             <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">Pilih Metode Pembayaran</h2>
             <form onSubmit={handleLanjut} className="space-y-4">
               <div className="space-y-3">
@@ -466,7 +496,8 @@ export default function Bayar() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] text-sm font-black py-2.5 rounded-xl transition-all active:scale-95 shadow-md"
+                  disabled={!item}
+                  className="flex-1 bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] text-sm font-black py-2.5 rounded-xl transition-all active:scale-95 shadow-md disabled:opacity-50"
                 >
                   Lanjut →
                 </button>
@@ -490,7 +521,7 @@ export default function Bayar() {
             </div>
             <PaymentInstructions
               metode={metodeBayar}
-              paket={paket}
+              item={item}
               nomorHP={nomorHP}
               setNomorHP={setNomorHP}
               namaPengirim={namaPengirim}
@@ -508,12 +539,13 @@ export default function Bayar() {
 
         <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg h-fit">
           <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">Ringkasan Pesanan</h2>
-          <OrderSummary paket={paket} />
+          <OrderSummary item={item} />
         </section>
       </div>
 
+      {/* TAMPILAN RIWAYAT TRANSAKSI */}
       <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
-        <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">Riwayat Transaksi</h2>
+        <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">Riwayat Transaksi Terakhir</h2>
         {loadingHistori ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <div className="w-8 h-8 rounded-full border-2 border-[#C2A676] border-t-transparent animate-spin" />
@@ -521,14 +553,18 @@ export default function Bayar() {
           </div>
         ) : (
           <div className="space-y-2">
-            {histori.map((h) => <TransactionItem key={h.id} item={h} />)}
+            {histori.length > 0 ? histori.map((h) => (
+              <TransactionItem key={h.id} item={h} />
+            )) : (
+              <p className="text-sm text-gray-500 text-center py-4">Belum ada riwayat transaksi</p>
+            )}
           </div>
         )}
       </section>
 
       {showBatalModal && (
         <CancelModal
-          paket={paket}
+          item={item}
           alasanBatal={alasanBatal}
           setAlasanBatal={setAlasanBatal}
           onSubmit={handleBatalKirim}

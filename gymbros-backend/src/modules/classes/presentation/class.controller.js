@@ -12,6 +12,24 @@ export class ClassController {
     });
   };
 
+  getAllClasses = async (req, res, next) => {
+    try {
+      const classes = await this.classUseCase.getAllClasses();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Daftar kelas berhasil diambil',
+        data: classes
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        pesan_error_bocoran: error.message,
+        lokasi_error: error.stack
+      });
+    }
+  };
+
   async getAllClasses(req, res, next) {
     try {
       // Ambil peran user dari middleware autentikasi (misal: 'Admin' atau 'Member')
