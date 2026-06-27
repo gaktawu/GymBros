@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PublicHeader from '../../components/PublicHeader';
 import Footer from "../../components/Footer";
 
 const LoginPage = () => {
@@ -7,7 +8,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // State baru untuk efek loading
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isCoach) {
@@ -28,7 +29,6 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      // 1. Kirim request ke Backend Node.js
       const response = await fetch('http://localhost:5000/api/v1/auth/login', {
         method: 'POST',
         headers: {
@@ -38,13 +38,9 @@ const LoginPage = () => {
       });
 
       const data = await response.json();
-
-      // 2. Cek apakah response dari backend sukses
       if (response.ok && data.success) {
         const loggedInUser = data.data.user;
         const token = data.data.token;
-
-        // 3. Validasi Role: Pastikan user login di tab yang sesuai
         const expectedRole = isAdmin ? 'Admin' : isCoach ? 'Coach' : 'Member';
         
         if (loggedInUser.peran !== expectedRole) {
@@ -53,11 +49,9 @@ const LoginPage = () => {
           return;
         }
 
-        // 4. Simpan Token JWT dan Data User ke Local Storage Browser
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(loggedInUser));
 
-        // 5. Redirect ke halaman yang sesuai
         if (expectedRole === 'Admin') {
           window.location.href = '/contohadmin';
         } else if (expectedRole === 'Coach') {
@@ -66,7 +60,6 @@ const LoginPage = () => {
           window.location.href = '/contohmember';
         }
       } else {
-        // Tampilkan pesan error dari backend (misal: "Email atau password salah")
         setErrorMsg(data.message || 'Login gagal. Silakan coba lagi.');
       }
     } catch (error) {
@@ -96,25 +89,8 @@ const LoginPage = () => {
     <div>
       <main className="min-h-screen w-full relative bg-[#111315] font-sans selection:bg-[#C2A676] selection:text-[#111315]">
         
-        <header className="fixed top-0 w-full z-50 bg-[#111315]/80 backdrop-blur-md">
-          <nav className="flex items-center justify-between px-5 md:px-10 py-2">
-            <h1 className="text-2xl md:text-3xl font-black tracking-widest text-[#555] uppercase mt-2">GYMBROS</h1>
-            
-            <ul className="hidden md:flex gap-8 text-xs font-bold tracking-widest uppercase text-[#BFBFBF] items-center">
-              <li className="cursor-pointer hover:text-white transition-colors">
-                <a href="/landingpage#about">About Us</a>
-              </li>
-              <li className="cursor-pointer hover:text-white transition-colors">
-                <a href="/landingpage#facility">Facility</a>
-              </li>
-              <li className="cursor-pointer hover:text-white transition-colors">
-                <a href="/landingpage#pricing">Pricing</a>
-              </li>
-              <li className="cursor-pointer hover:text-white transition-colors">
-                <a href="/news">News</a>
-              </li>
-            </ul>
-          </nav>
+        <header>
+          <PublicHeader />
         </header>
 
         <div 

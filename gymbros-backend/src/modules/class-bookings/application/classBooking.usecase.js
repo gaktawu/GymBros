@@ -8,42 +8,24 @@ export class ClassBookingUseCase {
   }
 
   async bookClass(idUser, idKelas) {
-    // Aturan 1: Member wajib memiliki membership aktif
     const activeMembership = await this.membershipRepository.findActiveByUserId(idUser);
-    if (!activeMembership) {
-      throw new AppError('Anda harus memiliki membership aktif untuk mem-booking kelas', 403);
-    }
+    if (!activeMembership) throw new AppError('Anda harus memiliki membership aktif', 403);
 
-    // Aturan 2: Maksimal 3 booking aktif
     const activeBookingsCount = await this.classBookingRepository.countActiveBookingsByUser(idUser);
-    if (activeBookingsCount >= 3) {
-      throw new AppError('Batas maksimal booking tercapai. Anda hanya boleh memiliki maksimal 3 kelas yang dibooking pada satu waktu', 400);
-    }
+    if (activeBookingsCount >= 3) throw new AppError('Batas maksimal 3 booking', 400);
 
-    // Aturan 3: Dilarang double booking
     const existingBooking = await this.classBookingRepository.checkExistingBooking(idUser, idKelas);
-    if (existingBooking) {
-      throw new AppError('Anda sudah mem-booking kelas ini', 400);
-    }
+    if (existingBooking) throw new AppError('Anda sudah mem-booking kelas ini', 400);
 
-    // Ambil data kelas
     const gymClass = await this.classRepository.findById(idKelas);
-    if (!gymClass) {
-      throw new AppError('Kelas tidak ditemukan', 404);
-    }
+    if (!gymClass) throw new AppError('Kelas tidak ditemukan', 404);
 
-    // Cegah booking kelas yang sudah lewat
-    if (gymClass.isPast()) {
-      throw new AppError('Tidak dapat mem-booking kelas yang sudah dimulai atau berlalu', 400);
-    }
-
-    // Aturan 4: Cek Kapasitas Kelas
+    // Cek Kapasitas menggunakan fungsi repository yang benar
     const participantCount = await this.classBookingRepository.countParticipantsInClass(idKelas);
     if (participantCount >= gymClass.kapasitas) {
       throw new AppError('Mohon maaf, kelas ini sudah penuh', 400);
     }
 
-    // Eksekusi pembuatan booking
     return await this.classBookingRepository.create(idUser, idKelas);
   }
 
