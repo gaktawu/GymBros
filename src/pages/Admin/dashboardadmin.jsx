@@ -7,20 +7,13 @@ const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
 }).format(angka || 0);
 
 const ICON_PATHS = {
-  Menu: "M4 6h16M4 12h16M4 18h16",
-  X: "M6 18L18 6M6 6l12 12",
   Users: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-12 0v1z",
   Edit: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
   Trash: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
   Check: "M5 13l4 4L19 7",
   Alert: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
-  Clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
   Package: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m-8-4V10l8 4m0-10v10",
-  Search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
-  MessageSquare: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
-  TrendingUp: "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
-  Activity: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-  Calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+  Search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
 };
 
 const Icon = React.memo(({ name, className = "w-5 h-5" }) => (
@@ -29,7 +22,7 @@ const Icon = React.memo(({ name, className = "w-5 h-5" }) => (
   </svg>
 ));
 
-const StatCard = React.memo(({ title, icon, value, subtitle, trendIcon, trendValue, isPositive }) => (
+const StatCard = React.memo(({ title, icon, value, subtitle }) => (
   <div className="bg-[#1A1C1E] p-6 rounded-2xl border border-[#333333] shadow-sm hover:border-[#C2A676]/30 transition group">
     <div className="flex items-center justify-between mb-4">
       <span className="text-sm font-semibold text-[#888888]">{title}</span>
@@ -38,28 +31,22 @@ const StatCard = React.memo(({ title, icon, value, subtitle, trendIcon, trendVal
       </div>
     </div>
     <div className="text-2xl font-bold text-white">{value}</div>
-    <div className="flex items-center gap-1 mt-2 text-xs text-[#888888]">
-      {trendIcon && <Icon name={trendIcon} className={`w-3 h-3 ${isPositive ? 'text-[#C2A676]' : 'text-red-400'}`} />}
-      {trendValue && <span className={isPositive ? 'text-[#C2A676]' : 'text-red-400'}>{trendValue}</span>}
-      <span>{subtitle}</span>
-    </div>
+    {subtitle && <div className="mt-2 text-xs text-[#888888]">{subtitle}</div>}
   </div>
 ));
 
-// Disesuaikan dengan struktur DB Anda
 const INITIAL_FORM_STATE = {
   nama_paket: '', 
+  tipe_paket: 'Berjangka', 
   durasi_hari: 30, 
-  harga: ''
+  harga: '',
+  diskon: 0 
 };
 
 export default function DashboardAdmin() {
   const [classes, setClasses] = useState([]);
   const [totalMembers, setTotalMembers] = useState(0);
-  const [totalReports, setTotalReports] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', description: '', onConfirm: () => {}, type: 'danger' });
   const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', type: 'success' });
@@ -76,117 +63,115 @@ export default function DashboardAdmin() {
     setTimeout(() => setToastConfig(prev => ({ ...prev, isVisible: false })), 4000);
   }, []);
 
-  // 1. CEK TOKEN
-  useEffect(() => {
-    document.title = "Gymbros | Dashboard Admin";
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-
-    if (!token || !userData) {
-      alert("Akses Ditolak: Anda harus login terlebih dahulu!");
-      window.location.href = '/login'; 
-      return;
-    }
-
-    const user = JSON.parse(userData);
-    if (user.peran !== 'Admin') {
-      alert("Akses Ditolak: Halaman ini khusus untuk Administrator.");
-      window.location.href = '/login'; 
-      return;
-    }
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    setIsAuthChecked(true); 
-  }, []);
-
- // 2. FETCH DATA DARI DATABASE (READ)
+  // FUNGSI UTAMA: TARIK DATA (DENGAN TIKET EKSPLISIT)
   const fetchMembershipData = useCallback(async () => {
     setIsLoading(true);
+    const token = localStorage.getItem('token');
+    
+    // Pastikan token selalu ditempel saat meminta data
+    const apiConfig = {
+      headers: { Authorization: `Bearer ${token}` }
+    };
+
     try {
-      // --- TARIK DATA PAKET ---
-      const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership");
-      const packageData = packageRes.data.data || packageRes.data;
-      
-      const normalizedData = packageData.map(item => ({
-        ...item,
-        id: item.id_paket, 
-        hargaNum: Number(item.harga), 
-        isActive: item.status_aktif === 'Tersedia' 
-      }));
-      setClasses(normalizedData);
+      // 1. Tarik Data Paket (Aman dari tabrakan)
+      try {
+        const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership", apiConfig);
+        const packageData = packageRes.data.data || packageRes.data;
+        
+        const normalizedData = packageData.map(item => ({
+          ...item,
+          id_paket: item.id_paket || item.id, 
+          hargaNum: Number(item.harga),
+          diskonVal: Number(item.diskon) || 0,
+          isActive: item.status_aktif === 'Tersedia' 
+        }));
+        setClasses(normalizedData);
+      } catch (err) {
+        console.error("Gagal menarik paket:", err);
+      }
 
-      // --- TARIK DATA USERS (BARU) ---
-      const userRes = await axios.get("http://localhost:5000/api/v1/users");
-      const userData = userRes.data.data || userRes.data;
-      
-      // Opsional: Jika Anda hanya ingin menghitung user dengan peran 'Member' saja
-      // const memberAsli = userData.filter(user => user.peran === 'Member').length;
-      
-      // Mengganti angka 124 dengan total panjang data dari database
-      setTotalMembers(userData.length); 
+      // 2. Tarik Data Member Asli (Aman dari tabrakan)
+      try {
+        const userRes = await axios.get("http://localhost:5000/api/v1/users", apiConfig);
+        const userData = userRes.data.data || userRes.data;
+        
+        // Membaca array data dari backend Anda yang berisi 4 orang tadi
+        setTotalMembers(userData.length);
+      } catch (err) {
+        console.error("Gagal menarik data user:", err);
+        setTotalMembers(0); // Jika API gagal, kembalikan ke 0, bukan Error
+      }
 
-      // --- DATA LAPORAN (MASIH DUMMY) ---
-      setTotalReports(3); 
-      setLastUpdate(new Date());
-
-    } catch (err) {
-      console.error("Gagal memuat API:", err);
-      showToast('Gagal menarik data dari server', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [showToast]);
+  }, []);
+
   useEffect(() => {
-    if (isAuthChecked) fetchMembershipData();
-  }, [isAuthChecked, fetchMembershipData]);
+    const userData = localStorage.getItem('user');
+    if (!localStorage.getItem('token') || !userData) {
+      alert("Akses Ditolak: Anda harus login!");
+      window.location.href = '/login'; 
+      return;
+    }
+    const user = JSON.parse(userData);
+    if (user.peran !== 'Admin') {
+      alert("Akses Ditolak: Khusus Admin.");
+      window.location.href = '/login'; 
+      return;
+    }
+    
+    // Jalankan fungsi tarik data jika otentikasi lolos
+    fetchMembershipData();
+  }, [fetchMembershipData]);
 
   useEffect(() => {
     if (editingClass) {
       setFormData({
         nama_paket: editingClass.nama_paket,
+        tipe_paket: editingClass.durasi_hari === 1 ? 'Harian' : 'Berjangka',
         durasi_hari: editingClass.durasi_hari,
-        harga: editingClass.hargaNum // Ambil versi angkanya
+        harga: editingClass.hargaNum,
+        diskon: editingClass.diskonVal || 0
       });
     } else {
       setFormData(INITIAL_FORM_STATE);
     }
   }, [editingClass]);
 
-  // 3. SUBMIT (POST/PUT) DENGAN FORMAT CAMELCASE YANG DIMINTA BACKEND
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    const token = localStorage.getItem('token');
+    const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
 
-    // KUNCI JAWABAN: Sesuaikan penamaan dengan error validasi di gambar
     const payload = {
-      namaPaket: formData.nama_paket, // CamelCase!
-      durasiHari: Number(formData.durasi_hari), // CamelCase!
+      namaPaket: formData.nama_paket,
+      durasiHari: formData.tipe_paket === 'Harian' ? 1 : Number(formData.durasi_hari),
       harga: Number(formData.harga),
-      statusAktif: "Tersedia" // Nilai default saat membuat
+      diskon: Number(formData.diskon),
+      statusAktif: "Tersedia"
     };
 
     try {
       if (editingClass) {
-        await axios.put(`http://localhost:5000/api/v1/paket-membership/${editingClass.id_paket}`, payload);
+        await axios.put(`http://localhost:5000/api/v1/paket-membership/${editingClass.id_paket}`, payload, apiConfig);
         showToast('Data paket berhasil diperbarui!');
       } else {
-        await axios.post("http://localhost:5000/api/v1/paket-membership", payload);
+        await axios.post("http://localhost:5000/api/v1/paket-membership", payload, apiConfig);
         showToast('Paket baru berhasil ditambahkan!');
       }
-      
       setEditingClass(null);
       setFormData(INITIAL_FORM_STATE);
       await fetchMembershipData(); 
-
     } catch (error) {
-      console.error("Gagal menyimpan:", error);
-      showToast(error.response?.data?.message || 'Gagal menyimpan data ke database', 'error');
+      showToast(error.response?.data?.message || 'Gagal menyimpan ke database', 'error');
     } finally {
       setIsLoading(false);
     }
   }, [formData, editingClass, showToast, fetchMembershipData]);
 
-  // 4. HAPUS DATA (DELETE)
   const handleDelete = useCallback((cls) => {
     setModalConfig({
       isOpen: true,
@@ -197,13 +182,15 @@ export default function DashboardAdmin() {
       cancelText: 'Batal',
       onConfirm: async () => {
         try {
-          await axios.delete(`http://localhost:5000/api/v1/paket-membership/${cls.id_paket}`);
+          const token = localStorage.getItem('token');
+          await axios.delete(`http://localhost:5000/api/v1/paket-membership/${cls.id_paket}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
           showToast('Paket berhasil dihapus!');
           if (editingClass?.id_paket === cls.id_paket) setEditingClass(null);
           await fetchMembershipData(); 
         } catch (error) {
-          console.error("Gagal menghapus:", error);
-          showToast('Gagal menghapus data', 'error');
+          showToast('Gagal menghapus data dari server', 'error');
         } finally {
           setModalConfig(p => ({ ...p, isOpen: false }));
         }
@@ -211,34 +198,27 @@ export default function DashboardAdmin() {
     });
   }, [editingClass, showToast, fetchMembershipData]);
 
-  // 5. UBAH STATUS (Tersedia / Tidak Tersedia)
   const handleToggleStatus = useCallback(async (id) => {
     const target = classes.find(c => c.id_paket === id);
     if (!target) return;
-
     const newStatus = target.status_aktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
 
     try {
-      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, {
-        statusAktif: newStatus
-      });
+      const token = localStorage.getItem('token');
+      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, 
+        { statusAktif: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       showToast(`Paket "${target.nama_paket}" telah menjadi ${newStatus}.`);
       await fetchMembershipData(); 
     } catch (error) {
-      console.error("Gagal mengubah status:", error);
-      showToast('Gagal merubah status paket dari server.', 'error');
+      showToast('Gagal merubah status paket.', 'error');
     }
   }, [classes, showToast, fetchMembershipData]);
 
-
-  // --- STATISTIK & FILTER ---
   const stats = useMemo(() => {
     const activePackages = classes.filter(c => c.isActive).length;
-    const totalRevenue = classes.reduce((sum, c) => sum + (c.hargaNum || 0), 0);
-    const avgPrice = classes.length ? totalRevenue / classes.length : 0;
-    const activationRate = classes.length ? Math.round((activePackages / classes.length) * 100) : 0;
-    
-    return { activePackages, inactivePackages: classes.length - activePackages, totalRevenue, avgPrice, activationRate };
+    return { activePackages, inactivePackages: classes.length - activePackages };
   }, [classes]);
 
   const { filteredClasses, displayedClasses, totalPages } = useMemo(() => {
@@ -260,7 +240,6 @@ export default function DashboardAdmin() {
 
   return (
     <div className="min-h-screen bg-[#111315] font-sans">
-      {/* MODAL KONFIRMASI */}
       {modalConfig.isOpen && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#1A1C1E] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#333333]">
@@ -277,7 +256,6 @@ export default function DashboardAdmin() {
         </div>
       )}
 
-      {/* TOAST NOTIFIKASI */}
       {toastConfig.isVisible && (
         <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-[#1A1C1E] text-[#E0E0E0] px-5 py-3.5 rounded-xl shadow-2xl border border-[#333333]">
           <div className="p-1 bg-[#C2A676]/20 text-[#C2A676] rounded-md"><Icon name="Check" className="w-4 h-4" /></div>
@@ -288,51 +266,20 @@ export default function DashboardAdmin() {
       <div className="flex">
         <div className="flex-1 min-w-0">
           <main className="p-4 lg:p-8 max-w-7xl mx-auto">
-            {/* HEADER */}
+            {/* HEADER BERSIH - Sesuai Permintaan Anda */}
             <div className="sticky top-[72px] z-30 bg-[#111315]/95 backdrop-blur-sm -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 mb-6 lg:mb-8 border-b border-[#333333]/50">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Dashboard Admin</h1>
-                  <p className="text-sm text-[#888888] mt-1 flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full animate-pulse ${isLoading ? 'bg-amber-500' : 'bg-[#C2A676]'}`} />
-                    API Terhubung: {lastUpdate.toLocaleTimeString('id-ID')}
-                  </p>
-                </div>
-                <button onClick={fetchMembershipData} disabled={isLoading} className="px-5 py-2.5 bg-[#C2A676] text-[#111315] rounded-xl text-sm font-semibold hover:bg-[#C2A676]/90 transition disabled:opacity-50 flex items-center gap-2 shadow-md">
-                  <Icon name={isLoading ? 'Clock' : 'Package'} className="w-4 h-4" />
-                  {isLoading ? 'Menghubungkan...' : 'Sinkronisasi API'}
-                </button>
-              </div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Dashboard Admin</h1>
             </div>
 
             <div>
-              {/* KARTU STATISTIK ATAS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-                <StatCard title="Total Paket" icon="Package" value={isLoading ? '...' : classes.length} trendIcon="TrendingUp" trendValue="+3" subtitle="dari bulan lalu" isPositive />
-                <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} paket habis`} />
-                <StatCard title="Jumlah Member" icon="Users" value={isLoading ? '...' : totalMembers} trendIcon="TrendingUp" trendValue="+12%" subtitle="pertumbuhan" isPositive />
-                <StatCard title="Laporan Masuk" icon="MessageSquare" value={isLoading ? '...' : totalReports} subtitle={totalReports > 5 ? 'Perlu ditindaklanjuti' : 'Semua aman'} />
-              </div>
-
-              {/* KARTU STATISTIK BAWAH */}
+              {/* HANYA 3 KARTU STATISTIK UTAMA */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-8">
-                {[
-                  { label: "Total Potensi Pendapatan", icon: "TrendingUp", val: formatRupiah(stats.totalRevenue) },
-                  { label: "Rata-rata Harga", icon: "Calendar", val: formatRupiah(stats.avgPrice) },
-                  { label: "Tingkat Ketersediaan", icon: "Activity", val: `${stats.activationRate}%` }
-                ].map((item, idx) => (
-                  <div key={idx} className="bg-[#1A1C1E] p-5 rounded-2xl border border-[#333333] flex items-center gap-4">
-                    <div className="p-3 bg-[#C2A676]/10 rounded-xl"><Icon name={item.icon} className="w-6 h-6 text-[#C2A676]" /></div>
-                    <div>
-                      <p className="text-xs text-[#888888] font-medium">{item.label}</p>
-                      <p className="text-lg font-bold text-white">{isLoading ? '...' : item.val}</p>
-                    </div>
-                  </div>
-                ))}
+                <StatCard title="Total Paket" icon="Package" value={isLoading ? '...' : classes.length} />
+                <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} paket habis`} />
+                <StatCard title="Jumlah Member" icon="Users" value={isLoading ? '...' : totalMembers} />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-                
                 {/* BAGIAN TABEL */}
                 <div className="xl:col-span-2 space-y-6">
                   <div className="bg-[#1A1C1E] border border-[#333333] rounded-2xl shadow-sm overflow-hidden">
@@ -360,23 +307,29 @@ export default function DashboardAdmin() {
                         <thead>
                           <tr className="border-b border-[#333333] text-xs font-semibold text-[#888888] uppercase tracking-wider bg-[#111315]/50">
                             <th className="py-4 px-6">Informasi Paket</th>
-                            <th className="py-4 px-6">Harga</th>
+                            <th className="py-4 px-6">Harga & Diskon</th>
                             <th className="py-4 px-6">Status</th>
                             <th className="py-4 px-6 text-right">Aksi</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#333333] text-sm text-[#E0E0E0]">
                           {isLoading ? (
-                            <tr><td colSpan="4" className="py-12 text-center text-[#888888] font-medium"><div className="w-6 h-6 border-2 border-[#C2A676]/30 border-t-[#C2A676] rounded-full animate-spin mx-auto mb-3"></div>Menarik data dari Database...</td></tr>
+                            <tr><td colSpan="4" className="py-12 text-center text-[#888888] font-medium"><div className="w-6 h-6 border-2 border-[#C2A676]/30 border-t-[#C2A676] rounded-full animate-spin mx-auto mb-3"></div>Memuat data...</td></tr>
                           ) : displayedClasses.length === 0 ? (
                             <tr><td colSpan="4" className="py-8 text-center text-[#888888] font-medium">Data paket tidak ditemukan.</td></tr>
                           ) : displayedClasses.map(cls => (
                             <tr key={cls.id_paket} className="hover:bg-[#333333]/30 transition">
                               <td className="py-4 px-6">
-                                <div className="font-semibold text-white">{cls.nama_paket}</div>
+                                <div className="font-semibold text-white flex items-center gap-2">
+                                  {cls.nama_paket}
+                                  {cls.durasi_hari === 1 && <span className="text-[10px] bg-[#333] px-2 py-0.5 rounded text-gray-300">Harian</span>}
+                                </div>
                                 <div className="text-xs text-[#888888] mt-0.5">ID: {cls.id_paket} | Durasi: {cls.durasi_hari} Hari</div>
                               </td>
-                              <td className="py-4 px-6 font-medium text-[#C2A676]">{formatRupiah(cls.hargaNum)}</td>
+                              <td className="py-4 px-6">
+                                <div className="font-medium text-[#C2A676]">{formatRupiah(cls.hargaNum)}</div>
+                                {cls.diskonVal > 0 && <div className="text-xs text-green-400 mt-0.5">Diskon: {cls.diskonVal}%</div>}
+                              </td>
                               <td className="py-4 px-6">
                                 <button onClick={() => handleToggleStatus(cls.id_paket)} className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm transition ${cls.isActive ? 'bg-[#C2A676]/10 text-[#C2A676] hover:bg-[#C2A676]/20' : 'bg-[#333333] text-[#888888] hover:bg-[#333333]/80'}`}>
                                   {cls.status_aktif}
@@ -393,38 +346,57 @@ export default function DashboardAdmin() {
                         </tbody>
                       </table>
                     </div>
-
-                    {totalPages > 1 && (
-                      <div className="p-4 border-t border-[#333333] flex items-center justify-between bg-[#111315]/30">
-                        <button disabled={currentPage === 1} onClick={() => handlePageChange('prev')} className="px-3 py-1.5 border border-[#333333] rounded-xl text-xs font-semibold text-[#888888] bg-[#1A1C1E] hover:bg-[#333333] disabled:opacity-50 transition shadow-sm">Prev</button>
-                        <span className="text-xs font-medium text-[#888888]">Halaman {currentPage} dari {totalPages}</span>
-                        <button disabled={currentPage === totalPages} onClick={() => handlePageChange('next')} className="px-3 py-1.5 border border-[#333333] rounded-xl text-xs font-semibold text-[#888888] bg-[#1A1C1E] hover:bg-[#333333] disabled:opacity-50 transition shadow-sm">Next</button>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* BAGIAN FORM KINI HANYA MEMUAT INPUT YANG ADA DI DATABASE */}
+                {/* BAGIAN FORM (DENGAN FITUR HARIAN & DISKON) */}
                 <div className="xl:col-span-1 space-y-6">
                   <div className="bg-[#1A1C1E] border border-[#333333] rounded-2xl shadow-sm p-4 lg:p-6 sticky top-24">
                     <h2 className="font-bold text-white mb-1">{editingClass ? 'Edit Paket Membership' : 'Tambah Paket Baru'}</h2>
-                    <p className="text-xs text-[#888888] mb-4">{editingClass ? 'Perbarui detail paket yang dipilih' : 'Isi formulir sesuai data di database'}</p>
                     
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                      
+                      {/* Pilihan Harian / Berjangka */}
+                      <div>
+                         <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-2">Tipe Paket</label>
+                         <div className="flex gap-4">
+                            <label className="flex items-center gap-2 text-sm text-[#E0E0E0] cursor-pointer">
+                               <input type="radio" checked={formData.tipe_paket === 'Berjangka'} onChange={() => setFormData({...formData, tipe_paket: 'Berjangka'})} className="accent-[#C2A676]" /> Berjangka
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-[#E0E0E0] cursor-pointer">
+                               <input type="radio" checked={formData.tipe_paket === 'Harian'} onChange={() => setFormData({...formData, tipe_paket: 'Harian'})} className="accent-[#C2A676]" /> Harian
+                            </label>
+                         </div>
+                      </div>
+
                       <div>
                         <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Nama Paket</label>
-                        <input type="text" required value={formData.nama_paket} onChange={(e) => setFormData({ ...formData, nama_paket: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="Contoh: Paket Premium" />
+                        <input type="text" required value={formData.nama_paket} onChange={(e) => setFormData({ ...formData, nama_paket: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="Contoh: Paket Gymbros" />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Harga (IDR)</label>
-                          <input type="number" required value={formData.harga} onChange={(e) => setFormData({ ...formData, harga: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="500000" />
+                          <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Harga (Rp)</label>
+                          <input type="number" required value={formData.harga} onChange={(e) => setFormData({ ...formData, harga: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="50000" />
                         </div>
+                        
                         <div>
                           <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Durasi (Hari)</label>
-                          <input type="number" required value={formData.durasi_hari} onChange={(e) => setFormData({ ...formData, durasi_hari: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="30" />
+                          <input 
+                            type="number" 
+                            required 
+                            disabled={formData.tipe_paket === 'Harian'}
+                            value={formData.tipe_paket === 'Harian' ? 1 : formData.durasi_hari} 
+                            onChange={(e) => setFormData({ ...formData, durasi_hari: e.target.value })} 
+                            className={`w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition ${formData.tipe_paket === 'Harian' ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                            placeholder="30" 
+                          />
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Diskon Member Baru (%)</label>
+                        <input type="number" max="100" min="0" value={formData.diskon} onChange={(e) => setFormData({ ...formData, diskon: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="0" />
                       </div>
 
                       <div className="flex gap-2 pt-2">

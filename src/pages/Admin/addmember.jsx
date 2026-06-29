@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const AddMember = () => {
   const navigate = useNavigate();
@@ -7,6 +8,10 @@ const AddMember = () => {
   const [successAnim, setSuccessAnim] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // State untuk menyimpan daftar paket dari database
+  const [daftarPaket, setDaftarPaket] = useState([]);
+  const [isLoadingPaket, setIsLoadingPaket] = useState(true);
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -14,18 +19,54 @@ const AddMember = () => {
     phone: '',
     gender: 'Laki-laki',
     role: 'Anggota',
-    plan: 'Basic Bro'
+    plan: '' // Akan diisi otomatis dengan ID paket pertama setelah data ditarik
   });
-  
 
+  // 1. CEK OTENTIKASI & TARIK DATA PAKET UNTUK DROPDOWN
   useEffect(() => {
     document.title = "Admin Gymbros | Tambah Anggota Baru";
     const originalBodyBg = document.body.style.backgroundColor;
     document.body.style.backgroundColor = "#111315";
+
+    const setupAndFetch = async () => {
+      try {
+        // Ambil tiket (token) dari localStorage
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert("Akses Ditolak: Anda harus login terlebih dahulu!");
+          navigate('/login');
+          return;
+        }
+
+        // Pasang tiket ke header Axios
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+        // Tarik data paket membership dari backend
+        const res = await axios.get("http://localhost:5000/api/v1/paket-membership");
+        const packages = res.data.data || res.data;
+        
+        // Filter hanya paket yang aktif/tersedia
+        const activePackages = packages.filter(p => p.status_aktif === 'Tersedia');
+        setDaftarPaket(activePackages);
+
+        // Otomatis pilih paket pertama di dropdown jika ada datanya
+        if (activePackages.length > 0) {
+          setFormData(prev => ({ ...prev, plan: activePackages[0].id_paket }));
+        }
+
+      } catch (error) {
+        console.error("Gagal menarik daftar paket:", error);
+      } finally {
+        setIsLoadingPaket(false);
+      }
+    };
+
+    setupAndFetch();
+
     return () => {
       document.body.style.backgroundColor = originalBodyBg;
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -38,33 +79,40 @@ const AddMember = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  // 2. FUNGSI SUBMIT KE BACKEND
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const randomIdNumber = Math.floor(10000 + Math.random() * 90000);
-
-    const newMember = {
-      id: `GB-${randomIdNumber}`,
-      name: `${formData.firstName} ${formData.lastName}`.toUpperCase(),
+    // Bungkusan Data (Payload)
+    // PERHATIAN: Sesuaikan nama properti ini (camelCase/snake_case) dengan validator Backend Anda!
+    const payload = {
+      namaLengkap: `${formData.firstName} ${formData.lastName}`.trim(),
       email: formData.email.toLowerCase(),
-      phone: formData.phone,
-      gender: formData.gender,
-      role: formData.role,
-      plan: formData.plan,
-      status: 'Aktif',
-      joined: new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }),
-      image: null
+      nomorTelepon: formData.phone,
+      jenisKelamin: formData.gender,
+      peran: formData.role,
+      idPaket: formData.plan, 
+      status: 'Aktif'
     };
 
-    const existingLocalMembers = JSON.parse(localStorage.getItem('dummyMembers')) || [];
-    localStorage.setItem('dummyMembers', JSON.stringify([newMember, ...existingLocalMembers]));
+    try {
+      // Menembak data ke API Backend (Asumsi rutenya adalah /users)
+      await axios.post("http://localhost:5000/api/v1/users", payload);
 
-    setIsSubmitting(false);
-    setIsSuccess(true);
-    setTimeout(() => {
-      navigate('/admin/add-member');
-    }, 2000);
+      setIsSuccess(true);
+      setTimeout(() => {
+        // Setelah sukses, kembali ke halaman dashboard atau muat ulang form
+        setIsSuccess(false);
+        setFormData({ ...formData, firstName: '', lastName: '', email: '', phone: '' });
+      }, 2000);
+
+    } catch (error) {
+      console.error("Gagal menambahkan anggota:", error);
+      alert(error.response?.data?.message || "Gagal menyimpan data ke database. Cek console/network!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -86,7 +134,7 @@ const AddMember = () => {
               </svg>
             </div>
             <h3 className="text-xl font-black text-white uppercase tracking-tight">Anggota Berhasil Ditambahkan</h3>
-            <p className="text-sm text-gray-400">Mengalihkan ke daftar anggota...</p>
+            <p className="text-sm text-gray-400">Data telah tersimpan di Database Gymbros.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -190,19 +238,28 @@ const AddMember = () => {
               </div>
             </div>
 
-            {/* Paket Keanggotaan */}
+            {/* Paket Keanggotaan DINAMIS dari Database */}
             <div className="group transition-all duration-500">
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 group-focus-within:text-[#C2A676] transition-colors duration-300">Paket Keanggotaan</label>
               <select
                 name="plan"
                 value={formData.plan}
                 onChange={handleChange}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingPaket}
                 className="w-full bg-[#25282c] border border-white/5 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-[#C2A676]/50 focus:ring-1 focus:ring-[#C2A676]/20 focus:shadow-lg focus:shadow-[#C2A676]/10 transition-all duration-300 hover:border-white/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
               >
-                <option value="Basic Bro">Basic Bro</option>
-                <option value="Elite Bro">Elite Bro</option>
+                {isLoadingPaket ? (
+                  <option value="">Memuat paket dari database...</option>
+                ) : daftarPaket.length === 0 ? (
+                  <option value="">Belum ada paket tersedia</option>
+                ) : (
+                  daftarPaket.map(paket => (
+                    <option key={paket.id_paket} value={paket.id_paket}>
+                      {paket.nama_paket} - Rp {Number(paket.harga).toLocaleString('id-ID')}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -214,11 +271,11 @@ const AddMember = () => {
                 disabled={isSubmitting}
                 className="flex-1 rounded-2xl bg-[#25282c] border border-white/5 px-6 py-4 text-xs font-black uppercase tracking-widest text-white hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                Batal
+                Kembali
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingPaket || daftarPaket.length === 0}
                 className="flex-1 rounded-2xl bg-[#C2A676] px-6 py-4 text-xs font-black uppercase tracking-widest text-[#111315] hover:bg-[#d4b88a] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#C2A676]/20 active:translate-y-0 active:scale-95 transition-all duration-300 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
@@ -227,7 +284,7 @@ const AddMember = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Menyimpan...</span>
+                    <span>Menyimpan ke Database...</span>
                   </>
                 ) : (
                   <span>Simpan Data Anggota</span>
