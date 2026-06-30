@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 
-// Format ke Rupiah
-const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
-  style: 'currency', currency: 'IDR', minimumFractionDigits: 0
-}).format(angka || 0);
+const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
 
 const ICON_PATHS = {
   Users: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-12 0v1z",
@@ -13,7 +10,9 @@ const ICON_PATHS = {
   Check: "M5 13l4 4L19 7",
   Alert: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
   Package: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m-8-4V10l8 4m0-10v10",
-  Search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+  Search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+  ChevronLeft: "M15 19l-7-7 7-7",
+  ChevronRight: "M9 5l7 7-7 7"
 };
 
 const Icon = React.memo(({ name, className = "w-5 h-5" }) => (
@@ -26,22 +25,14 @@ const StatCard = React.memo(({ title, icon, value, subtitle }) => (
   <div className="bg-[#1A1C1E] p-6 rounded-2xl border border-[#333333] shadow-sm hover:border-[#C2A676]/30 transition group">
     <div className="flex items-center justify-between mb-4">
       <span className="text-sm font-semibold text-[#888888]">{title}</span>
-      <div className="p-2.5 bg-[#C2A676]/10 text-[#C2A676] rounded-xl group-hover:bg-[#C2A676]/20 transition">
-        <Icon name={icon} />
-      </div>
+      <div className="p-2.5 bg-[#C2A676]/10 text-[#C2A676] rounded-xl group-hover:bg-[#C2A676]/20 transition"><Icon name={icon} /></div>
     </div>
     <div className="text-2xl font-bold text-white">{value}</div>
     {subtitle && <div className="mt-2 text-xs text-[#888888]">{subtitle}</div>}
   </div>
 ));
 
-const INITIAL_FORM_STATE = {
-  nama_paket: '', 
-  tipe_paket: 'Berjangka', 
-  durasi_hari: 30, 
-  harga: '',
-  diskon: 0 
-};
+const INITIAL_FORM_STATE = { nama_paket: '', tipe_paket: 'Berjangka', durasi_hari: 30, harga: '', diskon: 0 };
 
 export default function DashboardAdmin() {
   const [classes, setClasses] = useState([]);
@@ -63,66 +54,45 @@ export default function DashboardAdmin() {
     setTimeout(() => setToastConfig(prev => ({ ...prev, isVisible: false })), 4000);
   }, []);
 
-  // FUNGSI UTAMA: TARIK DATA (DENGAN TIKET EKSPLISIT)
   const fetchMembershipData = useCallback(async () => {
     setIsLoading(true);
     const token = localStorage.getItem('token');
-    
-    // Pastikan token selalu ditempel saat meminta data
-    const apiConfig = {
-      headers: { Authorization: `Bearer ${token}` }
-    };
+    const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
 
     try {
-      // 1. Tarik Data Paket (Aman dari tabrakan)
       try {
         const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership", apiConfig);
         const packageData = packageRes.data.data || packageRes.data;
-        
         const normalizedData = packageData.map(item => ({
           ...item,
           id_paket: item.id_paket || item.id, 
           hargaNum: Number(item.harga),
           diskonVal: Number(item.diskon) || 0,
-          isActive: item.status_aktif === 'Tersedia' 
+          isActive: item.status_aktif === 'Tersedia',
+          isDeleted: item.is_deleted 
         }));
         setClasses(normalizedData);
-      } catch (err) {
-        console.error("Gagal menarik paket:", err);
-      }
+      } catch (err) { console.error("Gagal menarik paket:", err); }
 
-      // 2. Tarik Data Member Asli (Aman dari tabrakan)
       try {
         const userRes = await axios.get("http://localhost:5000/api/v1/users", apiConfig);
         const userData = userRes.data.data || userRes.data;
-        
-        // Membaca array data dari backend Anda yang berisi 4 orang tadi
         setTotalMembers(userData.length);
-      } catch (err) {
-        console.error("Gagal menarik data user:", err);
-        setTotalMembers(0); // Jika API gagal, kembalikan ke 0, bukan Error
-      }
-
-    } finally {
-      setIsLoading(false);
-    }
+      } catch (err) { setTotalMembers(0); }
+    } finally { setIsLoading(false); }
   }, []);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (!localStorage.getItem('token') || !userData) {
-      alert("Akses Ditolak: Anda harus login!");
       window.location.href = '/login'; 
       return;
     }
     const user = JSON.parse(userData);
-    if (user.peran !== 'Admin') {
-      alert("Akses Ditolak: Khusus Admin.");
+    if (user.role !== 'Admin' && user.peran !== 'Admin') {
       window.location.href = '/login'; 
       return;
     }
-    
-    // Jalankan fungsi tarik data jika otentikasi lolos
     fetchMembershipData();
   }, [fetchMembershipData]);
 
@@ -135,9 +105,7 @@ export default function DashboardAdmin() {
         harga: editingClass.hargaNum,
         diskon: editingClass.diskonVal || 0
       });
-    } else {
-      setFormData(INITIAL_FORM_STATE);
-    }
+    } else { setFormData(INITIAL_FORM_STATE); }
   }, [editingClass]);
 
   const handleSubmit = useCallback(async (e) => {
@@ -145,7 +113,6 @@ export default function DashboardAdmin() {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
-
     const payload = {
       namaPaket: formData.nama_paket,
       durasiHari: formData.tipe_paket === 'Harian' ? 1 : Number(formData.durasi_hari),
@@ -165,11 +132,8 @@ export default function DashboardAdmin() {
       setEditingClass(null);
       setFormData(INITIAL_FORM_STATE);
       await fetchMembershipData(); 
-    } catch (error) {
-      showToast(error.response?.data?.message || 'Gagal menyimpan ke database', 'error');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (error) { showToast(error.response?.data?.message || 'Gagal menyimpan ke database', 'error'); } 
+    finally { setIsLoading(false); }
   }, [formData, editingClass, showToast, fetchMembershipData]);
 
   const handleDelete = useCallback((cls) => {
@@ -189,35 +153,27 @@ export default function DashboardAdmin() {
           showToast('Paket berhasil dihapus!');
           if (editingClass?.id_paket === cls.id_paket) setEditingClass(null);
           await fetchMembershipData(); 
-        } catch (error) {
-          showToast('Gagal menghapus data dari server', 'error');
-        } finally {
-          setModalConfig(p => ({ ...p, isOpen: false }));
-        }
+        } catch (error) { showToast('Gagal menghapus data dari server', 'error'); } 
+        finally { setModalConfig(p => ({ ...p, isOpen: false })); }
       }
     });
   }, [editingClass, showToast, fetchMembershipData]);
 
   const handleToggleStatus = useCallback(async (id) => {
     const target = classes.find(c => c.id_paket === id);
-    if (!target) return;
+    if (!target || target.isDeleted) return;
     const newStatus = target.status_aktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
 
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, 
-        { statusAktif: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
       showToast(`Paket "${target.nama_paket}" telah menjadi ${newStatus}.`);
       await fetchMembershipData(); 
-    } catch (error) {
-      showToast('Gagal merubah status paket.', 'error');
-    }
+    } catch (error) { showToast('Gagal merubah status paket.', 'error'); }
   }, [classes, showToast, fetchMembershipData]);
 
   const stats = useMemo(() => {
-    const activePackages = classes.filter(c => c.isActive).length;
+    const activePackages = classes.filter(c => c.isActive && !c.isDeleted).length;
     return { activePackages, inactivePackages: classes.length - activePackages };
   }, [classes]);
 
@@ -228,15 +184,10 @@ export default function DashboardAdmin() {
       const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? cls.isActive : !cls.isActive);
       return matchesSearch && matchesStatus;
     });
-    
     const pages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
     const displayed = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
     return { filteredClasses: filtered, displayedClasses: displayed, totalPages: pages };
   }, [classes, searchQuery, statusFilter, currentPage]);
-
-  const handlePageChange = (direction) => {
-    setCurrentPage(p => direction === 'next' ? Math.min(totalPages, p + 1) : Math.max(1, p - 1));
-  };
 
   return (
     <div className="min-h-screen bg-[#111315] font-sans">
@@ -266,29 +217,21 @@ export default function DashboardAdmin() {
       <div className="flex">
         <div className="flex-1 min-w-0">
           <main className="p-4 lg:p-8 max-w-7xl mx-auto">
-            {/* HEADER BERSIH - Sesuai Permintaan Anda */}
             <div className="sticky top-[72px] z-30 bg-[#111315]/95 backdrop-blur-sm -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 mb-6 lg:mb-8 border-b border-[#333333]/50">
               <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Dashboard Admin</h1>
             </div>
 
             <div>
-              {/* HANYA 3 KARTU STATISTIK UTAMA */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-8">
                 <StatCard title="Total Paket" icon="Package" value={isLoading ? '...' : classes.length} />
-                <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} paket habis`} />
+                <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} paket habis/dihapus`} />
                 <StatCard title="Jumlah Member" icon="Users" value={isLoading ? '...' : totalMembers} />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-                {/* BAGIAN TABEL */}
                 <div className="xl:col-span-2 space-y-6">
                   <div className="bg-[#1A1C1E] border border-[#333333] rounded-2xl shadow-sm overflow-hidden">
                     <div className="p-4 lg:p-6 border-b border-[#333333] bg-[#1A1C1E]">
-                      <div className="text-center mb-4">
-                        <h2 className="font-bold text-white">Manajemen Akses Paket</h2>
-                        <p className="text-xs text-[#888888] mt-1">Kelola paket membership gym Anda</p>
-                      </div>
-                      
                       <form className="flex items-center justify-center gap-3" onSubmit={(e) => e.preventDefault()}>
                         <div className="relative w-full max-w-sm">
                           <span className="absolute inset-y-0 left-3 flex items-center text-[#888888]"><Icon name="Search" className="w-4 h-4" /></span>
@@ -314,15 +257,16 @@ export default function DashboardAdmin() {
                         </thead>
                         <tbody className="divide-y divide-[#333333] text-sm text-[#E0E0E0]">
                           {isLoading ? (
-                            <tr><td colSpan="4" className="py-12 text-center text-[#888888] font-medium"><div className="w-6 h-6 border-2 border-[#C2A676]/30 border-t-[#C2A676] rounded-full animate-spin mx-auto mb-3"></div>Memuat data...</td></tr>
+                            <tr><td colSpan="4" className="py-12 text-center text-[#888888]">Memuat data...</td></tr>
                           ) : displayedClasses.length === 0 ? (
-                            <tr><td colSpan="4" className="py-8 text-center text-[#888888] font-medium">Data paket tidak ditemukan.</td></tr>
+                            <tr><td colSpan="4" className="py-8 text-center text-[#888888]">Data tidak ditemukan.</td></tr>
                           ) : displayedClasses.map(cls => (
-                            <tr key={cls.id_paket} className="hover:bg-[#333333]/30 transition">
+                            <tr key={cls.id_paket} className={`hover:bg-[#333333]/30 transition ${cls.isDeleted ? 'opacity-50' : ''}`}>
                               <td className="py-4 px-6">
                                 <div className="font-semibold text-white flex items-center gap-2">
                                   {cls.nama_paket}
                                   {cls.durasi_hari === 1 && <span className="text-[10px] bg-[#333] px-2 py-0.5 rounded text-gray-300">Harian</span>}
+                                  {cls.isDeleted && <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">Dihapus</span>}
                                 </div>
                                 <div className="text-xs text-[#888888] mt-0.5">ID: {cls.id_paket} | Durasi: {cls.durasi_hari} Hari</div>
                               </td>
@@ -331,32 +275,74 @@ export default function DashboardAdmin() {
                                 {cls.diskonVal > 0 && <div className="text-xs text-green-400 mt-0.5">Diskon: {cls.diskonVal}%</div>}
                               </td>
                               <td className="py-4 px-6">
-                                <button onClick={() => handleToggleStatus(cls.id_paket)} className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm transition ${cls.isActive ? 'bg-[#C2A676]/10 text-[#C2A676] hover:bg-[#C2A676]/20' : 'bg-[#333333] text-[#888888] hover:bg-[#333333]/80'}`}>
-                                  {cls.status_aktif}
+                                <button disabled={cls.isDeleted} onClick={() => handleToggleStatus(cls.id_paket)} className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm transition ${cls.isDeleted ? 'bg-[#333333] text-[#888888] cursor-not-allowed' : cls.isActive ? 'bg-[#C2A676]/10 text-[#C2A676] hover:bg-[#C2A676]/20' : 'bg-[#333333] text-[#888888] hover:bg-[#333333]/80'}`}>
+                                  {cls.isDeleted ? 'Nonaktif' : cls.status_aktif}
                                 </button>
                               </td>
                               <td className="py-4 px-6 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button onClick={() => setEditingClass(cls)} className="p-1.5 text-[#888888] hover:text-[#C2A676] hover:bg-[#C2A676]/10 rounded-lg transition"><Icon name="Edit" className="w-4 h-4" /></button>
-                                  <button onClick={() => handleDelete(cls)} className="p-1.5 text-[#888888] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition"><Icon name="Trash" className="w-4 h-4" /></button>
-                                </div>
+                                {!cls.isDeleted && (
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button onClick={() => setEditingClass(cls)} className="p-1.5 text-[#888888] hover:text-[#C2A676] hover:bg-[#C2A676]/10 rounded-lg transition"><Icon name="Edit" className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDelete(cls)} className="p-1.5 text-[#888888] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition"><Icon name="Trash" className="w-4 h-4" /></button>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between px-6 py-4 border-t border-[#333333]">
+                        <div className="text-xs text-[#888888]">
+                          Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredClasses.length)} dari {filteredClasses.length} data
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#333333] text-[#E0E0E0] hover:bg-[#333333] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <Icon name="ChevronLeft" className="w-3.5 h-3.5" />
+                            Previous
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
+                                  currentPage === page 
+                                    ? 'bg-[#C2A676] text-[#111315]' 
+                                    : 'text-[#888888] hover:bg-[#333333]'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+                          </div>
+
+                          <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#333333] text-[#E0E0E0] hover:bg-[#333333] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <Icon name="ChevronRight" className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* BAGIAN FORM (DENGAN FITUR HARIAN & DISKON) */}
                 <div className="xl:col-span-1 space-y-6">
                   <div className="bg-[#1A1C1E] border border-[#333333] rounded-2xl shadow-sm p-4 lg:p-6 sticky top-24">
                     <h2 className="font-bold text-white mb-1">{editingClass ? 'Edit Paket Membership' : 'Tambah Paket Baru'}</h2>
-                    
                     <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                      
-                      {/* Pilihan Harian / Berjangka */}
                       <div>
                          <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-2">Tipe Paket</label>
                          <div className="flex gap-4">
@@ -368,43 +354,23 @@ export default function DashboardAdmin() {
                             </label>
                          </div>
                       </div>
-
                       <div>
                         <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Nama Paket</label>
-                        <input type="text" required value={formData.nama_paket} onChange={(e) => setFormData({ ...formData, nama_paket: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="Contoh: Paket Gymbros" />
+                        <input type="text" required value={formData.nama_paket} onChange={(e) => setFormData({ ...formData, nama_paket: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none bg-[#111315] text-[#E0E0E0]" />
                       </div>
-                      
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Harga (Rp)</label>
-                          <input type="number" required value={formData.harga} onChange={(e) => setFormData({ ...formData, harga: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="50000" />
+                          <input type="number" required value={formData.harga} onChange={(e) => setFormData({ ...formData, harga: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none bg-[#111315] text-[#E0E0E0]" />
                         </div>
-                        
                         <div>
                           <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Durasi (Hari)</label>
-                          <input 
-                            type="number" 
-                            required 
-                            disabled={formData.tipe_paket === 'Harian'}
-                            value={formData.tipe_paket === 'Harian' ? 1 : formData.durasi_hari} 
-                            onChange={(e) => setFormData({ ...formData, durasi_hari: e.target.value })} 
-                            className={`w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition ${formData.tipe_paket === 'Harian' ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                            placeholder="30" 
-                          />
+                          <input type="number" required disabled={formData.tipe_paket === 'Harian'} value={formData.tipe_paket === 'Harian' ? 1 : formData.durasi_hari} onChange={(e) => setFormData({ ...formData, durasi_hari: e.target.value })} className={`w-full px-3 py-2 border border-[#333333] rounded-xl text-sm bg-[#111315] text-[#E0E0E0] ${formData.tipe_paket === 'Harian' ? 'opacity-50' : ''}`} />
                         </div>
                       </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#888888] uppercase tracking-wider mb-1.5">Diskon Member Baru (%)</label>
-                        <input type="number" max="100" min="0" value={formData.diskon} onChange={(e) => setFormData({ ...formData, diskon: e.target.value })} className="w-full px-3 py-2 border border-[#333333] rounded-xl text-sm focus:outline-none focus:border-[#C2A676] bg-[#111315] text-[#E0E0E0] transition placeholder-[#888888]" placeholder="0" />
-                      </div>
-
                       <div className="flex gap-2 pt-2">
-                        {editingClass && <button type="button" onClick={() => setEditingClass(null)} disabled={isLoading} className="flex-1 py-2.5 border border-[#333333] text-[#888888] rounded-xl text-sm font-semibold hover:bg-[#333333] transition disabled:opacity-50">Batal</button>}
-                        <button type="submit" disabled={isLoading} className="flex-1 py-2.5 bg-[#C2A676] text-[#111315] hover:bg-[#C2A676]/90 rounded-xl text-sm font-semibold transition shadow-md disabled:opacity-50 flex justify-center items-center gap-2">
-                           {isLoading && <div className="w-4 h-4 border-2 border-[#111315]/30 border-t-[#111315] rounded-full animate-spin" />}
-                           {editingClass ? 'Simpan Data' : 'Tambah Paket'}
-                        </button>
+                        {editingClass && <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 border border-[#333333] text-[#888888] rounded-xl text-sm font-semibold hover:bg-[##333333]">Batal</button>}
+                        <button type="submit" disabled={isLoading} className="flex-1 py-2.5 bg-[#C2A676] text-[#111315] hover:bg-[#C2A676]/90 rounded-xl text-sm font-semibold">{editingClass ? 'Simpan' : 'Tambah'}</button>
                       </div>
                     </form>
                   </div>

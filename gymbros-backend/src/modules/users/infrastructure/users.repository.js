@@ -93,4 +93,74 @@ export class UsersRepository {
     const query = `DELETE FROM public.users WHERE id_user = $1;`;
     return await db.query(query, [id]);
   }
+
+  async findByEmail(email) {
+    const query = 'SELECT * FROM users WHERE email = $1';
+    const result = await db.query(query, [email]);
+    return this._mapToDomain(result.rows[0]);
+  }
+
+  async createUser(userData) {
+    const { namaLengkap, email, passwordHash, noTelepon, peran, statusAkun } = userData;
+    const query = `
+      INSERT INTO users (nama_lengkap, email, password_hash, no_telepon, peran, status_akun)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *;
+    `;
+    const values = [
+      namaLengkap,
+      email,
+      passwordHash,
+      noTelepon || null,
+      peran || 'Member',
+      statusAkun || 'Aktif'
+    ];
+    const result = await db.query(query, values);
+    return this._mapToDomain(result.rows[0]);
+  }
+
+  // Fungsi untuk update data oleh Admin (Berdasarkan payload frontend)
+  async updateUserByAdmin(id, updateData) {
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (updateData.namaLengkap !== undefined) {
+      fields.push(`nama_lengkap = $${paramIndex++}`);
+      values.push(updateData.namaLengkap);
+    }
+    if (updateData.email !== undefined) {
+      fields.push(`email = $${paramIndex++}`);
+      values.push(updateData.email);
+    }
+    if (updateData.peran !== undefined) {
+      fields.push(`peran = $${paramIndex++}`);
+      values.push(updateData.peran);
+    }
+    if (updateData.status !== undefined) {
+      fields.push(`status_akun = $${paramIndex++}`);
+      values.push(updateData.status);
+    }
+
+    if (fields.length === 0) return null;
+
+    values.push(id); 
+    
+    const query = `
+      UPDATE users 
+      SET ${fields.join(', ')} 
+      WHERE id_user = $${paramIndex} 
+      RETURNING *
+    `;
+    
+    const result = await db.query(query, values);
+    return this._mapToDomain(result.rows[0]);
+  }
+
+  // Fungsi khusus untuk Ban/Unban (Toggle Status)
+  async updateStatus(id, status) {
+    const query = `UPDATE users SET status_akun = $1 WHERE id_user = $2 RETURNING *`;
+    const result = await db.query(query, [status, id]);
+    return this._mapToDomain(result.rows[0]);
+  }
 }

@@ -1,10 +1,16 @@
 import { AppError } from '../../../shared/core/AppError.js';
 
 export class PaymentUseCase {
-  constructor(membershipRepo, classBookingRepo, coachingRepo) {
+  constructor(
+    membershipRepo,
+    classBookingRepo,
+    coachingRepo,
+    notificationService
+  ) {
     this.membershipRepo = membershipRepo;
     this.classBookingRepo = classBookingRepo;
     this.coachingRepo = coachingRepo;
+    this.notificationService = notificationService;
   }
 
   async processWebhook(notification) {
@@ -14,52 +20,97 @@ export class PaymentUseCase {
 
     let localStatus = 'Pending';
 
-    // Pemetaan Status Midtrans -> Database Anda
-    if (transactionStatus == 'capture') {
-        if (fraudStatus == 'challenge'){ localStatus = 'Pending'; }
-        else if (fraudStatus == 'accept'){ localStatus = 'Aktif/Success'; }
-    } else if (transactionStatus == 'settlement'){
-        localStatus = 'Aktif/Success';
-    } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire'){
-        localStatus = 'Gagal/Batal';
-    } else if (transactionStatus == 'pending'){
+    // Mapping Status Midtrans -> Database
+    if (transactionStatus === 'capture') {
+      if (fraudStatus === 'challenge') {
         localStatus = 'Pending';
+      } else if (fraudStatus === 'accept') {
+        localStatus = 'Aktif/Success';
+      }
+    } else if (transactionStatus === 'settlement') {
+      localStatus = 'Aktif/Success';
+    } else if (
+      transactionStatus === 'cancel' ||
+      transactionStatus === 'deny' ||
+      transactionStatus === 'expire'
+    ) {
+      localStatus = 'Gagal/Batal';
+    } else if (transactionStatus === 'pending') {
+      localStatus = 'Pending';
     }
 
-    // Eksekusi Update berdasarkan Prefix Order ID
-    const dbId = orderId.split('-')[1]; // Mendapatkan ID aslinya
-    
+    // Ambil ID asli dari Order ID
+    const dbId = orderId.split('-')[1];
+
+    // ===========================
+    // MEMBERSHIP
+    // ===========================
     if (orderId.startsWith('MBR-')) {
-       // Update status tabel membership
-       await this.membershipRepo.updateStatus(dbId, localStatus);
-    } 
-    else if (orderId.startsWith('KLS-')) {
-       // Update status tabel booking_kelas
-       await this.classBookingRepo.updateStatus(dbId, localStatus);
-    } 
-    else if (orderId.startsWith('CCH-')) {
-       // Update status tabel pemesanan coaching
-       await this.coachingRepo.updateStatus(dbId, localStatus);
+      await this.membershipRepo.updateStatus(dbId, localStatus);
+
+      if (localStatus === 'Aktif/Success') {
+        const membership = await this.membershipRepo.findById(dbId);
+
+        await this.notificationService.notifyAdmins(
+          'Pembayaran Diterima',
+          `Order ${orderId} sukses.`
+        );
+
+        await this.notificationService.notifyMember(
+          membership.id_user,
+          'Pembayaran Berhasil',
+          'Terima kasih, paket membership Anda telah aktif.'
+        );
+      }
     }
 
-    if (localStatus === 'Aktif/Success') {
-    // 1. Update status di DB
-    await this.membershipRepo.updateStatus(dbId, 'Aktif');
+    // ===========================
+    // BOOKING KELAS
+    // ===========================
+    else if (orderId.startsWith('KLS-')) {
+      await this.classBookingRepo.updateStatus(dbId, localStatus);
 
-    // 2. Kirim Notifikasi ke Member
-    await this.notificationUseCase.createNotification(
-        userId,
-        "Pembayaran Berhasil!",
-        "Terima kasih, pembayaran Anda telah kami terima. Selamat menikmati layanan kami!"
-    );
+      if (localStatus === 'Aktif/Success') {
+        const booking = await this.classBookingRepo.findById(dbId);
 
-    // 3. Kirim Notifikasi ke Admin
-    // Asumsikan kita punya fungsi untuk ambil ID admin atau broadcast
-    await this.notificationUseCase.createNotification(
-        ADMIN_ID,
-        "Dana Diterima",
-        `Penerimaan dana sukses sebesar Rp${notification.gross_amount} dari ${userName}`
-    );
-}
+        await this.notificationService.notifyAdmins(
+          'Pembayaran Diterima',
+          `Order ${orderId} sukses.`
+        );
+
+        await this.notificationService.notifyMember(
+          booking.id_user,
+          'Pembayaran Berhasil',
+          'Pembayaran booking kelas berhasil.'
+        );
+      }
+    }
+
+    // ===========================
+    // COACHING
+    // ===========================
+    else if (orderId.startsWith('CCH-')) {
+      await this.coachingRepo.updateStatus(dbId, localStatus);
+
+      if (localStatus === 'Aktif/Success') {
+        const coaching = await this.coachingRepo.findById(dbId);
+
+        await this.notificationService.notifyAdmins(
+          'Pembayaran Diterima',
+          `Order ${orderId} sukses.`
+        );
+
+        await this.notificationService.notifyMember(
+          coaching.id_user,
+          'Pembayaran Berhasil',
+          'Pembayaran sesi coaching berhasil.'
+        );
+      }
+    }
+
+    return {
+      success: true,
+      status: localStatus
+    };
   }
 }
