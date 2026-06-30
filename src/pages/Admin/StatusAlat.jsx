@@ -436,7 +436,6 @@ export default function KelolaAlatAdmin() {
               <span className="panel-count">{filtered.length} alat</span>
               <div className="panel-spacer" />
               <div className="search-wrap">
-                <span className="search-icon">🔍</span>
                 <input
                   className="input-base search-input"
                   value={search}

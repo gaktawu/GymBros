@@ -22,41 +22,53 @@ const AdminManageMembers = () => {
   const [modalState, setModalState] = useState({ type: null, payload: null });
   const [editForm, setEditForm] = useState(INITIAL_EDIT_STATE);
 
+  // 1. FUNGSI TARIK DATA (READ)
+  // PERBAIKAN: Menambahkan parameter isBackgroundFetch agar tidak memunculkan animasi loading terus-menerus
+  const fetchMemberData = useCallback(async (isBackgroundFetch = false) => {
+    try {
+      if (!isBackgroundFetch) setIsLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert("Sesi berakhir. Silakan login kembali!");
+        return navigate('/login');
+      }
+
+      const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+      
+      const response = await axios.get('http://localhost:5000/api/v1/users', apiConfig);
+      const rawData = response.data.data || response.data;
+
+      // PERBAIKAN: Memperbaiki penamaan field sesuai dengan toJSON() pada User.js Backend
+      const formattedMembers = rawData.map(user => ({
+        id: user.idUser || user.id, // Sesuai field backend
+        name: (user.namaLengkap || 'Tanpa Nama').toUpperCase(),
+        email: user.email ? user.email.toLowerCase() : '',
+        plan: user.peran || "Anggota", 
+        status: user.statusAkun === 'Aktif' ? 'Active' : 'Expired', // PERBAIKAN: Menggunakan statusAkun, bukan status
+        joined: user.dibuatPada ? new Date(user.dibuatPada).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Baru',
+        image: user.fotoProfil || null // PERBAIKAN: Menggunakan fotoProfil, bukan avatar
+      }));
+
+      setMembers(formattedMembers);
+    } catch (error) {
+      console.error("Gagal menarik data anggota:", error);
+    } finally {
+      if (!isBackgroundFetch) setIsLoading(false);
+    }
+  }, [navigate]);
+
   useEffect(() => {
     document.title = "Gymbros Admin | Manage Members";
     const originalBodyBg = document.body.style.backgroundColor;
     document.body.style.backgroundColor = "#111315";
 
-    const fetchMemberData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get('https://randomuser.me/api/?results=50&nat=us,gb,au,ca,nz');
-
-        const formattedMembers = response.data.results.map((user, index) => ({
-          id: `GB-${99200 + index}`,
-          name: `${user.name.first} ${user.name.last}`.toUpperCase(),
-          email: user.email.toLowerCase(),
-          plan: user.dob.age > 30 ? "Elite Bro" : "Basic Bro",
-          status: index % 5 === 0 ? "Expired" : index % 7 === 0 ? "Pending" : "Active",
-          joined: new Date(user.registered.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          image: user.picture.medium
-        }));
-
-        const localDummyMembers = JSON.parse(localStorage.getItem('dummyMembers')) || [];
-        setMembers([...localDummyMembers, ...formattedMembers]);
-      } catch (error) {
-        console.error("Fetch API Error:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMemberData();
+    fetchMemberData(false); // Fetch pertama kali dengan animasi loading
 
     return () => {
       document.body.style.backgroundColor = originalBodyBg;
     };
-  }, []);
+  }, [fetchMemberData]);
 
   const openModal = useCallback((type, payload) => {
     setModalState({ type, payload });
@@ -68,25 +80,69 @@ const AdminManageMembers = () => {
     setEditForm(INITIAL_EDIT_STATE);
   }, []);
 
-  const handleEditSubmit = useCallback((e) => {
+  // 2. FUNGSI EDIT DATA (PUT)
+  const handleEditSubmit = useCallback(async (e) => {
     e.preventDefault();
-    setMembers(prev => prev.map(m => m.id === editForm.id ? { ...editForm } : m));
-    closeModal();
-  }, [editForm, closeModal]);
+    try {
+      const token = localStorage.getItem('token');
+      const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+      
+      const payload = {
+        namaLengkap: editForm.name,
+        email: editForm.email,
+        peran: editForm.plan,
+        status: editForm.status === 'Active' ? 'Aktif' : 'Nonaktif'
+      };
 
-  const confirmDelete = useCallback(() => {
-    setMembers(prev => prev.filter(m => m.id !== modalState.payload.id));
-    closeModal();
-  }, [modalState.payload, closeModal]);
+      await axios.put(`http://localhost:5000/api/v1/users/${editForm.id}`, payload, apiConfig);
+      
+      // Sinkronisasi data di latar belakang agar tabel tidak kedip
+      await fetchMemberData(true);
+      closeModal();
+    } catch (error) {
+      console.error(error);
+      alert("Gagal memperbarui data anggota dari server!");
+    }
+  }, [editForm, fetchMemberData, closeModal]);
 
-  const toggleStatus = useCallback((id) => {
-    setMembers(prev => prev.map(member => {
-      if (member.id === id) {
-        return { ...member, status: member.status === "Active" ? "Expired" : "Active" };
-      }
-      return member;
-    }));
-  }, []);
+  // 3. FUNGSI HAPUS DATA (DELETE)
+  const confirmDelete = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+      
+      await axios.delete(`http://localhost:5000/api/v1/users/${modalState.payload.id}`, apiConfig);
+      
+      await fetchMemberData(true);
+      closeModal();
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menghapus anggota secara permanen!");
+    }
+  }, [modalState.payload, fetchMemberData, closeModal]);
+
+  // 4. FUNGSI BAN/UNBAN (PATCH STATUS)
+  const toggleStatus = useCallback(async (id) => {
+    const target = members.find(m => m.id === id);
+    if (!target) return;
+    
+    const newStatus = target.status === 'Active' ? 'Nonaktif' : 'Aktif';
+    
+    try {
+      const token = localStorage.getItem('token');
+      const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+      
+      // Kirim pembaruan ke backend
+      await axios.patch(`http://localhost:5000/api/v1/users/${id}/status`, { status: newStatus }, apiConfig);
+      
+      // PERBAIKAN: Fetch data ulang di latar belakang (Background Fetch = true)
+      // Ini akan mencegah layar berkedip saat tombol di klik
+      await fetchMemberData(true); 
+    } catch (error) {
+      console.error(error);
+      alert("Gagal mengubah status member!");
+    }
+  }, [members, fetchMemberData]);
 
   const handleFilterChange = useCallback((key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' && { page: 1 }) }));
@@ -96,7 +152,7 @@ const AdminManageMembers = () => {
     const searchLower = filters.search.toLowerCase();
     
     const filtered = members.filter(member => {
-      const matchesSearch = member.name.toLowerCase().includes(searchLower) || member.id.toLowerCase().includes(searchLower);
+      const matchesSearch = member.name.toLowerCase().includes(searchLower) || member.id.toString().toLowerCase().includes(searchLower);
       const matchesStatus = filters.status === "All" || member.status.toLowerCase() === filters.status.toLowerCase();
       return matchesSearch && matchesStatus;
     });
@@ -120,6 +176,7 @@ const AdminManageMembers = () => {
     <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
       <style>{SCROLLBAR_STYLES}</style>
 
+      {/* HEADER KONTROL PANEL */}
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 overflow-hidden shadow-xl">
         <div>
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">ADMIN CONTROL PANEL</h4>
@@ -131,6 +188,7 @@ const AdminManageMembers = () => {
         </div>
       </div>
 
+      {/* SEARCH & FILTER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2 relative">
@@ -151,8 +209,7 @@ const AdminManageMembers = () => {
             >
               <option value="All">All Status</option>
               <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Expired">Expired</option>
+              <option value="Expired">Banned / Expired</option>
             </select>
           </div>
         </div>
@@ -165,10 +222,11 @@ const AdminManageMembers = () => {
         </button>       
       </div>
 
+      {/* TABEL DATA MEMBER */}
       <div className="bg-[#1e2023] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
         {isLoading ? (
           <div className="p-20 text-center text-xs font-black tracking-widest text-[#C2A676] uppercase animate-pulse">
-            🔄 Synchronizing With RandomUser API Server...
+            🔄 Menghubungkan ke Database Utama...
           </div>
         ) : (
           <div className="overflow-auto max-h-[520px] custom-scrollbar">
@@ -213,7 +271,12 @@ const AdminManageMembers = () => {
                       <td className="py-4 px-6 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button onClick={() => openModal('EDIT', member)} className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase bg-white/5 border border-white/5 hover:border-[#C2A676] hover:text-[#C2A676] transition-colors">Edit</button>
-                          <button onClick={() => toggleStatus(member.id)} className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase transition-colors ${member.status.toLowerCase() === 'active' ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-[#111315]' : 'bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-[#111315]'}`}>{member.status.toLowerCase() === 'active' ? 'Ban' : 'Unban'}</button>
+                          
+                          {/* TOMBOL BAN / UNBAN */}
+                          <button onClick={() => toggleStatus(member.id)} className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase transition-colors ${member.status.toLowerCase() === 'active' ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-[#111315]' : 'bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-[#111315]'}`}>
+                            {member.status.toLowerCase() === 'active' ? 'Ban' : 'Unban'}
+                          </button>
+
                           <button onClick={() => openModal('DELETE', member)} className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-colors">Delete</button>
                         </div>
                       </td>
@@ -221,7 +284,7 @@ const AdminManageMembers = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="py-12 text-center text-gray-500 uppercase font-bold text-sm">⚠️ No Matching Records Found.</td>
+                    <td colSpan="8" className="py-12 text-center text-gray-500 uppercase font-bold text-sm">⚠️ No Matching Records Found in Database.</td>
                   </tr>
                 )}
               </tbody>
@@ -229,6 +292,7 @@ const AdminManageMembers = () => {
           </div>
         )}
 
+        {/* PAGINATION */}
         {!isLoading && filteredMembers.length > 0 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-white/5 bg-[#1a1c1f]">
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -265,6 +329,7 @@ const AdminManageMembers = () => {
         )}
       </div>
 
+      {/* MODAL EDIT DATA */}
       {modalState.type === 'EDIT' && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={closeModal}></div>
@@ -290,18 +355,18 @@ const AdminManageMembers = () => {
                 <input type="email" value={editForm.email} onChange={(e) => setEditForm(p => ({ ...p, email: e.target.value }))} required className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Plan Membership</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Role / Plan</label>
                 <select value={editForm.plan} onChange={(e) => setEditForm(p => ({ ...p, plan: e.target.value }))} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors">
-                  <option value="Basic Bro">Basic Bro</option>
-                  <option value="Elite Bro">Elite Bro</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Anggota">Anggota</option>
+                  <option value="Pelatih">Pelatih</option>
                 </select>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status Account</label>
                 <select value={editForm.status} onChange={(e) => setEditForm(p => ({ ...p, status: e.target.value }))} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors">
                   <option value="Active">Active</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Expired">Expired</option>
+                  <option value="Expired">Nonaktif / Banned</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
@@ -313,6 +378,7 @@ const AdminManageMembers = () => {
         </div>
       )}
 
+      {/* MODAL HAPUS DATA */}
       {modalState.type === 'DELETE' && modalState.payload && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={closeModal}></div>
@@ -331,7 +397,6 @@ const AdminManageMembers = () => {
           </div>
         </div>
       )}
-
     </main> 
   );
 };

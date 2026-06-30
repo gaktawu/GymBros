@@ -15,18 +15,15 @@ const usersController = new UsersController(usersUseCase);
 // Semua route mewajibkan login
 router.use(protect);
 
-// Semua pengguna (Admin, Coach, Member) bisa melihat profil mereka sendiri
 router.get('/profile', asyncHandler(usersController.getProfile));
+router.patch('/profile', uploadImage.single('avatar'), asyncHandler(usersController.updateProfile));
 
-// HANYA Admin yang boleh melihat daftar seluruh pengguna di database
+// --- ADMIN MANAGE MEMBERS ROUTE ---
 router.get('/', restrictTo('Admin'), asyncHandler(usersController.getAllUsers));
-
-router.patch(
-  '/profile',
-  uploadImage.single('avatar'),
-  asyncHandler(usersController.updateProfile)
-);
-
+router.post('/', restrictTo('Admin'), asyncHandler(usersController.createUser));
 router.delete('/:id', restrictTo('Admin'), asyncHandler(usersController.deleteUser));
+
+router.put('/:id', restrictTo('Admin'), asyncHandler(usersController.updateUserByAdmin));
+router.patch('/:id/status', restrictTo('Admin'), asyncHandler(usersController.updateUserStatus));
 
 export default router;

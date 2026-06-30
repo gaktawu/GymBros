@@ -9,35 +9,17 @@ import { createPaketSchema, updateStatusSchema } from './paketMembership.validat
 
 const router = express.Router();
 
-// 1. Instansiasi Object (Dependency Injection)
 const paketRepository = new PaketMembershipRepository();
 const paketUseCase = new PaketMembershipUseCase(paketRepository);
 const paketController = new PaketMembershipController(paketUseCase);
 
-
-router.get('/', asyncHandler(paketController.getAllPaket));
-// 2. Definisi Rute
-// Semua route di bawah ini mewajibkan pengguna untuk login terlebih dahulu
 router.use(protect);
 
-// Semua role (Admin, Coach, Member) bisa melihat daftar paket yang tersedia
+router.get('/', asyncHandler(paketController.getAllPaket));
 
-
-// Hanya Admin yang bisa membuat paket baru dan mengubah status paket
-router.post(
-  '/', 
-  restrictTo('Admin'), 
-  validate(createPaketSchema), 
-  asyncHandler(paketController.createPaket)
-);
-
-router.patch(
-  '/:id/status', 
-  restrictTo('Admin'), 
-  validate(updateStatusSchema), 
-  asyncHandler(paketController.updateStatus)
-);
-
-router.delete('/:id', restrictTo('Admin'), asyncHandler(PaketMembershipController.deletePaket));
+router.post('/', restrictTo('Admin'), validate(createPaketSchema), asyncHandler(paketController.createPaket));
+router.patch('/:id/status', restrictTo('Admin'), validate(updateStatusSchema), asyncHandler(paketController.updateStatus));
+router.delete('/:id', restrictTo('Admin'), asyncHandler(paketController.deletePaket));
+router.put('/:id', restrictTo('Admin'), asyncHandler(paketController.updatePaket));
 
 export default router;
