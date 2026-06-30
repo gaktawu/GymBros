@@ -275,11 +275,6 @@ const Membership = () => {
                   <h2 className={'text-xl font-black uppercase tracking-widest ' + paket.aksen}>
                     {paket.durasi}
                   </h2>
-                  {paket.diskonPersen > 0 && (
-                    <span className="bg-green-500/20 text-green-400 text-[10px] font-black px-2 py-1 rounded-full">
-                      HEMAT {paket.diskonPersen}%
-                    </span>
-                  )}
                 </div>
 
                 <div className="mb-5">
@@ -293,11 +288,9 @@ const Membership = () => {
                       {formatRupiah(paket.hargaDiskon)}
                     </span>
                   </div>
-                  {paket.diskonPersen > 0 && (
-                    <p className="text-[11px] text-green-400 font-bold mt-0.5">
-                      Hemat {formatRupiah(paket.hargaNormal - paket.hargaDiskon)}!
-                    </p>
-                  )}
+                  <span className="text-xs text-gray-500 block mt-1">
+                    Masa Berlaku: {paket.durasiHari} Hari
+                  </span>
                 </div>
 
                 <ul className="space-y-2 flex-1 mb-6">
