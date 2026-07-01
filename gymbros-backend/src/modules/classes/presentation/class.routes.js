@@ -1,33 +1,19 @@
-import express from 'express';
-import { ClassRepository } from '../infrastructure/class.repository.js';
-import { ClassUseCase } from '../application/class.usecase.js';
+import { Router } from 'express';
 import { ClassController } from './class.controller.js';
-import { asyncHandler } from '../../../shared/core/asyncHandler.js';
-import { validate } from '../../../shared/middlewares/validateMiddleware.js';
-import { protect, restrictTo } from '../../../shared/middlewares/authMiddleware.js';
-import { createClassSchema } from './class.validation.js';
+import { ClassUseCase } from '../application/class.usecase.js';
+import { ClassRepository } from '../infrastructure/class.repository.js';
+import { validateClassInput, validateIdParam } from './class.validation.js';
 
-const router = express.Router();
+const router = Router();
+const repository = new ClassRepository();
+const usecase = new ClassUseCase(repository);
+const controller = new ClassController(usecase);
 
-const classRepository = new ClassRepository();
-const classUseCase = new ClassUseCase(classRepository);
-const classController = new ClassController(classUseCase);
-
-router.get('/', asyncHandler(classController.getAllClasses));
-
-router.use(protect);
-
-// Semua yang login (Admin, Coach, Member) bisa melihat jadwal kelas
-
-
-// Hanya Admin (atau mungkin ke depan Coach) yang bisa membuat jadwal
-router.post(
-  '/', 
-  restrictTo('Admin'), 
-  validate(createClassSchema), 
-  asyncHandler(classController.createClass)
-);
-
-router.delete('/:id', restrictTo('Admin'), asyncHandler(classController.deleteClass));
+router.get('/', controller.getAllClasses);
+router.get('/:id', validateIdParam, controller.getClassById);
+router.post('/', validateClassInput, controller.createClass);
+router.put('/:id', validateIdParam, validateClassInput, controller.updateClass);
+router.delete('/:id', validateIdParam, controller.deleteClass);
+router.get('/:id/participants', validateIdParam, controller.getParticipants);
 
 export default router;

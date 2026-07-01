@@ -17,7 +17,19 @@ export class UsersRepository {
     });
   }
 
-  async findAll() {
+  // --- Diperbarui untuk menerima filter (seperti role/peran) ---
+  async findAll({ role } = {}) {
+    if (role) {
+      // Menggunakan kolom 'peran' sesuai dengan skema domain Anda
+      const query = `
+        SELECT * FROM users 
+        WHERE LOWER(peran) = LOWER($1) 
+        ORDER BY nama_lengkap ASC
+      `;
+      const result = await db.query(query, [role]);
+      return result.rows.map(row => this._mapToDomain(row).toJSON());
+    }
+
     const query = 'SELECT * FROM users ORDER BY dibuat_pada DESC';
     const result = await db.query(query);
     return result.rows.map(row => this._mapToDomain(row).toJSON());
@@ -29,12 +41,10 @@ export class UsersRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
-  // --- FUNGSI 1: Khusus upload gambar ke Supabase ---
   async uploadFileToSupabase(idUser, file) {
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `avatars/user-${idUser}-${Date.now()}.${fileExtension}`;
 
-    // Unggah ke bucket 'gymbros-bucket'
     const { error } = await supabase.storage
       .from('gymbros-bucket')
       .upload(fileName, file.buffer, {
@@ -44,7 +54,6 @@ export class UsersRepository {
 
     if (error) throw new Error(`Supabase Storage Error: ${error.message}`);
 
-    // Dapatkan Public URL (Pastikan nama bucket sama dengan saat upload)
     const { data: publicUrlData } = supabase.storage
       .from('gymbros-bucket')
       .getPublicUrl(fileName);
@@ -52,13 +61,11 @@ export class UsersRepository {
     return publicUrlData.publicUrl;
   }
 
-  
   async updateProfileCombined(id, updateData) {
     const fields = [];
     const values = [];
     let paramIndex = 1;
 
-    // Cek data mana saja yang dikirim dari Use Case
     if (updateData.namaLengkap !== undefined) {
       fields.push(`nama_lengkap = $${paramIndex++}`);
       values.push(updateData.namaLengkap);
@@ -76,7 +83,6 @@ export class UsersRepository {
 
     values.push(id); 
     
-    // Bangun query SQL secara dinamis
     const query = `
       UPDATE users 
       SET ${fields.join(', ')} 
@@ -89,7 +95,6 @@ export class UsersRepository {
   }
 
   async deleteUserById(id) {
-    
     const query = `DELETE FROM public.users WHERE id_user = $1;`;
     return await db.query(query, [id]);
   }
@@ -119,7 +124,6 @@ export class UsersRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
-  // Fungsi untuk update data oleh Admin (Berdasarkan payload frontend)
   async updateUserByAdmin(id, updateData) {
     const fields = [];
     const values = [];
@@ -157,7 +161,6 @@ export class UsersRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
-  // Fungsi khusus untuk Ban/Unban (Toggle Status)
   async updateStatus(id, status) {
     const query = `UPDATE users SET status_akun = $1 WHERE id_user = $2 RETURNING *`;
     const result = await db.query(query, [status, id]);

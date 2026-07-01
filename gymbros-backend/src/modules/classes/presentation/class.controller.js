@@ -1,55 +1,60 @@
+import { asyncHandler } from '../../../shared/core/asyncHandler.js';
+import { AppError } from '../../../shared/core/AppError.js';
+
 export class ClassController {
-  constructor(classUseCase) {
-    this.classUseCase = classUseCase;
-  }
+    constructor(classUseCase) {
+        this.classUseCase = classUseCase;
+    }
 
-  createClass = async (req, res) => {
-    const newClass = await this.classUseCase.createClass(req.body);
-    res.status(201).json({
-      success: true,
-      message: 'Kelas berhasil dijadwalkan',
-      data: newClass,
+    getAllClasses = asyncHandler(async (req, res) => {
+        const { search = '', page = 1, limit = 10 } = req.query;
+        const result = await this.classUseCase.getAllClasses({ search, page, limit });
+
+        res.status(200).json({
+            status: 'success',
+            data: result.data,
+            meta: {
+                total: result.total,
+                page: result.page,
+                limit: result.limit,
+                totalPages: result.totalPages,
+            },
+        });
     });
-  };
 
-  getAllClasses = async (req, res, next) => {
-    try {
-      const classes = await this.classUseCase.getAllClasses();
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Daftar kelas berhasil diambil',
-        data: classes
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        pesan_error_bocoran: error.message,
-        lokasi_error: error.stack
-      });
-    }
-  };
+    getClassById = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        const gymClass = await this.classUseCase.getClassById(id);
+        res.status(200).json({ status: 'success', data: gymClass });
+    });
 
-  async getAllClasses(req, res, next) {
-    try {
-      // Ambil peran user dari middleware autentikasi (misal: 'Admin' atau 'Member')
-      const userRole = req.user ? req.user.peran : 'Member'; 
-      
-      const classes = await classUseCase.getAllClasses(userRole);
-      
-      return res.status(200).json({
-        status: 'success',
-        data: classes
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
+    createClass = asyncHandler(async (req, res) => {
+        const newClass = await this.classUseCase.createClass(req.body);
+        res.status(201).json({ status: 'success', message: 'Kelas berhasil ditambahkan', data: newClass });
+    });
 
+    updateClass = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        const updatedClass = await this.classUseCase.updateClass(id, req.body);
+        res.status(200).json({ status: 'success', message: 'Kelas berhasil diperbarui', data: updatedClass });
+    });
 
-  deleteClass = async (req, res) => {
-    const { id } = req.params;
-    await this.classUseCase.softDeleteClassById(id); // Pastikan panggil method ini di UseCase
-    res.status(200).json({ success: true, message: 'Kelas berhasil dihapus (soft delete)' });
-  };
+    deleteClass = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        await this.classUseCase.deleteClass(id);
+        res.status(200).json({ status: 'success', message: 'Kelas berhasil dihapus' });
+    });
+
+    getParticipants = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+
+        // id sudah divalidasi oleh middleware validateIdParam di routes,
+        // pengecekan ini tetap dijaga sebagai defense-in-depth.
+        if (!id || id === 'undefined' || isNaN(Number(id))) {
+            throw new AppError('ID kelas tidak valid', 400);
+        }
+
+        const participants = await this.classUseCase.getParticipants(id);
+        res.status(200).json({ status: 'success', data: participants });
+    });
 }
