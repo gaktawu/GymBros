@@ -1,54 +1,72 @@
 import { AppError } from '../../../shared/core/AppError.js';
-import { GymClass } from '../domain/GymClass.js';
 
 export class ClassUseCase {
-  constructor(classRepository, notificationService) {
-    this.classRepository = classRepository;
-    this.notificationService = notificationService;
-  }
-
-  async createClass(data) {
-    // 1. Validasi Domain
-    const proposedClass = new GymClass(data);
-
-    if (!proposedClass.isValidSchedule()) {
-      throw new AppError(
-        'Waktu selesai tidak boleh lebih awal dari waktu mulai',
-        400
-      );
+    constructor(classRepository) {
+        this.repository = classRepository;
     }
 
-    // 2. Cegah pembuatan kelas di masa lalu
-    if (proposedClass.isPast()) {
-      throw new AppError(
-        'Tidak dapat menjadwalkan kelas untuk waktu yang sudah berlalu',
-        400
-      );
+    async getAllClasses(filters = {}) {
+        return await this.repository.findAll(filters);
     }
 
-    // 3. Simpan ke database
-    const kelas = await this.classRepository.create(data);
-
-    // 4. Kirim notifikasi ke admin
-    await this.notificationService.notifyAdmins(
-      "Kelas Baru",
-      `Kelas ${kelas.nama_kelas} telah dibuka.`
-    );
-
-    return kelas;
-  }
-
-  async getAllClasses() {
-    return await this.classRepository.findAll();
-  }
-
-  async getClassById(idKelas) {
-    const gymClass = await this.classRepository.findById(idKelas);
-
-    if (!gymClass) {
-      throw new AppError('Kelas tidak ditemukan', 404);
+    async getClassById(id) {
+        const gymClass = await this.repository.findById(id);
+        if (!gymClass) {
+            throw new AppError('Kelas tidak ditemukan', 404);
+        }
+        return gymClass;
     }
 
-    return gymClass;
-  }
+    async createClass(data) {
+        return await this.repository.create(data);
+    }
+
+    async updateClass(id, data) {
+        // Validasi ketersediaan
+        await this.getClassById(id);
+        return await this.repository.update(id, data);
+    }
+
+    async deleteClass(id) {
+        await this.getClassById(id);
+        return await this.repository.delete(id);
+    }
+
+    async getParticipants(id) {
+        await this.getClassById(id);
+        return await this.repository.findParticipantsByClassId(id);
+    }
+}
+
+export class ClassBookingUseCase {
+    constructor(classBookingRepository, classRepository) {
+        this.bookingRepository = classBookingRepository;
+        this.classRepository = classRepository;
+    }
+
+    async createBooking(userId, classId) {
+        const targetClass = await this.classRepository.findById(classId);
+        if (!targetClass) {
+            throw new AppError('Kelas yang Anda pilih tidak ditemukan.', 404);
+        }
+
+        const existingBooking = await this.bookingRepository.findUserBookingInClass(userId, classId);
+        if (existingBooking) {
+            throw new AppError('Anda sudah terdaftar di kelas ini.', 400);
+        }
+
+        const currentParticipants = await this.classRepository.findParticipantsByClassId(classId);
+
+        if (currentParticipants.length >= targetClass.kapasitas) {
+            throw new AppError('Mohon maaf, kapasitas kelas ini sudah penuh.', 400);
+        }
+
+        const newBooking = {
+            user_id: userId,
+            class_id: classId,
+            status: 'confirmed',
+        };
+
+        return await this.bookingRepository.create(newBooking);
+    }
 }

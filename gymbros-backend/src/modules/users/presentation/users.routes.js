@@ -18,6 +18,8 @@ router.use(protect);
 router.get('/profile', asyncHandler(usersController.getProfile));
 router.patch('/profile', uploadImage.single('avatar'), asyncHandler(usersController.updateProfile));
 
+router.get('/coaches', asyncHandler(usersController.getCoaches));
+
 // --- ADMIN MANAGE MEMBERS ROUTE ---
 router.get('/', restrictTo('Admin'), asyncHandler(usersController.getAllUsers));
 router.post('/', restrictTo('Admin'), asyncHandler(usersController.createUser));

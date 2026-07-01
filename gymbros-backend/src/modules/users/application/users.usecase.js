@@ -6,8 +6,14 @@ export class UsersUseCase {
     this.usersRepository = usersRepository;
   }
 
-  async getAllUsers() {
-    return await this.usersRepository.findAll();
+  // --- Diperbarui: menerima filter ---
+  async getAllUsers(filters = {}) {
+    return await this.usersRepository.findAll(filters);
+  }
+
+  // --- Tambahan: getCoaches ---
+  async getCoaches() {
+    return await this.usersRepository.findAll({ role: 'coach' });
   }
 
   async getUserProfile(idUser) {
@@ -57,22 +63,18 @@ export class UsersUseCase {
   async createUser(payload) {
     const { namaLengkap, email, password, noTelepon, peran, statusAkun } = payload;
 
-    // 1. Validasi data wajib
     if (!namaLengkap || !email || !password) {
       throw new AppError('Nama lengkap, email, dan password wajib diisi', 400);
     }
 
-    // 2. Cek duplikasi email
     const existingUser = await this.usersRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError('Email sudah terdaftar', 400);
     }
 
-    // 3. Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // 4. Kirim ke repository
     const newUser = await this.usersRepository.createUser({
       namaLengkap,
       email,
@@ -85,7 +87,6 @@ export class UsersUseCase {
     return newUser.toJSON();
   }
 
-  // Fungsi UseCase untuk Edit Data oleh Admin
   async editUserByAdmin(idUser, payload) {
     const existingUser = await this.usersRepository.findById(idUser);
     if (!existingUser) {
@@ -96,7 +97,6 @@ export class UsersUseCase {
     return updatedUser.toJSON();
   }
 
-  // Fungsi UseCase untuk ganti status (Ban/Unban)
   async changeUserStatus(idUser, status) {
     const existingUser = await this.usersRepository.findById(idUser);
     if (!existingUser) {

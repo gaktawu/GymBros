@@ -3,12 +3,24 @@ export class UsersController {
     this.usersUseCase = usersUseCase;
   }
 
+  // --- Diperbarui: menangkap query parameter role ---
   getAllUsers = async (req, res) => {
-    const users = await this.usersUseCase.getAllUsers();
+    const { role } = req.query;
+    const users = await this.usersUseCase.getAllUsers({ role });
     res.status(200).json({
       success: true,
       message: 'Berhasil mengambil daftar pengguna',
       data: users,
+    });
+  };
+
+  // --- Tambahan: Controller getCoaches ---
+  getCoaches = async (req, res) => {
+    const coaches = await this.usersUseCase.getCoaches();
+    res.status(200).json({
+      success: true,
+      message: 'Berhasil mengambil daftar coach',
+      data: coaches,
     });
   };
 
@@ -23,7 +35,6 @@ export class UsersController {
   };
 
   updateProfile = async (req, res) => {
-    
     const idUser = req.user.id_user;
     const { namaLengkap, noTelepon } = req.body;
     const file = req.file;
@@ -52,10 +63,7 @@ export class UsersController {
 
   deleteUser = async (req, res) => {
     const { id } = req.params;
-
-    // Memanggil UseCase untuk menghapus user secara permanen
     await this.usersUseCase.hardDeleteUser(id);
-
     res.status(200).json({
       success: true,
       message: 'User dan seluruh data transaksional terkait berhasil dihapus permanen dari sistem.',
@@ -73,7 +81,6 @@ export class UsersController {
 
   getUserById = async (req, res) => {
     const { id } = req.params;
-    // Menggunakan UseCase yang sama dengan getProfile, tapi mengirimkan id dari params
     const user = await this.usersUseCase.getUserProfile(id); 
     
     res.status(200).json({
@@ -83,39 +90,10 @@ export class UsersController {
     });
   };
 
-  // Admin memperbarui data user lain
-  updateUserByAdmin = async (req, res) => {
-    const { id } = req.params; // Ambil ID target user dari URL params, BUKAN req.user
-    const { namaLengkap, noTelepon } = req.body;
-    const file = req.file;
-
-    const updatePayload = {};
-    
-    if (namaLengkap !== undefined && namaLengkap.trim() !== '') {
-        updatePayload.namaLengkap = namaLengkap;
-    }
-    if (noTelepon !== undefined && noTelepon.trim() !== '') {
-        updatePayload.noTelepon = noTelepon;
-    }
-
-    // Menggunakan UseCase yang sudah ada
-    const updatedProfile = await this.usersUseCase.editUserProfile(
-      id, 
-      updatePayload,
-      file
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Data pengguna berhasil diperbarui oleh Admin',
-      data: updatedProfile,
-    });
-  };
-
-  // Controller untuk Admin Update Member
+  // Controller untuk Admin Update Member (Duplikasi telah dihapus, versi ini yang digunakan)
   updateUserByAdmin = async (req, res) => {
     const { id } = req.params;
-    const payload = req.body; // berisi { namaLengkap, email, peran, status } dari React
+    const payload = req.body; 
 
     const updatedUser = await this.usersUseCase.editUserByAdmin(id, payload);
 
@@ -126,7 +104,6 @@ export class UsersController {
     });
   };
 
-  
   updateUserStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; 

@@ -1,22 +1,26 @@
 export class GymClass {
-  constructor({ idKelas, namaKelas, idPelatih, kapasitas, waktuMulai, waktuSelesai, status, harga }) {
-    this.idKelas = idKelas;
-    this.namaKelas = namaKelas;
-    this.idPelatih = idPelatih;
-    this.kapasitas = kapasitas;
-    this.waktuMulai = new Date(waktuMulai);
-    this.waktuSelesai = new Date(waktuSelesai);
-    this.status = status;
-    this.harga = parseFloat(harga) || 0;
+  constructor({ id, nama_kelas, pengajar, hari, jam_mulai, jam_selesai, kapasitas, harga, created_at, updated_at }) {
+    this.id = id;
+    this.nama_kelas = nama_kelas;
+    this.pengajar = pengajar;
+    this.hari = hari;
+    this.jam_mulai = jam_mulai;
+    this.jam_selesai = jam_selesai;
+    this.kapasitas = kapasitas || 0;
+    this.harga = harga || 0;
+    this.created_at = created_at;
+    this.updated_at = updated_at;
   }
+
 
   // Domain behavior: Memastikan jadwal logis
   isValidSchedule() {
-    return this.waktuSelesai > this.waktuMulai;
+    return this.jam_selesai > this.jam_mulai;
   }
 
-  // Domain behavior: Mengecek apakah kelas sudah tidak bisa dibooking karena waktu lewat
   isPast() {
-    return new Date() >= this.waktuMulai;
+    const now = new Date();
+    const classDate = new Date(this.jam_mulai); // Asumsi jam_mulai bisa di-parse ke Date
+    return now >= classDate;
   }
 }
