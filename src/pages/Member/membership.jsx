@@ -2,15 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
-
 const Membership = () => {
   const navigate = useNavigate();
 
   // ── STATE ──────────────────────────────────────────────────
   const [paketList, setPaketList] = useState([]);
-  const [loadingPaket, setLoadingPaket] = useState(true);
-  
+  const [isLoading, setIsLoading] = useState(true);
   const [testimoni, setTestimoni] = useState([]);
   const [loadingTestimoni, setLoadingTestimoni] = useState(true);
   
@@ -20,103 +17,98 @@ const Membership = () => {
   const [showSyarat, setShowSyarat] = useState(false);
   const [agreedSyarat, setAgreedSyarat] = useState(false);
 
-  // ── USE EFFECT (FETCHING DATA) ──────────────────────────────
+  // ── FETCH DATA DARI DATABASE (REAL-TIME) ───────────────────
   useEffect(() => {
     document.title = 'Gymbros | Pilih Membership';
     const ori = document.body.style.backgroundColor;
     document.body.style.backgroundColor = '#111315';
 
-    // 1. FETCH DATA PAKET MEMBERSHIP DARI DATABASE
-    const fetchPaket = async () => {
+    const fetchPaketMembership = async () => {
       try {
-        setLoadingPaket(true);
-        // Sesuaikan endpoint ini dengan route backend Anda (misal: /packages atau /memberships/packages)
-        const res = await axios.get(`${API_BASE_URL}/paket-membership`);
-        const rawData = res.data.data || [];
+        const token = localStorage.getItem('token');
+        const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+        
+        // Menarik data paket dari backend
+        const res = await axios.get('http://localhost:5000/api/v1/paket-membership', config);
+        const rawData = res.data.data || res.data;
 
-        // Mapping Data Database ke Format UI agar styling tetap cantik
-        const mappedPaket = rawData.map((item) => {
-          const namaPaket = item.nama_paket || item.namaPaket || 'Membership';
-          const harga = item.harga || 0;
-          
-          // Parsing string benefit dari DB (jika berupa string dipisah koma) menjadi array
-          let benefits = item.benefit || item.deskripsi || '';
-          if (typeof benefits === 'string') {
-            benefits = benefits.split(',').map(b => b.trim()).filter(b => b);
-          }
-          if (!Array.isArray(benefits) || benefits.length === 0) {
-            benefits = ['Akses Gym', 'Loker', 'Akses Semua Area']; // Fallback
-          }
+        // Memetakan data dari database ke tampilan UI
+        const formattedPaket = rawData
+          .filter(p => p.status_aktif === 'Tersedia') // Hanya yang aktif
+          .map(p => {
+            const hargaNormal = Number(p.harga);
+            const diskonPersen = Number(p.diskon) || 0;
+            const hargaDiskon = hargaNormal - (hargaNormal * (diskonPersen / 100));
 
-          // Otomatisasi styling (warna, lencana, filter) berdasarkan nama paket
-          let filterStr = 'semua';
-          let warna = 'border-[#888888]/30';
-          let aksen = 'text-gray-400';
-          let badge = null;
-          let highlight = false;
-          let diskonPersen = 0;
-          let hargaDiskon = harga;
+            // Logika Warna, Aksen, & Kategori Filter berdasarkan Durasi Hari
+            let filterCat = '1bulan';
+            let warna = 'border-[#888888]/40';
+            let aksen = 'text-gray-300';
+            let badge = null;
+            let highlight = false;
 
-          const namaLower = namaPaket.toLowerCase();
-          
-          if (namaLower.includes('hari')) {
-            filterStr = 'harian';
-          } else if (namaLower.includes('1 bulan') || namaLower.includes('bulanan')) {
-            filterStr = '1bulan';
-            warna = 'border-[#888888]/40';
-            aksen = 'text-gray-300';
-          } else if (namaLower.includes('6 bulan')) {
-            filterStr = '6bulan';
-            warna = 'border-[#C2A676]/50';
-            aksen = 'text-[#C2A676]';
-            badge = 'TERLARIS';
-            highlight = true;
-            diskonPersen = 20; // Simulasi diskon untuk mempercantik UI
-            hargaDiskon = harga - (harga * diskonPersen / 100);
-          } else if (namaLower.includes('12 bulan') || namaLower.includes('tahun')) {
-            filterStr = '12bulan';
-            warna = 'border-white/20';
-            aksen = 'text-white';
-            badge = 'TERBAIK';
-            diskonPersen = 16;
-            hargaDiskon = harga - (harga * diskonPersen / 100);
-          }
+            if (p.durasi_hari === 1) {
+              filterCat = 'harian';
+              warna = 'border-[#888888]/30'; aksen = 'text-gray-400';
+            } else if (p.durasi_hari > 30 && p.durasi_hari <= 180) {
+              filterCat = '6bulan';
+              warna = 'border-[#C2A676]/50'; aksen = 'text-[#C2A676]'; badge = 'TERLARIS'; highlight = true;
+            } else if (p.durasi_hari > 180) {
+              filterCat = '12bulan';
+              warna = 'border-white/20'; aksen = 'text-white'; badge = 'TERBAIK'; highlight = false;
+            }
 
-          return {
-            id: item.id_paket || item.idPaket || item.id,
-            durasi: namaPaket,
-            filter: filterStr,
-            hargaNormal: harga,
-            hargaDiskon: hargaDiskon,
-            diskonPersen: diskonPersen,
-            warna,
-            aksen,
-            badge,
-            highlight,
-            benefit: benefits,
-          };
-        });
+            // Logika Pembuatan Benefit Otomatis agar tabel tetap terisi
+            const benefit = ['Akses gym 24 jam'];
+            if (p.durasi_hari > 1) benefit.push('Kelas grup');
+            if (p.durasi_hari >= 30) {
+              benefit.push('Loker premium');
+              benefit.push('Progress tracking');
+            } else {
+              benefit.push('Loker standar');
+            }
+            if (p.durasi_hari >= 180) {
+              benefit.push('Personal Trainer');
+              benefit.push('Guest pass');
+            }
+            if (p.durasi_hari >= 360) benefit.push('Sauna & spa');
 
-        setPaketList(mappedPaket);
+            return {
+              id: p.id_paket || p.id,
+              durasi: p.nama_paket, // Menampilkan Nama Paket dari Database
+              durasiHari: p.durasi_hari,
+              filter: filterCat,
+              hargaNormal,
+              hargaDiskon,
+              diskonPersen,
+              warna,
+              aksen,
+              badge,
+              highlight,
+              benefit
+            };
+          });
+
+        setPaketList(formattedPaket);
       } catch (error) {
-        console.error("Gagal mengambil data paket membership:", error);
+        console.error("Gagal menarik data paket:", error);
       } finally {
-        setLoadingPaket(false);
+        setIsLoading(false);
       }
     };
 
-    fetchPaket();
+    fetchPaketMembership();
 
-    // 2. FETCH TESTIMONI (Tetap dibiarkan jika belum ada di database Anda)
-    axios
-      .get('https://jsonplaceholder.typicode.com/posts?_limit=10')
+    // Fetch Testimoni (Tetap menggunakan API dummy placeholder agar UI tetap cantik)
+    axios.get('https://jsonplaceholder.typicode.com/posts?_limit=6')
       .then((res) => {
-        const namaList = ['Budi S.', 'Rina D.', 'Ahmad F.', 'Doni P.', 'Siti R.', 'Reza K.', 'Maya L.', 'Tono W.', 'Eka J.', 'Putri N.'];
+        const namaList = ['Budi S.', 'Rina D.', 'Ahmad F.', 'Doni P.', 'Siti R.', 'Reza K.'];
         const mapped = res.data.map((item, i) => ({
           id: item.id,
           nama: namaList[i],
+          rating: 4 + (i % 2),
           ulasan: item.body.replace(/\n/g, ' ').slice(0, 90) + '...',
-          paket: 'Member Aktif',
+          paket: i % 2 === 0 ? 'Member Baru' : 'Member Setia',
         }));
         setTestimoni(mapped);
         setLoadingTestimoni(false);
@@ -126,7 +118,7 @@ const Membership = () => {
     return () => { document.body.style.backgroundColor = ori; };
   }, []);
 
-  // ── FILTER ─────────────────────────────────────────────────
+  // ── FILTER PENCARIAN ───────────────────────────────────────
   const paketFiltered = paketList.filter((p) => {
     const matchFilter = selectedFilter === 'semua' || p.filter === selectedFilter;
     const matchSearch = p.durasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -134,7 +126,7 @@ const Membership = () => {
     return matchFilter && matchSearch;
   });
 
-  // ── HANDLER ────────────────────────────────────────────────
+  // ── HANDLERS ───────────────────────────────────────────────
   const handlePilihPaket = (paket) => {
     setPaketDipilih(paket);
     setShowSyarat(true);
@@ -144,27 +136,15 @@ const Membership = () => {
   const handleLanjutBayar = () => {
     if (!agreedSyarat) return;
     setShowSyarat(false);
-    
-    // Konversi ke format Universal Payment Page
-    navigate('/member/bayar', { 
-      state: { 
-        item: {
-          type: 'membership',
-          id: paketDipilih.id,
-          name: paketDipilih.durasi,
-          price: paketDipilih.hargaNormal,
-          finalPrice: paketDipilih.hargaDiskon,
-          benefits: paketDipilih.benefit
-        }
-      } 
-    });
+    // Mengirim data paket nyata ke Halaman PaymentPage
+    navigate('/member/bayar', { state: { paket: paketDipilih } });
   };
 
-  const formatRupiah = (n) => 'Rp ' + (n || 0).toLocaleString('id-ID');
+  const formatRupiah = (n) => 'Rp ' + n.toLocaleString('id-ID');
 
   // ── RENDER ─────────────────────────────────────────────────
   return (
-    <main className="w-full max-w-6xl mx-auto space-y-10 text-[#E0E0E0] pb-10">
+    <main className="w-full max-w-6xl mx-auto space-y-10 text-[#E0E0E0] p-4 lg:p-0 pb-12">
 
       {/* ══ HERO HEADER ══════════════════════════════════════ */}
       <header className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 md:p-8 rounded-3xl shadow-xl overflow-hidden mt-6">
@@ -184,10 +164,9 @@ const Membership = () => {
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Anggota Aktif</p>
             <p className="text-sm font-black text-[#C2A676]">2.400+ Members</p>
           </div>
-          
           <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Hemat hingga</p>
-            <p className="text-sm font-black text-green-400">20% Diskon</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Rating</p>
+            <p className="text-sm font-black text-yellow-400">★ 4.9 / 5.0</p>
           </div>
         </div>
       </header>
@@ -195,17 +174,16 @@ const Membership = () => {
       {/* ══ FORM FILTER / SEARCH ═════════════════════════════ */}
       <form
         onSubmit={(e) => e.preventDefault()}
-        className="bg-[#1A1C1E] border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center"
-        aria-label="Filter paket membership"
+        className="bg-[#1A1C1E] border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center shadow-lg"
       >
         <div className="relative flex-1 w-full">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
           <input
             type="text"
-            placeholder="Cari paket atau benefit..."
+            placeholder="Cari nama paket atau fasilitas..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#25282c] border border-white/10 text-[#E0E0E0] text-sm rounded-xl pl-9 pr-4 py-2.5 placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/60 transition-colors"
+            className="w-full bg-[#25282c] border border-white/10 text-[#E0E0E0] text-sm rounded-xl pl-11 pr-4 py-3 placeholder-gray-600 focus:outline-none focus:border-[#C2A676]/60 transition-colors"
           />
         </div>
 
@@ -220,9 +198,9 @@ const Membership = () => {
             <label
               key={opt.val}
               className={
-                'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer border transition-all ' +
+                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer border transition-all ' +
                 (selectedFilter === opt.val
-                  ? 'bg-[#C2A676] text-[#111315] border-[#C2A676]'
+                  ? 'bg-[#C2A676] text-[#111315] border-[#C2A676] shadow-md'
                   : 'bg-[#25282c] text-gray-400 border-white/10 hover:text-white')
               }
             >
@@ -240,17 +218,18 @@ const Membership = () => {
         </div>
       </form>
 
-      {/* ══ KARTU PAKET ══════════════════════════════════════ */}
+      {/* ══ KARTU PAKET (DARI DATABASE) ═══════════════════════ */}
       <section aria-label="Daftar paket membership">
-        {loadingPaket ? (
-          <div className="text-center py-20 text-[#C2A676] font-black uppercase tracking-widest animate-pulse">
-            MEMUAT DATA DATABASE...
+        {isLoading ? (
+          <div className="text-center py-16 text-[#C2A676] animate-pulse">
+            <div className="w-10 h-10 border-4 border-[#C2A676]/20 border-t-[#C2A676] rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-bold tracking-widest uppercase text-xs">Menarik Data Paket dari Server...</p>
           </div>
         ) : paketFiltered.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            <p className="text-4xl mb-3">🔍</p>
-            <p className="font-bold">Paket tidak ditemukan.</p>
-            <p className="text-sm mt-1">Belum ada data paket di database Supabase Anda.</p>
+          <div className="text-center py-16 text-gray-500 bg-[#1A1C1E] border border-white/5 rounded-3xl">
+            <p className="text-4xl mb-3 opacity-50">🔍</p>
+            <p className="font-bold uppercase tracking-wider text-sm">Paket tidak ditemukan.</p>
+            <p className="text-xs mt-1">Coba kata kunci lain atau hubungi admin.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -259,9 +238,9 @@ const Membership = () => {
                 key={paket.id}
                 className={
                   'relative bg-[#1A1C1E] border-2 rounded-3xl p-6 shadow-lg flex flex-col ' +
-                  'transition-all duration-300 hover:scale-[1.03] cursor-pointer ' +
+                  'transition-all duration-300 hover:-translate-y-1 cursor-pointer ' +
                   (paket.highlight
-                    ? 'hover:shadow-[0_0_35px_rgba(194,166,118,0.25)] ' + paket.warna
+                    ? 'hover:shadow-[0_0_35px_rgba(194,166,118,0.20)] ' + paket.warna
                     : 'hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] ' + paket.warna)
                 }
               >
@@ -272,30 +251,37 @@ const Membership = () => {
                 )}
 
                 <div className="flex items-start justify-between mb-2">
-                  <h2 className={'text-xl font-black uppercase tracking-widest ' + paket.aksen}>
+                  <h2 className={'text-lg font-black uppercase tracking-widest leading-tight ' + paket.aksen}>
                     {paket.durasi}
                   </h2>
                 </div>
 
                 <div className="mb-5">
                   {paket.diskonPersen > 0 && (
-                    <p className="text-xs text-gray-500 line-through mb-0.5">
-                      {formatRupiah(paket.hargaNormal)}
-                    </p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="bg-green-500/20 text-green-400 text-[10px] font-black px-2 py-0.5 rounded-full">
+                        DISKON {paket.diskonPersen}%
+                      </span>
+                      <p className="text-xs text-gray-500 line-through">
+                        {formatRupiah(paket.hargaNormal)}
+                      </p>
+                    </div>
                   )}
                   <div className="flex items-end gap-1">
                     <span className="text-3xl font-black text-white">
                       {formatRupiah(paket.hargaDiskon)}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500 block mt-1">
-                    Masa Berlaku: {paket.durasiHari} Hari
-                  </span>
+                  {paket.diskonPersen > 0 && (
+                    <p className="text-[10px] text-green-400 font-bold mt-1">
+                      Hemat {formatRupiah(paket.hargaNormal - paket.hargaDiskon)}!
+                    </p>
+                  )}
                 </div>
 
                 <ul className="space-y-2 flex-1 mb-6">
-                  {paket.benefit.map((b, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-xs text-gray-300">
+                  {paket.benefit.map((b) => (
+                    <li key={b} className="flex items-start gap-2 text-xs text-gray-300">
                       <span className="text-[#C2A676] font-black mt-0.5">✓</span>
                       {b.toLowerCase().includes('personal trainer') ? (
                         <span className="text-[#C2A676] font-bold">{b}</span>
@@ -309,10 +295,10 @@ const Membership = () => {
                 <button
                   onClick={() => handlePilihPaket(paket)}
                   className={
-                    'w-full py-3 rounded-xl text-sm font-black transition-all duration-200 active:scale-95 ' +
+                    'w-full py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all duration-200 active:scale-95 ' +
                     (paket.highlight
-                      ? 'bg-[#C2A676] text-[#111315] hover:bg-[#d4b88a] shadow-md hover:shadow-[0_0_20px_rgba(194,166,118,0.4)]'
-                      : 'bg-[#25282c] text-white hover:bg-[#333] border border-white/10')
+                      ? 'bg-[#C2A676] text-[#111315] hover:bg-[#d4b88a] shadow-lg shadow-[#C2A676]/20'
+                      : 'bg-[#25282c] text-white hover:bg-white/10 border border-white/10')
                   }
                 >
                   Pilih Paket Ini →
@@ -324,17 +310,17 @@ const Membership = () => {
       </section>
 
       {/* ══ TABEL PERBANDINGAN ═══════════════════════════════ */}
-      {paketList.length > 0 && (
+      {!isLoading && paketList.length > 0 && (
         <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg overflow-x-auto">
           <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
-            Perbandingan Paket
+            Perbandingan Fasilitas
           </h2>
-          <table className="w-full text-xs text-left border-collapse min-w-[420px]">
+          <table className="w-full text-xs text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="py-2 pr-4 text-gray-400 font-bold uppercase tracking-wider">Benefit Utama</th>
-                {paketList.map((p) => (
-                  <th key={p.id} className={'py-2 px-3 font-black uppercase text-center ' + p.aksen}>
+                <th className="py-3 pr-4 text-gray-400 font-bold uppercase tracking-wider w-1/3">Benefit Utama</th>
+                {paketList.slice(0, 4).map((p) => (
+                  <th key={p.id} className={'py-3 px-3 font-black uppercase text-center ' + p.aksen}>
                     {p.durasi}
                   </th>
                 ))}
@@ -342,23 +328,21 @@ const Membership = () => {
             </thead>
             <tbody>
               {[
-                'Akses gym',
-                'Loker premium',
+                'Akses gym 24 jam',
                 'Kelas grup',
+                'Loker premium',
                 'Personal Trainer',
                 'Progress tracking',
-                'Guest pass',
                 'Sauna & spa',
               ].map((row, i) => (
                 <tr key={row} className={'border-b border-white/5 ' + (i % 2 === 0 ? '' : 'bg-[#25282c]/30')}>
-                  <td className="py-2.5 pr-4 text-gray-300">{row}</td>
-                  {paketList.map((p) => {
-                    // Cek ketersediaan kata kunci di dalam array benefit database
+                  <td className="py-3 pr-4 text-gray-300 font-medium">{row}</td>
+                  {paketList.slice(0, 4).map((p) => {
                     const ada = p.benefit.some((b) => b.toLowerCase().includes(row.toLowerCase().split(' ')[0]));
                     return (
-                      <td key={p.id} className="py-2.5 px-3 text-center">
+                      <td key={p.id} className="py-3 px-3 text-center">
                         {ada
-                          ? <span className="text-green-400 font-black">✓</span>
+                          ? <span className="text-green-400 font-black text-sm">✓</span>
                           : <span className="text-gray-600">—</span>
                         }
                       </td>
@@ -366,10 +350,10 @@ const Membership = () => {
                   })}
                 </tr>
               ))}
-              <tr className="border-b border-white/5 bg-[#25282c]/30">
-                <td className="py-2.5 pr-4 text-gray-300 font-bold">Total Harga</td>
-                {paketList.map((p) => (
-                  <td key={p.id} className="py-2.5 px-3 text-center font-black text-[#C2A676]">
+              <tr className="border-b border-white/5 bg-[#25282c]/50">
+                <td className="py-4 pr-4 text-white font-black uppercase tracking-wider">Total Harga</td>
+                {paketList.slice(0, 4).map((p) => (
+                  <td key={p.id} className="py-4 px-3 text-center font-black text-[#C2A676] text-sm">
                     {formatRupiah(p.hargaDiskon)}
                   </td>
                 ))}
@@ -379,54 +363,76 @@ const Membership = () => {
         </section>
       )}
 
-      {/* ══ MODAL SYARAT & KETENTUAN ═════════════════════════ */}
+      {/* ══ TESTIMONI (DATA TETAP) ═══════════════════════════ */}
+      <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
+        <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
+          Apa Kata Member Kami
+        </h2>
+        {loadingTestimoni ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-[#C2A676] border-t-transparent animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {testimoni.map((t) => (
+              <div key={t.id} className="bg-[#25282c] border border-white/5 rounded-2xl p-5 hover:border-[#C2A676]/30 transition-colors duration-300">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#C2A676]/20 flex items-center justify-center text-[#C2A676] text-sm font-black">
+                      {t.nama.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white uppercase">{t.nama}</p>
+                      <p className="text-[10px] text-gray-500">{t.paket}</p>
+                    </div>
+                  </div>
+                  <span className="text-yellow-400 text-xs tracking-widest">{'★'.repeat(t.rating)}</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed italic">"{t.ulasan}"</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ══ MODAL SYARAT & KETENTUAN (CHECKOUT) ══════════════ */}
       {showSyarat && paketDipilih && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-          <div
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
-            onClick={() => setShowSyarat(false)}
-          />
-          <div className="relative w-full max-w-md bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 shadow-2xl">
-            <h3 className="text-lg font-black text-white uppercase mb-1">Konfirmasi Pilihan</h3>
-            <p className="text-xs text-gray-400 mb-4">
-              Anda memilih{' '}
-              <strong className="text-[#C2A676]">{paketDipilih.durasi}</strong>
-              {' '}seharga{' '}
-              <strong className="text-white">{formatRupiah(paketDipilih.hargaDiskon)}</strong>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowSyarat(false)} />
+          <div className="relative w-full max-w-md bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 shadow-2xl animate-scale-in">
+            <h3 className="text-lg font-black text-white uppercase mb-1 tracking-wide">Konfirmasi Pilihan</h3>
+            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+              Anda memilih <strong className="text-[#C2A676]">{paketDipilih.durasi}</strong> seharga <strong className="text-white">{formatRupiah(paketDipilih.hargaDiskon)}</strong>.
             </p>
 
-            <div className="bg-[#25282c] border border-white/5 rounded-xl p-4 mb-4 max-h-40 overflow-y-auto">
-              <p className="text-[11px] text-gray-300 font-bold mb-2 uppercase tracking-wider">Benefit yang Anda Dapatkan:</p>
-              <ul className="space-y-1.5">
-                {paketDipilih.benefit.map((b, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-xs text-gray-400">
+            <div className="bg-[#25282c] border border-white/5 rounded-2xl p-5 mb-5 max-h-48 overflow-y-auto custom-scrollbar">
+              <p className="text-[10px] text-gray-500 font-bold mb-3 uppercase tracking-widest">Benefit yang Didapat:</p>
+              <ul className="space-y-2.5">
+                {paketDipilih.benefit.map((b) => (
+                  <li key={b} className="flex items-start gap-2 text-xs text-gray-300">
                     <span className="text-[#C2A676] font-black mt-0.5 shrink-0">✓</span>
-                    {b.toLowerCase().includes('personal trainer')
-                      ? <span className="text-[#C2A676] font-bold">{b}</span>
-                      : b
-                    }
+                    {b}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <label className="flex items-start gap-3 bg-[#25282c] border border-white/5 rounded-xl px-4 py-3 cursor-pointer mb-4">
+            <label className="flex items-start gap-3 bg-[#111315] border border-white/5 hover:border-white/10 rounded-xl px-4 py-3.5 cursor-pointer mb-5 transition-colors">
               <input
                 type="checkbox"
                 checked={agreedSyarat}
                 onChange={(e) => setAgreedSyarat(e.target.checked)}
                 className="mt-0.5 accent-[#C2A676] w-4 h-4 shrink-0"
               />
-              <span className="text-xs text-gray-400 leading-relaxed">
-                Saya menyetujui syarat & ketentuan membership Gymbros dan memahami
-                bahwa pembayaran bersifat non-refundable setelah diproses.
+              <span className="text-[11px] text-gray-400 leading-relaxed">
+                Saya menyetujui syarat & ketentuan membership Gymbros dan memahami bahwa pembayaran bersifat non-refundable (tidak dapat dikembalikan).
               </span>
             </label>
 
             <div className="flex gap-3">
               <button
                 onClick={() => setShowSyarat(false)}
-                className="flex-1 bg-[#25282c] hover:bg-[#333] text-gray-300 text-sm font-medium py-2.5 rounded-xl border border-white/10 transition-colors"
+                className="flex-1 bg-[#25282c] hover:bg-[#333] text-gray-300 text-xs font-black uppercase tracking-widest py-3.5 rounded-xl border border-white/10 transition-colors"
               >
                 Batal
               </button>
@@ -434,13 +440,13 @@ const Membership = () => {
                 onClick={handleLanjutBayar}
                 disabled={!agreedSyarat}
                 className={
-                  'flex-1 text-sm font-black py-2.5 rounded-xl transition-all duration-200 ' +
+                  'flex-1 text-xs font-black uppercase tracking-widest py-3.5 rounded-xl transition-all duration-300 shadow-lg ' +
                   (agreedSyarat
-                    ? 'bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] shadow-md'
+                    ? 'bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] shadow-[#C2A676]/20 transform hover:-translate-y-0.5'
                     : 'bg-[#333] text-gray-600 cursor-not-allowed')
                 }
               >
-                Lanjut Bayar →
+                Lanjut Bayar
               </button>
             </div>
           </div>

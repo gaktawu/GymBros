@@ -22,7 +22,6 @@ import ManajemenKelas from "./pages/Admin/kelolakelas";
 import KelolaAlatAdmin from "./pages/Admin/StatusAlat";
 import KetersediaanAlatMember from "./pages/Member/KetersediaanAlat";
 import MemberNotifications from "./pages/Member/NotifikasiMember";
-import Bayar from "./pages/Member/bayar";
 import Membership from "./pages/Member/membership";
 import Profile from "./pages/Member/profile";
 import EditProfile from "./pages/Member/editprofile";
@@ -69,7 +68,7 @@ export default function App() {
         <Route path="/member/equipment" element={<KetersediaanAlatMember />} />
         <Route path="/member/notifications" element={<MemberNotifications />} />
         <Route path="/member/membership" element={<Membership />} />
-        <Route path="/member/bayar" element={<Bayar />} />
+        <Route path="/member/bayar" element={<Payment />} />
         <Route path="/member/profile" element={<Profile />} />
         <Route path="/member/edit-profile" element={<EditProfile />} />
         <Route path="/member/bayarkelas" element={<Payment />} />
