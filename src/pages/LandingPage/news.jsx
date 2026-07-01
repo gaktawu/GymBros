@@ -42,15 +42,15 @@ const NewsPage = () => {
       try {
         const res = await fetch('http://localhost:5000/api/v1/classes');
         const data = await res.json();
-        if (data.success && data.data) {
-          setGymClasses(data.data.slice(0, 8));
-        }
-      } catch (error) {
-        console.error("Error fetching internal classes:", error);
-      } finally {
-        setLoadingClasses(false);
-      }
-    };
+        if (data.status === 'success' && data.data) {
+      setGymClasses(data.data.slice(0, 8));
+    }
+  } catch (error) {
+    console.error("Error fetching internal classes:", error);
+  } finally {
+    setLoadingClasses(false);
+  }
+};
 
     fetchNews();
     fetchInternalClasses();

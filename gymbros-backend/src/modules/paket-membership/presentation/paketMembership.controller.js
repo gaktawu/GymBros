@@ -9,8 +9,7 @@ export class PaketMembershipController {
   };
 
   getAllPaket = async (req, res) => {
-    // Ambil role dari req.user yang sudah diamankan middleware protect
-    const userRole = req.user.role || req.user.peran;
+    const userRole = req.user ? (req.user.role || req.user.peran) : 'Public';
     const paketList = await this.paketMembershipUseCase.getAllPaket(userRole);
     
     res.status(200).json({ success: true, message: 'Berhasil mengambil daftar paket membership', data: paketList });

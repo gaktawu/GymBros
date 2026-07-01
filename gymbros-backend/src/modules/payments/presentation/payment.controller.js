@@ -1,25 +1,23 @@
-import { coreApi } from '../../../shared/config/midtrans.js';
-
 export class PaymentController {
   constructor(paymentUseCase) {
     this.paymentUseCase = paymentUseCase;
   }
 
-  handleMidtransWebhook = async (req, res, next) => {
+  handleMidtransWebhook = async (req, res) => {
     try {
-      const notificationJson = req.body;
-      const statusResponse = await coreApi.transaction.notification(notificationJson);
-      await this.paymentUseCase.processWebhook(statusResponse);
-      res.status(200).json({ status: 'OK' });
+      const result = await this.paymentUseCase.processWebhook(req.body);
+      res.status(200).json({ status: 'OK', ...result });
     } catch (error) {
-      console.error("Webhook Error:", error);
-      res.status(500).json({ error: error.message });
+      console.error('Webhook Error:', error.message);
+      const statusCode = error.statusCode && error.statusCode < 500 ? error.statusCode : 500;
+      res.status(statusCode).json({ status: 'FAILED', message: error.message });
     }
   };
 
   createInvoice = async (req, res, next) => {
     try {
-      const result = await this.paymentUseCase.createInvoice(req.body);
+      const idUser = req.user.id_user; // diisi middleware `protect`
+      const result = await this.paymentUseCase.createInvoice(idUser, req.body);
       res.status(201).json(result);
     } catch (error) {
       next(error);
@@ -28,7 +26,7 @@ export class PaymentController {
 
   getInvoice = async (req, res, next) => {
     try {
-      const result = await this.paymentUseCase.getInvoice(req.params.id);
+      const result = await this.paymentUseCase.getInvoice(req.params.id, req.user);
       res.status(200).json(result);
     } catch (error) {
       next(error);

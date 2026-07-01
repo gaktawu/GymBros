@@ -17,4 +17,8 @@ export class Payment {
   isPending() {
     return this.status === 'Pending';
   }
+
+  isFailed() {
+    return this.status === 'Gagal';
+  }
 }

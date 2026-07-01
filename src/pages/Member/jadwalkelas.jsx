@@ -15,21 +15,21 @@ const ClassSchedule = () => {
       setIsLoading(true);
       const res = await axios.get(`${API_BASE_URL}/classes`);
       const rawData = res.data.data || [];
-      
+
       const mapped = rawData.map(cls => ({
         id: cls.idKelas || cls.id_kelas,
         name: cls.namaKelas || cls.nama_kelas,
         coach: cls.pelatih?.namaPelatih || "Instruktur",
-        time: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         day: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleDateString('id-ID', { weekday: 'long' }),
-        
+
         // Simpan harga asli (angka) untuk dikirim ke halaman bayar
-        rawPrice: cls.harga || 0, 
+        rawPrice: cls.harga || 0,
         price: cls.harga ? `Rp ${cls.harga.toLocaleString('id-ID')}` : "Free",
-        
+
         slotsLeft: cls.kapasitas || 0
       }));
-      
+
       setClasses(mapped);
     } catch (err) {
       console.error("Gagal memuat jadwal:", err);
@@ -60,13 +60,13 @@ const ClassSchedule = () => {
     navigate('/member/bayar', {
       state: {
         item: {
-          type: 'class', // Wajib didefinisikan agar halaman bayar tahu ini adalah Kelas
-          id: classItem.id,
-          name: classItem.name,
-          price: classItem.rawPrice,
-          finalPrice: classItem.rawPrice,
-          schedule: `${classItem.day}, ${classItem.time}`,
-          coach: classItem.coach
+          type: 'Kelas',             
+          id: classItem.id,          
+          name: classItem.name,      
+          price: classItem.rawPrice, 
+          finalPrice: classItem.rawPrice, 
+          schedule: `${classItem.day}, ${classItem.time}`, 
+          coach: classItem.coach     
         }
       }
     });
@@ -80,7 +80,7 @@ const ClassSchedule = () => {
           REFRESH DATA
         </button>
       </div>
-      
+
       {isLoading ? (
         <div className="text-center text-[#C2A676] font-bold">MEMUAT JADWAL DARI DATABASE...</div>
       ) : (
@@ -89,20 +89,19 @@ const ClassSchedule = () => {
             <div key={item.id} className="bg-[#1e2023] p-6 rounded-3xl border border-white/5 hover:border-[#C2A676] transition-all">
               <h3 className="text-lg font-black uppercase text-white">{item.name}</h3>
               <p className="text-xs text-gray-400 mb-4">{item.day} • {item.time}</p>
-              
+
               <div className="flex justify-between items-center text-xs border-t border-white/5 pt-4">
                 <span className="text-[#C2A676] font-bold">{item.price}</span>
                 <span className="text-gray-500">Sisa Kuota: {item.slotsLeft}</span>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => handleBookingClick(item)}
                 disabled={item.slotsLeft <= 0}
-                className={`w-full mt-6 py-3 font-black uppercase text-xs rounded-xl transition-all ${
-                  item.slotsLeft > 0 
-                  ? "bg-[#C2A676] text-[#111315] hover:bg-white" 
-                  : "bg-gray-700 text-gray-400 cursor-not-allowed"
-                }`}
+                className={`w-full mt-6 py-3 font-black uppercase text-xs rounded-xl transition-all ${item.slotsLeft > 0
+                    ? "bg-[#C2A676] text-[#111315] hover:bg-white"
+                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                  }`}
               >
                 {item.slotsLeft > 0 ? "Pesan Kelas Sekarang" : "Kelas Penuh"}
               </button>

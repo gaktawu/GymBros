@@ -30,7 +30,9 @@ const Membership = () => {
     const fetchPaket = async () => {
       try {
         setLoadingPaket(true);
-        // Sesuaikan endpoint ini dengan route backend Anda (misal: /packages atau /memberships/packages)
+        const token = localStorage.getItem('token'); 
+        const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
         const res = await axios.get(`${API_BASE_URL}/paket-membership`);
         const rawData = res.data.data || [];
 

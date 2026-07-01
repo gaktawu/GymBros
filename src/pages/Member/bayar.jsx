@@ -185,7 +185,7 @@ const OrderSummary = memo(({ item }) => {
     return <p className="text-xs text-gray-500">Belum ada item yang dipilih.</p>;
   }
 
-  const isClass = item.type === 'class';
+  const isClass = item.type?.toLowerCase() === 'class' || item.type === 'Kelas';
   const diskonNominal = (item.price || 0) - (item.finalPrice || 0);
 
   return (

@@ -6,28 +6,24 @@ import { asyncHandler } from '../../../shared/core/asyncHandler.js';
 import { validate } from '../../../shared/middlewares/validateMiddleware.js';
 import { protect } from '../../../shared/middlewares/authMiddleware.js';
 import { createInvoiceSchema } from './payment.validation.js';
-
-// HAPUS baris ini:
-// import { handleMidtransWebhook } from './payment.controller.js';
+import { NotificationService } from '../../notifications/application/notification.service.js';
 
 const router = express.Router();
 
 const paymentRepo = new PaymentRepository();
-const paymentUseCase = new PaymentUseCase(paymentRepo);
+// const notificationService = new NotificationService(); // aktifkan kalau modul notifikasi sudah siap
+const paymentUseCase = new PaymentUseCase(paymentRepo /*, notificationService */);
 const paymentController = new PaymentController(paymentUseCase);
 
-
-// --- WEBHOOK MIDTRANS (TANPA PROTECT) ---
-// Midtrans memanggil endpoint ini dari luar, jangan pakai middleware auth
 router.post('/webhook', asyncHandler(paymentController.handleMidtransWebhook));
 
-// --- ROUTE YANG MEMERLUKAN AUTHENTIKASI ---
+// --- ROUTE YANG MEMERLUKAN AUTENTIKASI ---
 router.use(protect);
 
 router.post('/invoice', validate(createInvoiceSchema), asyncHandler(paymentController.createInvoice));
 router.get('/invoice/:id', asyncHandler(paymentController.getInvoice));
 
-// Rute Simulasi (Bisa dibatasi untuk Admin atau Development only)
+// Simulasi hanya untuk sandbox/dev - usecase menolak otomatis di production
 router.post('/simulate-qris/:id', asyncHandler(paymentController.simulateQRIS));
 
 export default router;

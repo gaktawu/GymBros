@@ -63,13 +63,15 @@ export default function DashboardAdmin() {
       try {
         const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership", apiConfig);
         const packageData = packageRes.data.data || packageRes.data;
+        
         const normalizedData = packageData.map(item => ({
           ...item,
           id_paket: item.id_paket || item.id, 
           hargaNum: Number(item.harga),
           diskonVal: Number(item.diskon) || 0,
-          isActive: item.status_aktif === 'Tersedia',
-          isDeleted: item.is_deleted 
+          // KEMBALI KE STRING: Cek apakah string-nya "Tersedia"
+          isActive: item.status_aktif === 'Tersedia' || item.statusAktif === 'Tersedia',
+          isDeleted: item.is_deleted === true || item.is_deleted === 'true'
         }));
         setClasses(normalizedData);
       } catch (err) { console.error("Gagal menarik paket:", err); }
@@ -113,12 +115,14 @@ export default function DashboardAdmin() {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+    
+    // PASTIKAN MENGIRIM STRING "Tersedia" SAAT DIBUAT
     const payload = {
       namaPaket: formData.nama_paket,
       durasiHari: formData.tipe_paket === 'Harian' ? 1 : Number(formData.durasi_hari),
       harga: Number(formData.harga),
       diskon: Number(formData.diskon),
-      statusAktif: "Tersedia"
+      statusAktif: "Tersedia" 
     };
 
     try {
@@ -162,6 +166,8 @@ export default function DashboardAdmin() {
   const handleToggleStatus = useCallback(async (id) => {
     const target = classes.find(c => c.id_paket === id);
     if (!target || target.isDeleted) return;
+    
+    // KEMBALI MENGIRIMKAN STRING UNTUK MENGHINDARI ERROR 400 DARI JOI
     const newStatus = target.status_aktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
 
     try {
@@ -169,7 +175,7 @@ export default function DashboardAdmin() {
       await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
       showToast(`Paket "${target.nama_paket}" telah menjadi ${newStatus}.`);
       await fetchMembershipData(); 
-    } catch (error) { showToast('Gagal merubah status paket.', 'error'); }
+    } catch (error) { showToast('Gagal mengubah status paket.', 'error'); }
   }, [classes, showToast, fetchMembershipData]);
 
   const stats = useMemo(() => {
@@ -369,7 +375,7 @@ export default function DashboardAdmin() {
                         </div>
                       </div>
                       <div className="flex gap-2 pt-2">
-                        {editingClass && <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 border border-[#333333] text-[#888888] rounded-xl text-sm font-semibold hover:bg-[##333333]">Batal</button>}
+                        {editingClass && <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 border border-[#333333] text-[#888888] rounded-xl text-sm font-semibold hover:bg-[#333333]">Batal</button>}
                         <button type="submit" disabled={isLoading} className="flex-1 py-2.5 bg-[#C2A676] text-[#111315] hover:bg-[#C2A676]/90 rounded-xl text-sm font-semibold">{editingClass ? 'Simpan' : 'Tambah'}</button>
                       </div>
                     </form>
