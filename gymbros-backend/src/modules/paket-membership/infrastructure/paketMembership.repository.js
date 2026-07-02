@@ -67,4 +67,14 @@ export class PaketMembershipRepository {
     const result = await db.query(query, [id]);
     return this._mapToDomain(result.rows[0]);
   }
+
+  async restorePaketById(id) {
+    const query = `
+    UPDATE public.paket_membership 
+    SET is_deleted = FALSE, deleted_at = NULL, status_aktif = 'Tersedia'
+    WHERE id_paket = $1 RETURNING *;
+  `;
+    const result = await db.query(query, [id]);
+    return this._mapToDomain(result.rows[0]);
+  }
 }

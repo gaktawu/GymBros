@@ -16,7 +16,7 @@ export class PaymentController {
 
   createInvoice = async (req, res, next) => {
     try {
-      const idUser = req.user.id_user; // diisi middleware `protect`
+      const idUser = req.user.id_user;
       const result = await this.paymentUseCase.createInvoice(idUser, req.body);
       res.status(201).json(result);
     } catch (error) {

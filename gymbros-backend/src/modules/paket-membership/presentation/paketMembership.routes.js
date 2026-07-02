@@ -14,6 +14,8 @@ const paketRepository = new PaketMembershipRepository();
 const paketUseCase = new PaketMembershipUseCase(paketRepository);
 const paketController = new PaketMembershipController(paketUseCase);
 
+// presentation/paketMembership.routes.js
+
 const tryAuthenticate = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -22,11 +24,16 @@ const tryAuthenticate = (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret'); 
       req.user = decoded; 
     }
+    return next(); // Pastikan next() dipanggil di sini setelah sukses
   } catch (err) {
-    
+    req.user = null;
+    return next();
   }
-  next();
 };
+router.post('/:id/restore', asyncHandler(paketController.restorePaket));
+router.get('/admin/all', asyncHandler(paketController.getAdminAllPaket));
+
+router.get('/', tryAuthenticate, asyncHandler(paketController.getAllPaket));
 
 router.get('/', tryAuthenticate, asyncHandler(paketController.getAllPaket)); 
 

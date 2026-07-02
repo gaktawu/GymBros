@@ -16,19 +16,25 @@ const ClassSchedule = () => {
       const res = await axios.get(`${API_BASE_URL}/classes`);
       const rawData = res.data.data || [];
 
-      const mapped = rawData.map(cls => ({
-        id: cls.idKelas || cls.id_kelas,
-        name: cls.namaKelas || cls.nama_kelas,
-        coach: cls.pelatih?.namaPelatih || "Instruktur",
-        time: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        day: new Date(cls.waktuMulai || cls.waktu_mulai).toLocaleDateString('id-ID', { weekday: 'long' }),
+      const now = new Date();
 
-        // Simpan harga asli (angka) untuk dikirim ke halaman bayar
-        rawPrice: cls.harga || 0,
-        price: cls.harga ? `Rp ${cls.harga.toLocaleString('id-ID')}` : "Free",
+      const mapped = rawData.map(cls => {
+        const classTime = new Date(cls.waktuMulai || cls.waktu_mulai);
+        const isPast = classTime < now; // Validasi waktu sesuai backend
 
-        slotsLeft: cls.kapasitas || 0
-      }));
+        return {
+          id: cls.idKelas || cls.id_kelas,
+          name: cls.namaKelas || cls.nama_kelas,
+          coach: cls.pelatih?.namaPelatih || "Instruktur",
+          time: classTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          day: classTime.toLocaleDateString('id-ID', { weekday: 'long' }),
+          
+          rawPrice: cls.harga || 0,
+          price: cls.harga ? `Rp ${cls.harga.toLocaleString('id-ID')}` : "Free",
+          slotsLeft: cls.kapasitas || 0,
+          isPast: isPast
+        };
+      });
 
       setClasses(mapped);
     } catch (err) {
@@ -56,7 +62,17 @@ const ClassSchedule = () => {
       return;
     }
 
-    // Navigasi ke halaman Universal Bayar dengan membawa "state" item kelas
+    // Peringatan Frontend selaras dengan logic isUserBookingOverlap & isUserAlreadyBooked di Backend
+    const confirmBooking = window.confirm(
+      `PENTING: Sistem akan memverifikasi jadwal Anda.\n\n` +
+      `- Pastikan Anda belum mendaftar di kelas ini sebelumnya.\n` +
+      `- Pastikan jadwal kelas ini tidak bertabrakan dengan kelas lain yang sudah Anda pesan.\n\n` +
+      `Lanjutkan ke pembayaran?`
+    );
+
+    if (!confirmBooking) return;
+
+    // Navigasi ke halaman Universal Bayar
     navigate('/member/bayar', {
       state: {
         item: {
@@ -74,11 +90,21 @@ const ClassSchedule = () => {
 
   return (
     <main className="w-full max-w-6xl mx-auto p-6 bg-[#111315] min-h-screen text-[#E0E0E0]">
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-black uppercase text-white">Jadwal Kelas</h2>
         <button onClick={fetchClasses} className="text-[#C2A676] text-xs font-bold hover:underline">
           REFRESH DATA
         </button>
+      </div>
+
+      {/* WARNING BANNER: Edukasi User tentang Business Logic Backend */}
+      <div className="mb-8 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-xl flex items-start gap-3 text-yellow-500 text-xs">
+        <span className="text-lg leading-none">⚠️</span>
+        <p className="leading-relaxed">
+          <strong>Perhatian:</strong> Sistem menerapkan sistem <span className="italic">real-time checking</span>. 
+          Transaksi Anda bisa dibatalkan otomatis jika terdeteksi jadwal yang bentrok 
+          dengan kelas Anda yang lain, atau jika kuota kelas habis saat konfirmasi pembayaran dari bank diterima.
+        </p>
       </div>
 
       {isLoading ? (
@@ -86,24 +112,29 @@ const ClassSchedule = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {classes.length > 0 ? classes.map((item) => (
-            <div key={item.id} className="bg-[#1e2023] p-6 rounded-3xl border border-white/5 hover:border-[#C2A676] transition-all">
+            <div key={item.id} className={`p-6 rounded-3xl border transition-all ${item.isPast ? 'bg-[#1a1a1a] border-white/5 opacity-60' : 'bg-[#1e2023] border-white/5 hover:border-[#C2A676]'}`}>
               <h3 className="text-lg font-black uppercase text-white">{item.name}</h3>
               <p className="text-xs text-gray-400 mb-4">{item.day} • {item.time}</p>
 
               <div className="flex justify-between items-center text-xs border-t border-white/5 pt-4">
                 <span className="text-[#C2A676] font-bold">{item.price}</span>
-                <span className="text-gray-500">Sisa Kuota: {item.slotsLeft}</span>
+                <span className={item.slotsLeft > 0 ? "text-gray-500" : "text-red-500 font-bold"}>
+                  Sisa Kuota: {item.slotsLeft}
+                </span>
               </div>
 
               <button
                 onClick={() => handleBookingClick(item)}
-                disabled={item.slotsLeft <= 0}
-                className={`w-full mt-6 py-3 font-black uppercase text-xs rounded-xl transition-all ${item.slotsLeft > 0
-                    ? "bg-[#C2A676] text-[#111315] hover:bg-white"
-                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                disabled={item.slotsLeft <= 0 || item.isPast}
+                className={`w-full mt-6 py-3 font-black uppercase text-xs rounded-xl transition-all ${
+                  item.isPast 
+                    ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                    : item.slotsLeft > 0
+                      ? "bg-[#C2A676] text-[#111315] hover:bg-white"
+                      : "bg-gray-700 text-gray-400 cursor-not-allowed"
                   }`}
               >
-                {item.slotsLeft > 0 ? "Pesan Kelas Sekarang" : "Kelas Penuh"}
+                {item.isPast ? "Kelas Berakhir" : item.slotsLeft > 0 ? "Pesan Kelas Sekarang" : "Kelas Penuh"}
               </button>
             </div>
           )) : (

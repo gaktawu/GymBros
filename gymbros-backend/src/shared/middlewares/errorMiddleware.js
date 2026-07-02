@@ -1,30 +1,22 @@
 export const globalErrorHandler = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
+  console.error('Error Details:', err); 
 
-  if (process.env.NODE_ENV === 'development') {
-    // Mode Development: Tampilkan detail error yang lengkap untuk debugging
-    res.status(err.statusCode).json({
-      status: err.status,
-      message: err.message,
-      error: err,
-      stack: err.stack,
-    });
-  } else {
-    // Mode Production: Sembunyikan detail sensitif dari client
-    if (err.isOperational) {
-      res.status(err.statusCode).json({
-        status: err.status,
-        message: err.message,
-      });
-    } else {
-      // Programming atau unknown error
-      console.error('ERROR ', err);
-      res.status(500).json({
-        status: 'error',
-        message: 'Something went very wrong!',
-      });
-    }
+  const statusCode = Number.isInteger(err?.statusCode) ? err.statusCode : 500;
+
+  // Selalu ambil string message murni — jangan pernah teruskan err.request/err.response/err itu sendiri
+  let message = 'Internal Server Error';
+  if (typeof err?.message === 'string' && err.message.trim() !== '') {
+    message = err.message;
+  } else if (err?.response?.data?.error_messages) {
+    // contoh: pesan error dari Midtrans API biasanya array string di error_messages
+    message = Array.isArray(err.response.data.error_messages)
+      ? err.response.data.error_messages.join(', ')
+      : String(err.response.data.error_messages);
   }
-};
 
+  res.status(statusCode).json({
+    success: false,
+    message,
+    statusCode,
+  });
+};

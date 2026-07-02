@@ -10,10 +10,10 @@ const Membership = () => {
   // ── STATE ──────────────────────────────────────────────────
   const [paketList, setPaketList] = useState([]);
   const [loadingPaket, setLoadingPaket] = useState(true);
-  
+
   const [testimoni, setTestimoni] = useState([]);
   const [loadingTestimoni, setLoadingTestimoni] = useState(true);
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('semua');
   const [paketDipilih, setPaketDipilih] = useState(null);
@@ -30,27 +30,26 @@ const Membership = () => {
     const fetchPaket = async () => {
       try {
         setLoadingPaket(true);
-        const token = localStorage.getItem('token'); 
+        const token = localStorage.getItem('token');
         const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
-        const res = await axios.get(`${API_BASE_URL}/paket-membership`);
+        const res = await axios.get(`${API_BASE_URL}/paket-membership`, config);
         const rawData = res.data.data || [];
 
-        // Mapping Data Database ke Format UI agar styling tetap cantik
+        // Mapping Data Database ke Format UI
         const mappedPaket = rawData.map((item) => {
           const namaPaket = item.nama_paket || item.namaPaket || 'Membership';
           const harga = item.harga || 0;
-          
-          // Parsing string benefit dari DB (jika berupa string dipisah koma) menjadi array
+          const durasiHari = item.durasi_hari || item.durasiHari || 30; // Tambahan fallback durasi
+
           let benefits = item.benefit || item.deskripsi || '';
           if (typeof benefits === 'string') {
             benefits = benefits.split(',').map(b => b.trim()).filter(b => b);
           }
           if (!Array.isArray(benefits) || benefits.length === 0) {
-            benefits = ['Akses Gym', 'Loker', 'Akses Semua Area']; // Fallback
+            benefits = ['Akses Gym', 'Loker', 'Akses Semua Area'];
           }
 
-          // Otomatisasi styling (warna, lencana, filter) berdasarkan nama paket
           let filterStr = 'semua';
           let warna = 'border-[#888888]/30';
           let aksen = 'text-gray-400';
@@ -60,7 +59,7 @@ const Membership = () => {
           let hargaDiskon = harga;
 
           const namaLower = namaPaket.toLowerCase();
-          
+
           if (namaLower.includes('hari')) {
             filterStr = 'harian';
           } else if (namaLower.includes('1 bulan') || namaLower.includes('bulanan')) {
@@ -73,7 +72,7 @@ const Membership = () => {
             aksen = 'text-[#C2A676]';
             badge = 'TERLARIS';
             highlight = true;
-            diskonPersen = 20; // Simulasi diskon untuk mempercantik UI
+            diskonPersen = 20;
             hargaDiskon = harga - (harga * diskonPersen / 100);
           } else if (namaLower.includes('12 bulan') || namaLower.includes('tahun')) {
             filterStr = '12bulan';
@@ -87,6 +86,7 @@ const Membership = () => {
           return {
             id: item.id_paket || item.idPaket || item.id,
             durasi: namaPaket,
+            durasiHari: durasiHari, // Digunakan untuk warning extend
             filter: filterStr,
             hargaNormal: harga,
             hargaDiskon: hargaDiskon,
@@ -109,7 +109,7 @@ const Membership = () => {
 
     fetchPaket();
 
-    // 2. FETCH TESTIMONI (Tetap dibiarkan jika belum ada di database Anda)
+    // 2. FETCH TESTIMONI
     axios
       .get('https://jsonplaceholder.typicode.com/posts?_limit=10')
       .then((res) => {
@@ -146,10 +146,10 @@ const Membership = () => {
   const handleLanjutBayar = () => {
     if (!agreedSyarat) return;
     setShowSyarat(false);
-    
+
     // Konversi ke format Universal Payment Page
-    navigate('/member/bayar', { 
-      state: { 
+    navigate('/member/bayar', {
+      state: {
         item: {
           type: 'membership',
           id: paketDipilih.id,
@@ -158,7 +158,7 @@ const Membership = () => {
           finalPrice: paketDipilih.hargaDiskon,
           benefits: paketDipilih.benefit
         }
-      } 
+      }
     });
   };
 
@@ -186,7 +186,7 @@ const Membership = () => {
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Anggota Aktif</p>
             <p className="text-sm font-black text-[#C2A676]">2.400+ Members</p>
           </div>
-          
+
           <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Hemat hingga</p>
             <p className="text-sm font-black text-green-400">20% Diskon</p>
@@ -198,7 +198,6 @@ const Membership = () => {
       <form
         onSubmit={(e) => e.preventDefault()}
         className="bg-[#1A1C1E] border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center"
-        aria-label="Filter paket membership"
       >
         <div className="relative flex-1 w-full">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
@@ -243,7 +242,7 @@ const Membership = () => {
       </form>
 
       {/* ══ KARTU PAKET ══════════════════════════════════════ */}
-      <section aria-label="Daftar paket membership">
+      <section>
         {loadingPaket ? (
           <div className="text-center py-20 text-[#C2A676] font-black uppercase tracking-widest animate-pulse">
             MEMUAT DATA DATABASE...
@@ -252,7 +251,6 @@ const Membership = () => {
           <div className="text-center py-16 text-gray-500">
             <p className="text-4xl mb-3">🔍</p>
             <p className="font-bold">Paket tidak ditemukan.</p>
-            <p className="text-sm mt-1">Belum ada data paket di database Supabase Anda.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -325,62 +323,6 @@ const Membership = () => {
         )}
       </section>
 
-      {/* ══ TABEL PERBANDINGAN ═══════════════════════════════ */}
-      {paketList.length > 0 && (
-        <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg overflow-x-auto">
-          <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">
-            Perbandingan Paket
-          </h2>
-          <table className="w-full text-xs text-left border-collapse min-w-[420px]">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="py-2 pr-4 text-gray-400 font-bold uppercase tracking-wider">Benefit Utama</th>
-                {paketList.map((p) => (
-                  <th key={p.id} className={'py-2 px-3 font-black uppercase text-center ' + p.aksen}>
-                    {p.durasi}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                'Akses gym',
-                'Loker premium',
-                'Kelas grup',
-                'Personal Trainer',
-                'Progress tracking',
-                'Guest pass',
-                'Sauna & spa',
-              ].map((row, i) => (
-                <tr key={row} className={'border-b border-white/5 ' + (i % 2 === 0 ? '' : 'bg-[#25282c]/30')}>
-                  <td className="py-2.5 pr-4 text-gray-300">{row}</td>
-                  {paketList.map((p) => {
-                    // Cek ketersediaan kata kunci di dalam array benefit database
-                    const ada = p.benefit.some((b) => b.toLowerCase().includes(row.toLowerCase().split(' ')[0]));
-                    return (
-                      <td key={p.id} className="py-2.5 px-3 text-center">
-                        {ada
-                          ? <span className="text-green-400 font-black">✓</span>
-                          : <span className="text-gray-600">—</span>
-                        }
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-              <tr className="border-b border-white/5 bg-[#25282c]/30">
-                <td className="py-2.5 pr-4 text-gray-300 font-bold">Total Harga</td>
-                {paketList.map((p) => (
-                  <td key={p.id} className="py-2.5 px-3 text-center font-black text-[#C2A676]">
-                    {formatRupiah(p.hargaDiskon)}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </section>
-      )}
-
       {/* ══ MODAL SYARAT & KETENTUAN ═════════════════════════ */}
       {showSyarat && paketDipilih && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
@@ -396,6 +338,14 @@ const Membership = () => {
               {' '}seharga{' '}
               <strong className="text-white">{formatRupiah(paketDipilih.hargaDiskon)}</strong>
             </p>
+
+            {/* INFO BANNER BACKEND LOGIC MEMBERSHIP (Perpanjangan / Anti Duplikat Invoice) */}
+            <div className="bg-[#111315] border border-[#C2A676]/30 rounded-xl p-3 mb-4 flex gap-3 items-start">
+              <span className="text-[#C2A676] text-lg leading-none mt-0.5">ℹ️</span>
+              <p className="text-[11px] text-gray-300 leading-relaxed">
+                <strong>Catatan Sistem:</strong> Jika Anda masih memiliki Membership Aktif, masa berlaku <strong>{paketDipilih.durasiHari} hari</strong> akan otomatis diakumulasi (diperpanjang) dari tanggal expired sebelumnya. Jika Anda memiliki tagihan pembayaran sebelumnya yang tertunda untuk paket ini, sistem akan melanjutkannya untuk Anda.
+              </p>
+            </div>
 
             <div className="bg-[#25282c] border border-white/5 rounded-xl p-4 mb-4 max-h-40 overflow-y-auto">
               <p className="text-[11px] text-gray-300 font-bold mb-2 uppercase tracking-wider">Benefit yang Anda Dapatkan:</p>

@@ -1,8 +1,6 @@
 import { pool } from '../../../shared/config/database.js';
 
 export class ClassRepository {
-
-    // Helper untuk mengekstrak data dari PostgreSQL (pg-pool)
     _extractRows(result) {
         if (!result) return [];
         if (result.rows) return result.rows;
@@ -16,20 +14,20 @@ export class ClassRepository {
         const offset = (safePage - 1) * safeLimit;
         const searchTerm = `%${search}%`;
 
-        // PERBAIKAN: Menggunakan id_pelatih, id_kelas, dan nama_lengkap sesuai schema
+        // PERBAIKAN: Menggunakan id_coach sesuai skema database
         const dataQuery = `
             SELECT k.*, u.nama_lengkap AS pengajar_nama
             FROM kelas k
-            LEFT JOIN users u ON k.id_pelatih = u.id_user
+            LEFT JOIN users u ON k.id_coach = u.id_user
             WHERE k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1
             ORDER BY k.id_kelas DESC
             LIMIT $2 OFFSET $3
         `;
-        
+                 
         const countQuery = `
             SELECT COUNT(*)::int AS total 
             FROM kelas k
-            LEFT JOIN users u ON k.id_pelatih = u.id_user
+            LEFT JOIN users u ON k.id_coach = u.id_user
             WHERE k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1
         `;
 
@@ -51,11 +49,11 @@ export class ClassRepository {
     }
 
     async findById(id) {
-        // PERBAIKAN: Menggunakan k.id_kelas dan u.id_user
+        // PERBAIKAN: Menggunakan k.id_coach sesuai skema database
         const query = `
             SELECT k.*, u.nama_lengkap AS pengajar_nama 
             FROM kelas k
-            LEFT JOIN users u ON k.id_pelatih = u.id_user 
+            LEFT JOIN users u ON k.id_coach = u.id_user 
             WHERE k.id_kelas = $1
         `;
         const result = await pool.query(query, [id]);
@@ -64,11 +62,10 @@ export class ClassRepository {
     }
 
     async create(data) {
-        // PERBAIKAN: Disesuaikan dengan kolom Supabase (waktu_mulai & waktu_selesai)
-        // Pastikan dari Frontend, input payload disesuaikan untuk mengirim waktu_mulai dan waktu_selesai
         const { nama_kelas, pengajar, waktu_mulai, waktu_selesai, kapasitas, harga } = data;
+        // PERBAIKAN: Menggunakan id_coach sesuai skema database
         const query = `
-            INSERT INTO kelas (nama_kelas, id_pelatih, waktu_mulai, waktu_selesai, kapasitas, harga)
+            INSERT INTO kelas (nama_kelas, id_coach, waktu_mulai, waktu_selesai, kapasitas, harga)
             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
         `;
         const result = await pool.query(query, [
@@ -79,9 +76,10 @@ export class ClassRepository {
 
     async update(id, data) {
         const { nama_kelas, pengajar, waktu_mulai, waktu_selesai, kapasitas, harga } = data;
+        // PERBAIKAN: Menggunakan id_coach sesuai skema database
         const query = `
             UPDATE kelas
-            SET nama_kelas = $1, id_pelatih = $2, waktu_mulai = $3, waktu_selesai = $4,
+            SET nama_kelas = $1, id_coach = $2, waktu_mulai = $3, waktu_selesai = $4,
                 kapasitas = $5, harga = $6
             WHERE id_kelas = $7 RETURNING *
         `;
@@ -92,16 +90,13 @@ export class ClassRepository {
     }
 
     async delete(id) {
-        // PERBAIKAN: Hapus relasi booking menggunakan kolom id_kelas yang benar
         await pool.query(`DELETE FROM booking_kelas WHERE id_kelas = $1`, [id]);
-
         const query = `DELETE FROM kelas WHERE id_kelas = $1 RETURNING *`;
         const result = await pool.query(query, [id]);
         return this._extractRows(result)[0];
     }
 
     async findParticipantsByClassId(id) {
-        // PERBAIKAN: Menggunakan id_booking, id_user, nama_lengkap, dan id_kelas sesuai tabel
         const query = `
             SELECT bk.id_booking, bk.status, u.id_user, u.nama_lengkap, u.email
             FROM booking_kelas bk
