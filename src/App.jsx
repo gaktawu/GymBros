@@ -26,7 +26,7 @@ import Bayar from "./pages/Member/bayar";
 import Membership from "./pages/Member/membership";
 import Profile from "./pages/Member/profile";
 import EditProfile from "./pages/Member/editprofile";
-import Payment from "./pages/Member/PaymentPage";
+// import Payment from "./pages/Member/PaymentPage";
 import DashboardCoach from "./pages/Coach/DashboardCoach";
 import Analystic from "./pages/Admin/analisis";
 // import LoginAdmin from "./pages/LoginAdmin"; (Contoh kalau udah dibikin) abistu daftarin route nya di bawah
@@ -72,7 +72,7 @@ export default function App() {
         <Route path="/member/bayar" element={<Bayar />} />
         <Route path="/member/profile" element={<Profile />} />
         <Route path="/member/edit-profile" element={<EditProfile />} />
-        <Route path="/member/bayarkelas" element={<Payment />} />
+        {/* <Route path="/member/bayarkelas" element={<Payment />} /> */}
           {/* <Route path="/member-booking" element={<HalamanBooking />} /> */}
         </Route>
 

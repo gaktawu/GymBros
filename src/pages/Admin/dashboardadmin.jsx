@@ -12,7 +12,8 @@ const ICON_PATHS = {
   Package: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m-8-4V10l8 4m0-10v10",
   Search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   ChevronLeft: "M15 19l-7-7 7-7",
-  ChevronRight: "M9 5l7 7-7 7"
+  ChevronRight: "M9 5l7 7-7 7",
+  Refresh: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
 };
 
 const Icon = React.memo(({ name, className = "w-5 h-5" }) => (
@@ -61,18 +62,24 @@ export default function DashboardAdmin() {
 
     try {
       try {
-        const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership", apiConfig);
+        const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership/admin/all", apiConfig);
         const packageData = packageRes.data.data || packageRes.data;
-        const normalizedData = packageData.map(item => ({
-          ...item,
-          id_paket: item.id_paket || item.id, 
-          hargaNum: Number(item.harga),
-          diskonVal: Number(item.diskon) || 0,
-          isActive: item.status_aktif === 'Tersedia',
-          isDeleted: item.is_deleted 
-        }));
+        
+        const normalizedData = packageData.map(item => {
+          const isDeleted = item.is_deleted === true || item.is_deleted === 'true' || item.is_deleted === 1 || item.deleted_at !== null;
+          const rawActive = item.status_aktif === 'Tersedia' || item.statusAktif === 'Tersedia';
+
+          return {
+            ...item,
+            id_paket: item.id_paket || item.id, 
+            hargaNum: Number(item.harga),
+            diskonVal: Number(item.diskon) || 0,
+            isDeleted: isDeleted,
+            isActive: rawActive && !isDeleted
+          };
+        });
         setClasses(normalizedData);
-      } catch (err) { console.error("Gagal menarik paket:", err); }
+      } catch (err) { console.error("Gagal menarik paket dari API Admin:", err); }
 
       try {
         const userRes = await axios.get("http://localhost:5000/api/v1/users", apiConfig);
@@ -113,12 +120,13 @@ export default function DashboardAdmin() {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+    
     const payload = {
       namaPaket: formData.nama_paket,
       durasiHari: formData.tipe_paket === 'Harian' ? 1 : Number(formData.durasi_hari),
       harga: Number(formData.harga),
       diskon: Number(formData.diskon),
-      statusAktif: "Tersedia"
+      statusAktif: "Tersedia" 
     };
 
     try {
@@ -140,7 +148,7 @@ export default function DashboardAdmin() {
     setModalConfig({
       isOpen: true,
       title: 'Hapus Paket',
-      description: `Apakah Anda yakin ingin menghapus paket "${cls.nama_paket}"?`,
+      description: `Apakah Anda yakin ingin menghapus paket "${cls.nama_paket}"? Paket ini tidak akan muncul lagi di dashboard member.`,
       type: 'danger',
       confirmText: 'Ya, Hapus',
       cancelText: 'Batal',
@@ -150,7 +158,7 @@ export default function DashboardAdmin() {
           await axios.delete(`http://localhost:5000/api/v1/paket-membership/${cls.id_paket}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          showToast('Paket berhasil dihapus!');
+          showToast('Paket berhasil di-soft delete!');
           if (editingClass?.id_paket === cls.id_paket) setEditingClass(null);
           await fetchMembershipData(); 
         } catch (error) { showToast('Gagal menghapus data dari server', 'error'); } 
@@ -159,29 +167,68 @@ export default function DashboardAdmin() {
     });
   }, [editingClass, showToast, fetchMembershipData]);
 
+  // PERBAIKAN TOTAL: Memanggil API /restore khusus yang sudah dibuat di backend
   const handleToggleStatus = useCallback(async (id) => {
     const target = classes.find(c => c.id_paket === id);
-    if (!target || target.isDeleted) return;
-    const newStatus = target.status_aktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
+    if (!target) return;
 
+    const token = localStorage.getItem('token');
+    const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
+
+    // KONDISI 1: JIKA TERHAPUS -> TEMBAK KE ENDPOINT RESTORE KHUSUS
+    if (target.isDeleted) {
+      setModalConfig({
+        isOpen: true,
+        title: 'Pulihkan Paket',
+        description: `Apakah Anda yakin ingin memulihkan paket "${target.nama_paket}"?`,
+        type: 'success',
+        confirmText: 'Ya, Pulihkan',
+        cancelText: 'Batal',
+        onConfirm: async () => {
+          try {
+            await axios.post(`http://localhost:5000/api/v1/paket-membership/${id}/restore`, {}, apiConfig);
+            showToast(`Paket "${target.nama_paket}" berhasil dipulihkan!`);
+            await fetchMembershipData();
+          } catch (error) { 
+            showToast('Gagal memulihkan data. Periksa routing backend Anda.', 'error'); 
+          } finally { 
+            setModalConfig(p => ({ ...p, isOpen: false })); 
+          }
+        }
+      });
+      return;
+    }
+
+    // KONDISI 2: JIKA NORMAL -> TOGGLE STATUS AKTIF BIASA
+    const newStatus = target.status_aktif === 'Tersedia' || target.statusAktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
-      showToast(`Paket "${target.nama_paket}" telah menjadi ${newStatus}.`);
+      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, apiConfig);
+      showToast(`Status paket "${target.nama_paket}" diubah menjadi ${newStatus}.`);
       await fetchMembershipData(); 
-    } catch (error) { showToast('Gagal merubah status paket.', 'error'); }
+    } catch (error) { showToast('Gagal mengubah status paket.', 'error'); }
   }, [classes, showToast, fetchMembershipData]);
 
   const stats = useMemo(() => {
-    const activePackages = classes.filter(c => c.isActive && !c.isDeleted).length;
-    return { activePackages, inactivePackages: classes.length - activePackages };
+    const activePackages = classes.filter(c => c.isActive).length;
+    const deletedPackages = classes.filter(c => c.isDeleted).length;
+    const inactivePackages = classes.length - activePackages - deletedPackages;
+    return { activePackages, inactivePackages, deletedPackages };
   }, [classes]);
 
   const { filteredClasses, displayedClasses, totalPages } = useMemo(() => {
     const filtered = classes.filter(cls => {
       const q = searchQuery.toLowerCase();
       const matchesSearch = cls.nama_paket?.toLowerCase().includes(q) || String(cls.id_paket)?.toLowerCase().includes(q);
-      const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? cls.isActive : !cls.isActive);
+      
+      let matchesStatus = true;
+      if (statusFilter === 'active') {
+        matchesStatus = cls.isActive;
+      } else if (statusFilter === 'inactive') {
+        matchesStatus = !cls.isActive && !cls.isDeleted;
+      } else if (statusFilter === 'deleted') {
+        matchesStatus = cls.isDeleted;
+      }
+
       return matchesSearch && matchesStatus;
     });
     const pages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -194,14 +241,16 @@ export default function DashboardAdmin() {
       {modalConfig.isOpen && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#1A1C1E] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#333333]">
-            <div className="flex items-center gap-3 text-[#C2A676] mb-4">
-              <div className="p-2 bg-[#C2A676]/10 rounded-lg"><Icon name="Alert" className="w-6 h-6" /></div>
+            <div className={`flex items-center gap-3 mb-4 ${modalConfig.type === 'danger' ? 'text-red-400' : 'text-green-400'}`}>
+              <div className={`p-2 rounded-lg ${modalConfig.type === 'danger' ? 'bg-red-400/10' : 'bg-green-400/10'}`}>
+                <Icon name="Alert" className="w-6 h-6" />
+              </div>
               <h3 className="text-xl font-bold text-white">{modalConfig.title}</h3>
             </div>
             <p className="text-[#888888] text-sm mb-6 leading-relaxed">{modalConfig.description}</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setModalConfig(p => ({ ...p, isOpen: false }))} className="px-4 py-2 text-[#888888] hover:bg-[#333333] rounded-xl text-sm font-semibold transition">{modalConfig.cancelText}</button>
-              <button onClick={modalConfig.onConfirm} className="px-5 py-2 bg-[#C2A676] text-[#111315] hover:bg-[#C2A676]/90 rounded-xl text-sm font-semibold transition">{modalConfig.confirmText}</button>
+              <button onClick={modalConfig.onConfirm} className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${modalConfig.type === 'danger' ? 'bg-red-500 text-white hover:bg-red-500/90' : 'bg-green-500 text-white hover:bg-green-500/90'}`}>{modalConfig.confirmText}</button>
             </div>
           </div>
         </div>
@@ -224,7 +273,7 @@ export default function DashboardAdmin() {
             <div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-8">
                 <StatCard title="Total Paket" icon="Package" value={isLoading ? '...' : classes.length} />
-                <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} paket habis/dihapus`} />
+                <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} nonaktif, ${stats.deletedPackages} dihapus`} />
                 <StatCard title="Jumlah Member" icon="Users" value={isLoading ? '...' : totalMembers} />
               </div>
 
@@ -241,6 +290,7 @@ export default function DashboardAdmin() {
                           <option value="all">Semua Status</option>
                           <option value="active">Tersedia</option>
                           <option value="inactive">Tidak Tersedia</option>
+                          <option value="deleted">Dihapus (Soft Delete)</option>
                         </select>
                       </form>
                     </div>
@@ -261,12 +311,13 @@ export default function DashboardAdmin() {
                           ) : displayedClasses.length === 0 ? (
                             <tr><td colSpan="4" className="py-8 text-center text-[#888888]">Data tidak ditemukan.</td></tr>
                           ) : displayedClasses.map(cls => (
-                            <tr key={cls.id_paket} className={`hover:bg-[#333333]/30 transition ${cls.isDeleted ? 'opacity-50' : ''}`}>
+                            <tr key={cls.id_paket} className={`hover:bg-[#333333]/30 transition ${cls.isDeleted ? 'opacity-60 bg-red-500/5' : ''}`}>
                               <td className="py-4 px-6">
                                 <div className="font-semibold text-white flex items-center gap-2">
                                   {cls.nama_paket}
                                   {cls.durasi_hari === 1 && <span className="text-[10px] bg-[#333] px-2 py-0.5 rounded text-gray-300">Harian</span>}
                                   {cls.isDeleted && <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">Dihapus</span>}
+                                  {!cls.isDeleted && !cls.isActive && <span className="text-[10px] bg-[#333] px-2 py-0.5 rounded text-gray-300">Nonaktif</span>}
                                 </div>
                                 <div className="text-xs text-[#888888] mt-0.5">ID: {cls.id_paket} | Durasi: {cls.durasi_hari} Hari</div>
                               </td>
@@ -275,12 +326,29 @@ export default function DashboardAdmin() {
                                 {cls.diskonVal > 0 && <div className="text-xs text-green-400 mt-0.5">Diskon: {cls.diskonVal}%</div>}
                               </td>
                               <td className="py-4 px-6">
-                                <button disabled={cls.isDeleted} onClick={() => handleToggleStatus(cls.id_paket)} className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm transition ${cls.isDeleted ? 'bg-[#333333] text-[#888888] cursor-not-allowed' : cls.isActive ? 'bg-[#C2A676]/10 text-[#C2A676] hover:bg-[#C2A676]/20' : 'bg-[#333333] text-[#888888] hover:bg-[#333333]/80'}`}>
-                                  {cls.isDeleted ? 'Nonaktif' : cls.status_aktif}
+                                <button 
+                                  onClick={() => handleToggleStatus(cls.id_paket)} 
+                                  className={`px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm transition ${
+                                    cls.isDeleted 
+                                      ? 'bg-red-950/30 text-red-400 border border-red-900/50 cursor-pointer hover:bg-red-900/50' 
+                                      : cls.isActive 
+                                        ? 'bg-[#C2A676]/10 text-[#C2A676] hover:bg-[#C2A676]/20' 
+                                        : 'bg-[#333333] text-[#888888] hover:bg-[#333333]/80'
+                                  }`}
+                                >
+                                  {cls.isDeleted ? 'Dihapus' : (cls.status_aktif || 'Tidak Tersedia')}
                                 </button>
                               </td>
                               <td className="py-4 px-6 text-right">
-                                {!cls.isDeleted && (
+                                {cls.isDeleted ? (
+                                  <button 
+                                    onClick={() => handleToggleStatus(cls.id_paket)} 
+                                    className="px-3 py-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ml-auto"
+                                  >
+                                    <Icon name="Refresh" className="w-3.5 h-3.5" />
+                                    Pulihkan
+                                  </button>
+                                ) : (
                                   <div className="flex items-center justify-end gap-1.5">
                                     <button onClick={() => setEditingClass(cls)} className="p-1.5 text-[#888888] hover:text-[#C2A676] hover:bg-[#C2A676]/10 rounded-lg transition"><Icon name="Edit" className="w-4 h-4" /></button>
                                     <button onClick={() => handleDelete(cls)} className="p-1.5 text-[#888888] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition"><Icon name="Trash" className="w-4 h-4" /></button>
@@ -293,7 +361,6 @@ export default function DashboardAdmin() {
                       </table>
                     </div>
 
-                    {/* Pagination Controls */}
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between px-6 py-4 border-t border-[#333333]">
                         <div className="text-xs text-[#888888]">
@@ -369,7 +436,7 @@ export default function DashboardAdmin() {
                         </div>
                       </div>
                       <div className="flex gap-2 pt-2">
-                        {editingClass && <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 border border-[#333333] text-[#888888] rounded-xl text-sm font-semibold hover:bg-[##333333]">Batal</button>}
+                        {editingClass && <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 border border-[#333333] text-[#888888] rounded-xl text-sm font-semibold hover:bg-[#333333]">Batal</button>}
                         <button type="submit" disabled={isLoading} className="flex-1 py-2.5 bg-[#C2A676] text-[#111315] hover:bg-[#C2A676]/90 rounded-xl text-sm font-semibold">{editingClass ? 'Simpan' : 'Tambah'}</button>
                       </div>
                     </form>

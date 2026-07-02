@@ -35,4 +35,10 @@ export class PaketMembershipUseCase {
     if (!existingPaket) throw new AppError('Paket membership tidak ditemukan', 404);
     return await this.paketMembershipRepository.softDeletePaketById(idPaket);
   }
+
+  async restorePaketById(idPaket) {
+    const existingPaket = await this.paketMembershipRepository.findById(idPaket);
+    if (!existingPaket) throw new AppError('Paket membership tidak ditemukan', 404);
+    return await this.paketMembershipRepository.restorePaketById(idPaket);
+  }
 }

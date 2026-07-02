@@ -8,11 +8,19 @@ export class PaketMembershipController {
     res.status(201).json({ success: true, message: 'Paket membership berhasil dibuat', data: newPaket });
   };
 
+  getAdminAllPaket = async (req, res) => {
+    const paketList = await this.paketMembershipUseCase.getAllPaket('Admin');
+    res.status(200).json({
+      success: true,
+      message: 'Berhasil mengambil seluruh daftar paket membership untuk Admin',
+      data: paketList
+    });
+  };
+
   getAllPaket = async (req, res) => {
-    // Ambil role dari req.user yang sudah diamankan middleware protect
-    const userRole = req.user.role || req.user.peran;
+    const userRole = req.user ? (req.user.role || req.user.peran) : 'Public';
     const paketList = await this.paketMembershipUseCase.getAllPaket(userRole);
-    
+
     res.status(200).json({ success: true, message: 'Berhasil mengambil daftar paket membership', data: paketList });
   };
 
@@ -33,5 +41,11 @@ export class PaketMembershipController {
     const { id } = req.params;
     await this.paketMembershipUseCase.softDeletePaketById(id);
     res.status(200).json({ success: true, message: 'Paket membership berhasil dihapus (soft delete)' });
+  };
+
+  restorePaket = async (req, res) => {
+    const { id } = req.params;
+    const restored = await this.paketMembershipUseCase.restorePaketById(id);
+    res.status(200).json({ success: true, message: 'Paket membership berhasil dipulihkan', data: restored });
   };
 }

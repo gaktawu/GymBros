@@ -20,17 +20,29 @@ import usersRoutes from './modules/users/presentation/users.routes.js';
 
 const app = express();
 
+// Global Middleware Kors & Cookie
+app.use(cors());
+app.use(cookieParser());
+
+// Parsing body payload (PENTING: Harus diletakkan sebelum mendefinisikan rute agar req.body terbaca)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Middleware Logging untuk Debugging Ngrok & Midtrans
 app.use((req, res, next) => {
-  console.log('RAW Incoming:', req.method, req.url);
+  console.log(`\n=== RAW INCOMING: ${req.method} ${req.url} ===`);
   console.log('Content-Type:', req.headers['content-type']);
+  if (req.method === 'POST' && req.body) {
+    // Menampilkan cuplikan order_id dan status jika itu dari webhook midtrans
+    if (req.url.includes('webhook')) {
+      console.log('Webhook Body Payload:', JSON.stringify(req.body, null, 2));
+    }
+  }
+  console.log('==============================================');
   next();
 });
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
+// Health Check Endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -38,6 +50,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Registrasi API Routes (v1)
 app.use('/api/v1/classes', classRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/memberships', membershipRoutes);
@@ -47,14 +60,17 @@ app.use('/api/v1/equipments', equipmentRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/coaching', coachingRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
-app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/payments', paymentRoutes); 
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/user-reports', userReportRoutes);
 app.use('/api/v1/users', usersRoutes);
 
+// Catch-All Route 404 Handler
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
+// Centralized Global Error Middleware
 app.use(globalErrorHandler);
+
 export default app;

@@ -53,16 +53,22 @@ const LandingPage = () => {
       }, 100);
     }
     
-    // FITUR BARU: Mengambil data paket langsung dari Backend
-    const fetchPlans = async () => {
+const fetchPlans = async () => {
       try {
         const response = await fetch('http://localhost:5000/api/v1/paket-membership');
         const data = await response.json();
-        if (data.success) {
-          // Mengamankan properti baik berupa camelCase maupun snake_case, dan memfilter yang aktif
-          const activePlans = data.data.filter(pkg => 
-            pkg.status_aktif === 'Tersedia' || pkg.statusAktif === 'Tersedia' || pkg.status_aktif === true
-          );
+        
+        if (data.success && data.data) {
+          const activePlans = data.data.filter(pkg => {
+            const status = pkg.status_aktif || pkg.statusAktif;
+            if (status === true || status === 1) return true;
+            if (typeof status === 'string') {
+              const statusLower = status.toLowerCase();
+              return statusLower === 'tersedia' || statusLower === 'aktif';
+            }
+            return false;
+          });
+
           setMembershipPlans(activePlans);
         }
       } catch (error) {
@@ -74,7 +80,6 @@ const LandingPage = () => {
 
     fetchPlans();
 
-    // Cleanup function
     return () => window.removeEventListener('resize', handleResize);
   }, []); 
   const scrollToSection = (sectionId) => {
