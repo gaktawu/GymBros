@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from 'axios'; 
 
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 const formatRupiah = (n) => 'Rp ' + (n || 0).toLocaleString('id-ID');
@@ -38,8 +38,8 @@ const snapPay = (token, callbacks) => {
 const CustomAlert = memo(({ message, onClose }) => {
   if (!message) return null;
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
-      <div className="w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 text-center shadow-2xl transform scale-100">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 text-center shadow-2xl">
         <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-blue-500/15 border-2 border-blue-500/40 flex items-center justify-center text-blue-400 text-xl font-bold">!</div>
         <h3 className="text-lg font-black text-white uppercase mb-2">Pemberitahuan</h3>
         <p className="text-sm text-gray-400 mb-6">{message}</p>
@@ -90,10 +90,66 @@ export default function Bayar() {
   const [isCanceling, setIsCanceling] = useState(false);
   const [alertMsg, setAlertMsg] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  
+  // Ref untuk menyimpan interval polling status
+  const pollingIntervalRef = useRef(null);
 
   const goToDashboard = useCallback(() => navigate('/member/dashboardmember'), [navigate]);
   const goBack = useCallback(() => navigate(-1), [navigate]);
 
+  // Fungsi fetch invoice pending dari database
+  const fetchPendingInvoice = useCallback(async (isSilent = false) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_BASE_URL}/payments/my-invoices`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const pendingInvoice = res.data.data?.find(inv => inv.status === 'Pending');
+      
+      // Jika sebelumnya pending, lalu tiba-tiba hilang (berarti sudah sukses via webhook)[cite: 2]
+      if (globalPending && !pendingInvoice) {
+        setGlobalPending(null);
+        setStep('success'); // Langsung arahkan ke screen sukses otomatis!
+        return;
+      }
+
+      setGlobalPending(pendingInvoice || null);
+
+      // PENTING: step harus keluar dari 'loading' di SEMUA kondisi setelah fetch selesai,
+      // bukan cuma saat pendingInvoice sudah hilang. Sebelumnya kalau pendingInvoice MASIH
+      // ada (kasus normal: user sudah pilih VA/QRIS dan onPending Midtrans terpanggil),
+      // step tidak pernah direset dan UI nyangkut permanen di "Memuat Midtrans...".
+      if (step === 'loading') {
+        setStep('summary');
+      } else if (!pendingInvoice && step !== 'success') {
+        setStep('summary');
+      }
+    } catch (err) {
+      console.error('Gagal memperbarui data transaksi otomatis', err);
+    } finally {
+      if (!isSilent) setIsPageLoading(false);
+    }
+  }, [globalPending, step]);
+
+  // Fungsi untuk menyalakan Auto-Refresh / Polling status
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return; // Cegah ganda
+    
+    pollingIntervalRef.current = setInterval(() => {
+      fetchPendingInvoice(true); // silent update tanpa loading spinner kelap-kelip
+    }, 5000); // Cek setiap 5 detik ke database
+  }, [fetchPendingInvoice]);
+
+  // Fungsi untuk mematikan Polling status
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
+  // Efek inisialisasi awal[cite: 2]
   useEffect(() => {
     document.title = 'Gymbros | Pembayaran';
     const ori = document.body.style.backgroundColor;
@@ -104,50 +160,86 @@ export default function Bayar() {
       (errMsg) => setAlertMsg(errMsg)
     );
 
-    const checkExistingPending = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_BASE_URL}/payments/my-invoices`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        const pendingInvoice = res.data.data?.find(inv => inv.status === 'Pending');
-        
-        if (pendingInvoice) {
-          setGlobalPending(pendingInvoice);
-        }
-      } catch (err) {
-        console.error('Gagal memuat data transaksi', err);
-      } finally {
-        setIsPageLoading(false);
-      }
+    fetchPendingInvoice();
+
+    return () => { 
+      document.body.style.backgroundColor = ori; 
+      stopPolling(); // Bersihkan interval saat pindah page
     };
-
-    checkExistingPending();
-
-    return () => { document.body.style.backgroundColor = ori; };
   }, []);
 
-  const triggerSnap = (snapToken, idPayment) => {
+  // Pantau status globalPending untuk aktivasi/deaktivasi auto-refresh
+  useEffect(() => {
+    if (globalPending) {
+      startPolling(); // Aktifkan polling jika ada tagihan pending agar responsif
+    } else {
+      stopPolling(); // Matikan polling jika tidak ada tagihan pending
+    }
+  }, [globalPending, startPolling, stopPolling]);
+
+  const triggerSnap = useCallback((snapToken, idPayment) => {
+    stopPolling(); // Matikan polling sejenak saat modal Midtrans terbuka agar tidak konflik
+
+    // Flag ini menandai apakah user SEMPAT memilih metode pembayaran (VA/QRIS/dll)
+    // sebelum menutup popup. Jika iya, transaksi tsb memang sudah benar-benar
+    // terdaftar di Midtrans (onPending akan terpanggil lebih dulu) sehingga aman
+    // dibiarkan Pending. Jika TIDAK (user langsung pencet silang), transaksi itu
+    // tidak pernah benar-benar tercatat di Midtrans, sehingga invoice yang sudah
+    // kadung dibuat di DB (oleh handleBayar/handleResumePending) adalah "hantu"
+    // dan harus ikut dibatalkan, bukan dibiarkan menggantung sebagai Pending.
+    let hasProgressed = false;
+
+    // Membatalkan invoice "hantu" tsb ke backend (endpoint cancel yang sama
+    // dengan tombol "Batalkan Pesanan"), lalu bersihkan state lokal.
+    const cancelGhostInvoice = async () => {
+      if (idPayment) {
+        try {
+          const token = localStorage.getItem('token');
+          await axios.post(`${API_BASE_URL}/payments/invoice/${idPayment}/cancel`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (err) {
+          console.error('Gagal auto-cancel invoice setelah Snap ditutup/gagal:', err);
+        }
+      }
+      setPaymentData(null);
+      setGlobalPending(null);
+      setStep('summary');
+      fetchPendingInvoice();
+    };
+
     snapPay(snapToken, {
       onSuccess: () => {
         setGlobalPending(null);
         setStep('success');
       },
       onPending: () => {
+        hasProgressed = true; // transaksi sudah benar-benar ada di Midtrans (mis. VA sudah terbit)
+        setStep('summary'); // keluar dari 'loading' seketika, jangan tunggu round-trip fetch
         setAlertMsg('Silakan selesaikan pembayaran sesuai instruksi bank.');
-        // Biarkan tetap di tampilan global pending
-        setStep('summary');
+        fetchPendingInvoice();
       },
       onError: () => {
-        setAlertMsg('Transaksi gagal atau telah kadaluwarsa.');
-        setStep('summary');
+        // Transaksi gagal/ditolak Midtrans -> invoice lokal juga tidak valid, batalkan sekalian
+        setAlertMsg('Transaksi ditolak atau kadaluwarsa. Pesanan otomatis dibatalkan, silakan coba lagi.');
+        cancelGhostInvoice();
       },
       onClose: () => {
-        setStep('summary');
+        if (hasProgressed) {
+          // User sudah dapat VA/QRIS lalu menutup popup untuk bayar belakangan -> JANGAN dibatalkan.
+          setStep('summary');
+          fetchPendingInvoice();
+        } else {
+          // User pencet tombol silang (X) SEBELUM memilih metode pembayaran apa pun.
+          // Di Midtrans transaksi ini tidak pernah benar-benar tercatat, jadi invoice
+          // yang sudah kadung dibuat di database harus ikut dibatalkan di sini juga,
+          // supaya tidak ada payment "hantu" yang nyangkut sebagai Pending.
+          setAlertMsg('Pembayaran dibatalkan.');
+          cancelGhostInvoice();
+        }
       },
     });
-  };
+  }, [fetchPendingInvoice, stopPolling]);
 
   const handleBayar = useCallback(async () => {
     if (!item || !snapReady) return;
@@ -172,17 +264,21 @@ export default function Bayar() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const { snapToken, idPayment } = res.data;
+      const responseData = res.data.data || res.data;
+      const { snapToken, idPayment } = responseData;
+
+      if (!snapToken) throw new Error('Gagal mendapatkan token pembayaran.');
+
       setPaymentData({ idPayment, snapToken });
       triggerSnap(snapToken, idPayment);
 
     } catch (err) {
-      setAlertMsg(err.response?.data?.message || 'Gagal membuat pesanan.');
+      setAlertMsg(err.response?.data?.message || err.message || 'Gagal membuat pesanan.');
       setStep('summary');
+      fetchPendingInvoice(); // Refresh state jika ternyata gagal akibat ada yang menyangkut
     }
-  }, [item, snapReady]);
+  }, [item, snapReady, triggerSnap, fetchPendingInvoice]);
 
-  // FUNGSI BARU: Memanggil Snap Token untuk transaksi yang nyangkut
   const handleResumePending = async () => {
     if (!globalPending || !snapReady) {
       setAlertMsg('Gateway pembayaran sedang disiapkan, tunggu sebentar...');
@@ -193,8 +289,6 @@ export default function Bayar() {
     
     try {
       const token = localStorage.getItem('token');
-      
-      // Ekstrak ID Item dari format id_payment (Contoh: MBR-9-3-178...)
       const parts = globalPending.id_payment.split('-');
       const prefix = parts[0];
       const idItem = Number(parts[1]);
@@ -209,19 +303,22 @@ export default function Bayar() {
         payload.idKelas = idItem;
       }
 
-      // Hit ulang endpoint pembuatan invoice.
-      // Berkat _reissueSnapToken di backend kamu, ini tidak akan membuat duplikat, 
-      // melainkan mengambil Token Midtrans yang sudah ada!
       const res = await axios.post(`${API_BASE_URL}/payments/invoice`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const { snapToken, idPayment } = res.data;
-      triggerSnap(snapToken, idPayment);
+      const responseData = res.data.data || res.data;
+      
+      if (!responseData.snapToken) {
+        throw new Error('Token Midtrans tidak tersedia. Silakan Batalkan Pesanan dan coba kembali.');
+      }
+
+      triggerSnap(responseData.snapToken, responseData.idPayment || globalPending.id_payment);
 
     } catch (err) {
-      setAlertMsg(err.response?.data?.message || 'Gagal memuat ulang gateway pembayaran.');
+      setAlertMsg(err.response?.data?.message || err.message || 'Gagal memuat ulang gateway pembayaran.');
       setStep('summary');
+      fetchPendingInvoice();
     }
   };
 
@@ -230,6 +327,7 @@ export default function Bayar() {
     if (!idToCancel) return;
     
     setIsCanceling(true);
+    stopPolling(); // Matikan sementara sewaktu proses hapus data
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${API_BASE_URL}/payments/invoice/${idToCancel}/cancel`, {}, {
@@ -239,6 +337,7 @@ export default function Bayar() {
       setShowCancelConfirm(false);
       setGlobalPending(null); 
       setPaymentData(null);
+      setStep('summary');
       setAlertMsg('Pesanan sebelumnya berhasil dibatalkan. Anda sekarang dapat melanjutkan pesanan baru.');
     } catch (err) {
       setShowCancelConfirm(false);
@@ -275,6 +374,7 @@ export default function Bayar() {
               <span className="text-green-400 text-3xl">✓</span>
             </div>
             <h3 className="text-2xl font-black text-white uppercase mb-4">Berhasil!</h3>
+            <p className="text-xs text-gray-400 mb-6">Pembayaran Anda telah sukses diverifikasi otomatis oleh sistem.</p>
             <button onClick={goToDashboard} className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black py-3 rounded-xl transition-colors">Kembali ke Dashboard</button>
           </div>
         </div>
@@ -288,7 +388,7 @@ export default function Bayar() {
             Sistem mendeteksi Anda masih memiliki tagihan yang belum diselesaikan:
           </p>
           
-          <div className="bg-[#111315] border border-white/5 rounded-xl p-6 max-w-md mx-auto mb-8 text-left shadow-inner">
+          <div className="bg-[#111315] border border-white/5 rounded-xl p-6 max-w-md mx-auto mb-4 text-left shadow-inner">
             <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Item Tertunda</p>
             <p className="text-base font-bold text-white mb-4">{globalPending.nama_item}</p>
             
@@ -297,6 +397,11 @@ export default function Bayar() {
             
             <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Nominal</p>
             <p className="text-2xl font-black text-[#C2A676]">{formatRupiah(globalPending.nominal)}</p>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 mb-6 text-xs text-gray-400">
+            <span className="w-2 h-2 rounded-full bg-yellow-500 animate-ping"></span>
+            <span>Mengecek status pembayaran otomatis...</span>
           </div>
 
           <div className="flex flex-col gap-3 max-w-md mx-auto">

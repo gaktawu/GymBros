@@ -30,35 +30,76 @@ export class PaymentUseCase {
 
   async _createMembershipInvoice(idUser, idPaket, metode) {
     const paket = await this.paymentRepo.getPaketMembershipById(idPaket);
-    if (!paket) throw new AppError('Paket membership tidak ditemukan', 404);
+    if (!paket) {
+      throw new AppError('Paket membership tidak ditemukan atau tidak tersedia', 404);
+    }
 
     const existingPending = await this.paymentRepo.findActivePendingInvoiceByReference(idUser, 'MBR', idPaket);
     if (existingPending) {
-      // Hapus parameter itemDetails dan idUser karena kita tidak nembak Midtrans lagi
-      return this._reissueSnapToken(existingPending);
+      if (existingPending.snapToken) {
+        // Masih ada token valid → tinggal pakai lagi, tidak perlu hit Midtrans
+        return this._reissueSnapToken(existingPending);
+      }
+      
+      // LOGIKA SELF-HEAL: Invoice "orphan" (Tercatat Pending tapi snapToken tidak pernah sukses dibuat)
+      console.warn(`[Invoice Orphan] ${existingPending.idPayment} berstatus Pending tanpa snapToken. Menandai gagal otomatis.`);
+      await this.paymentRepo.markAsFailed(existingPending.idPayment);
+      // Eksekusi dibiarkan lolos ke bawah untuk membuat baris invoice baru dengan ID baru
     }
 
     const totalTagihan = Number(paket.harga);
     const idPayment = `MBR-${idPaket}-${idUser}-${Date.now()}`;
-    const itemDetails = [{ id: `PKT-${idPaket}`, price: totalTagihan, quantity: 1, name: paket.nama_paket }];
+    const itemDetails = [
+      { id: `PKT-${idPaket}`, price: totalTagihan, quantity: 1, name: paket.nama_paket },
+    ];
 
     return this._persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi: 'Membership', totalTagihan, metode, itemDetails });
   }
 
   async _createKelasInvoice(idUser, idKelas, metode) {
-    const kelas = await this.paymentRepo.getKelasById(idKelas);
-    if (!kelas) throw new AppError('Kelas tidak ditemukan', 404);
-    // ... (validasi waktu, booked, overlap, kuota biarkan sama) ...
-
     const existingPending = await this.paymentRepo.findActivePendingInvoiceByReference(idUser, 'KLS', idKelas);
     if (existingPending) {
-      // Hapus parameter itemDetails dan idUser
-      return this._reissueSnapToken(existingPending);
+      if (existingPending.snapToken) {
+        // Masih ada token valid → tinggal pakai lagi, tidak perlu hit Midtrans
+        return this._reissueSnapToken(existingPending);
+      }
+
+      // LOGIKA SELF-HEAL: Invoice "orphan" (Tercatat Pending tapi snapToken tidak pernah sukses dibuat)
+      console.warn(`[Invoice Orphan] ${existingPending.idPayment} berstatus Pending tanpa snapToken. Menandai gagal otomatis.`);
+      await this.paymentRepo.markAsFailed(existingPending.idPayment);
+      // Eksekusi dibiarkan lolos ke bawah untuk membuat baris invoice baru dengan ID baru
+    }
+
+    const kelas = await this.paymentRepo.getKelasById(idKelas);
+    if (!kelas) {
+      throw new AppError('Kelas tidak ditemukan atau sudah dihapus', 404);
+    }
+    if (new Date(kelas.waktu_mulai) < new Date()) {
+      throw new AppError('Kelas sudah berlangsung atau berakhir', 400);
+    }
+
+    const alreadyBooked = await this.paymentRepo.isUserAlreadyBooked(idKelas, idUser);
+    if (alreadyBooked) {
+      throw new AppError('Anda sudah terdaftar di kelas ini', 409);
+    }
+
+    // Validasi time-overlap
+    const overlap = await this.paymentRepo.isUserBookingOverlap(idUser, kelas.waktu_mulai, kelas.waktu_selesai);
+    if (overlap) {
+      throw new AppError('Jadwal kelas ini bertabrakan dengan kelas lain yang sudah Anda booking', 409);
+    }
+
+    // Cek kuota
+    const bookedCount = await this.paymentRepo.countBookingKelasById(idKelas);
+    if (bookedCount >= kelas.kapasitas) {
+      throw new AppError('Kelas sudah penuh, silakan pilih kelas lain', 409);
     }
 
     const totalTagihan = Number(kelas.harga || 0);
     const idPayment = `KLS-${idKelas}-${idUser}-${Date.now()}`;
-    const itemDetails = [{ id: `KLS-${idKelas}`, price: totalTagihan, quantity: 1, name: kelas.nama_kelas }];
+    const itemDetails = [
+      { id: `KLS-${idKelas}`, price: totalTagihan, quantity: 1, name: kelas.nama_kelas },
+    ];
 
     return this._persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi: 'Kelas', totalTagihan, metode, itemDetails });
   }
@@ -92,12 +133,16 @@ export class PaymentUseCase {
     } catch (midtransErr) {
       console.error('--- ERROR MIDTRANS ---');
       console.error(midtransErr?.ApiResponse?.error_messages || midtransErr.message);
+      console.error('HTTP Status:', midtransErr?.httpStatusCode);
+      console.error('----------------------');
+
+      // Cegah invoice Pending menggantung tanpa Snap Token
       await this.paymentRepo.markAsFailed(idPayment);
-      throw new AppError('Gagal membuat transaksi pembayaran.', 502);
+
+      throw new AppError('Gagal membuat transaksi pembayaran. Silakan coba lagi.', 502);
     }
   }
 
-  // LANGSUNG KEMBALIKAN TOKEN DARI CACHE DATABASE
   async _reissueSnapToken(existingPayment) {
     if (!existingPayment.snapToken) {
       throw new AppError(
@@ -113,140 +158,8 @@ export class PaymentUseCase {
       status: existingPayment.status,
       snapToken: existingPayment.snapToken,
       redirectUrl: existingPayment.redirectUrl,
-      note: 'Invoice Pending sebelumnya ditemukan, Token Midtrans yang sudah ada dikembalikan',
+      note: 'Invoice Pending sebelumnya ditemukan, menggunakan Snap Token yang sudah ada',
     };
-  }
-
-  async _createMembershipInvoice(idUser, idPaket, metode) {
-    const paket = await this.paymentRepo.getPaketMembershipById(idPaket);
-    if (!paket) {
-      throw new AppError('Paket membership tidak ditemukan atau tidak tersedia', 404);
-    }
-
-    const existingPending = await this.paymentRepo.findActivePendingInvoiceByReference(idUser, 'MBR', idPaket);
-    if (existingPending) {
-      const itemDetails = [
-        { id: `PKT-${idPaket}`, price: Number(existingPending.totalTagihan), quantity: 1, name: paket.nama_paket },
-      ];
-      return this._reissueSnapToken(existingPending, itemDetails, idUser);
-    }
-
-    const totalTagihan = Number(paket.harga);
-    const idPayment = `MBR-${idPaket}-${idUser}-${Date.now()}`;
-    const itemDetails = [
-      { id: `PKT-${idPaket}`, price: totalTagihan, quantity: 1, name: paket.nama_paket },
-    ];
-
-    return this._persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi: 'Membership', totalTagihan, metode, itemDetails });
-  }
-
-  async _createKelasInvoice(idUser, idKelas, metode) {
-    const kelas = await this.paymentRepo.getKelasById(idKelas);
-    if (!kelas) {
-      throw new AppError('Kelas tidak ditemukan atau sudah dihapus', 404);
-    }
-    if (new Date(kelas.waktu_mulai) < new Date()) {
-      throw new AppError('Kelas sudah berlangsung atau berakhir', 400);
-    }
-
-    const alreadyBooked = await this.paymentRepo.isUserAlreadyBooked(idKelas, idUser);
-    if (alreadyBooked) {
-      throw new AppError('Anda sudah terdaftar di kelas ini', 409);
-    }
-
-    // Validasi time-overlap: user tidak boleh booking dua kelas yang jadwalnya bertabrakan.
-    const overlap = await this.paymentRepo.isUserBookingOverlap(idUser, kelas.waktu_mulai, kelas.waktu_selesai);
-    if (overlap) {
-      throw new AppError('Jadwal kelas ini bertabrakan dengan kelas lain yang sudah Anda booking', 409);
-    }
-
-    // Cek kuota (pre-emptive, final check di webhook dengan row lock)
-    const bookedCount = await this.paymentRepo.countBookingKelasById(idKelas);
-    if (bookedCount >= kelas.kapasitas) {
-      throw new AppError('Kelas sudah penuh, silakan pilih kelas lain', 409);
-    }
-
-    // Guard: cegah duplicate invoice Pending untuk kelas yang sama
-    const existingPending = await this.paymentRepo.findActivePendingInvoiceByReference(idUser, 'KLS', idKelas);
-    if (existingPending) {
-      const itemDetails = [
-        { id: `KLS-${idKelas}`, price: Number(existingPending.totalTagihan), quantity: 1, name: kelas.nama_kelas },
-      ];
-      return this._reissueSnapToken(existingPending, itemDetails, idUser);
-    }
-
-    const totalTagihan = Number(kelas.harga || 0);
-    const idPayment = `KLS-${idKelas}-${idUser}-${Date.now()}`;
-    const itemDetails = [
-      { id: `KLS-${idKelas}`, price: totalTagihan, quantity: 1, name: kelas.nama_kelas },
-    ];
-
-    return this._persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi: 'Kelas', totalTagihan, metode, itemDetails });
-  }
-
-  async _persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi, totalTagihan, metode, itemDetails }) {
-    const payment = await this.paymentRepo.createInvoice({ idPayment, idUser, kategoriTransaksi, totalTagihan, metode });
-
-    try {
-      const midtransResponse = await snap.createTransaction({
-        transaction_details: {
-          order_id: idPayment,
-          gross_amount: Math.round(totalTagihan), // Midtrans butuh angka bulat, hindari desimal
-        },
-        item_details: itemDetails,
-        customer_details: {
-          first_name: `User-${idUser}`,
-        },
-      });
-
-      return {
-        idPayment: payment.idPayment,
-        kategoriTransaksi: payment.kategoriTransaksi,
-        totalTagihan: payment.totalTagihan,
-        status: payment.status,
-        snapToken: midtransResponse.token,
-        redirectUrl: midtransResponse.redirect_url,
-      };
-    } catch (midtransErr) {
-      console.error('--- ERROR MIDTRANS ---');
-      console.error(midtransErr?.ApiResponse?.error_messages || midtransErr.message);
-      console.error('HTTP Status:', midtransErr?.httpStatusCode);
-      console.error('----------------------');
-
-      // Cegah invoice Pending menggantung tanpa Snap Token
-      await this.paymentRepo.markAsFailed(idPayment);
-
-      throw new AppError('Gagal membuat transaksi pembayaran. Silakan coba lagi.', 502);
-    }
-  }
-
-  async _reissueSnapToken(existingPayment, itemDetails, idUser) {
-    try {
-      const midtransResponse = await snap.createTransaction({
-        transaction_details: {
-          order_id: existingPayment.idPayment,
-          gross_amount: Math.round(Number(existingPayment.totalTagihan)),
-        },
-        item_details: itemDetails,
-        customer_details: {
-          first_name: `User-${idUser}`,
-        },
-      });
-
-      return {
-        idPayment: existingPayment.idPayment,
-        kategoriTransaksi: existingPayment.kategoriTransaksi,
-        totalTagihan: existingPayment.totalTagihan,
-        status: existingPayment.status,
-        snapToken: midtransResponse.token,
-        redirectUrl: midtransResponse.redirect_url,
-        note: 'Invoice Pending sebelumnya ditemukan, Snap Token diterbitkan ulang',
-      };
-    } catch (midtransErr) {
-      console.error('--- ERROR MIDTRANS (reissue) ---');
-      console.error(midtransErr?.ApiResponse?.error_messages || midtransErr.message);
-      throw new AppError('Gagal menerbitkan ulang transaksi pembayaran. Silakan coba lagi.', 502);
-    }
   }
 
   async getInvoice(idPayment, requestingUser) {
@@ -321,7 +234,8 @@ export class PaymentUseCase {
 
     if (isFailed) {
       const failedPayment = await this.paymentRepo.markAsFailed(orderId);
-      if (!failedPayment) {        const current = await this.paymentRepo.findById(orderId);
+      if (!failedPayment) {
+        const current = await this.paymentRepo.findById(orderId);
         return { success: true, status: current.status, note: 'Callback diabaikan, sudah diproses request lain' };
       }
       return { success: true, status: 'Gagal' };
@@ -429,14 +343,12 @@ export class PaymentUseCase {
       return { type: 'kelas', detail: 'OVERLAP', kelasName: kelas.nama_kelas };
     }
 
-    // id_payment WAJIB diisi agar audit trail booking <-> pembayaran terjaga.
     await this.paymentRepo.createBookingKelas({ idKelas, idUser: payment.idUser, idPayment: orderId }, client);
     return { type: 'kelas', detail: kelas.nama_kelas };
   }
 
   async _failKelasSettlement(orderId, kelas, client, reason) {
     await this.paymentRepo.markAsFailed(orderId, client);
-    // Refund logic manual bisa ditambahkan di sini oleh tim finance.
     const admins = await this.paymentRepo.findAdmins(client);
     for (const admin of admins) {
       await this.paymentRepo.createNotification(
@@ -465,7 +377,6 @@ export class PaymentUseCase {
     };
   }
 
-
   async cancelInvoice(idPayment, requestingUser) {
     const payment = await this.paymentRepo.findById(idPayment);
 
@@ -477,22 +388,17 @@ export class PaymentUseCase {
       throw new AppError('Anda tidak memiliki izin untuk membatalkan invoice ini', 403);
     }
 
-    // Pastikan hanya invoice Pending yang bisa dibatalkan
     if (payment.status !== 'Pending') {
       throw new AppError(`Invoice tidak dapat dibatalkan karena sudah berstatus ${payment.status}`, 400);
     }
 
-    // 1. BATALKAN TRANSAKSI DI MIDTRANS TERLEBIH DAHULU
     try {
-
       await snap.transaction.cancel(idPayment);
       console.log(`[Midtrans] Transaksi ${idPayment} berhasil dibatalkan di sistem Midtrans.`);
     } catch (error) {
-
       console.warn(`[Midtrans Warning] Gagal membatalkan di Midtrans (mungkin sudah terhapus/expire): ${error.message}`);
     }
 
-    // 2. BATALKAN DI DATABASE LOKAL
     const canceledPayment = await this.paymentRepo.markAsFailed(idPayment);
 
     return {
@@ -511,7 +417,6 @@ export class PaymentUseCase {
     const search = queryParams.search || '';
     const offset = (page - 1) * limit;
 
-    // Mengambil data yang sudah di-filter & di-join dari repository
     const invoices = await this.paymentRepo.getPaginatedHistory(idUser, search, limit, offset);
     const totalItems = await this.paymentRepo.countHistory(idUser, search);
     const totalPages = Math.ceil(totalItems / limit);
@@ -535,6 +440,24 @@ export class PaymentUseCase {
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
+      }
+    };
+  }
+
+  async getRevenueStats(requestingUser) {
+    const userRole = requestingUser?.peran || requestingUser?.role;
+
+    if (!userRole || userRole.toLowerCase() !== 'admin') {
+      throw new AppError('Anda tidak memiliki akses untuk melihat statistik pendapatan', 403);
+    }
+
+    const stats = await this.paymentRepo.getRevenueStats();
+    
+    return {
+      success: true,
+      data: {
+        totalPendapatan: stats.totalRevenue,
+        pendapatanBulanIni: stats.monthlyRevenue
       }
     };
   }

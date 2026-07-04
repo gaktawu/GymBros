@@ -3,18 +3,20 @@ import { Payment } from '../domain/Payment.js';
 
 export class PaymentRepository {
   _mapToDomain(row) {
-    if (!row) return null;
-    return new Payment({
-      idPayment: row.id_payment,
-      idUser: row.id_user,
-      kategoriTransaksi: row.kategori_transaksi,
-      totalTagihan: row.total_tagihan,
-      totalDibayar: row.total_dibayar,
-      metode: row.metode,
-      status: row.status,
-      waktuBayar: row.waktu_bayar,
-    });
-  }
+  if (!row) return null;
+  return new Payment({
+    idPayment: row.id_payment,
+    idUser: row.id_user,
+    kategoriTransaksi: row.kategori_transaksi,
+    totalTagihan: row.total_tagihan,
+    totalDibayar: row.total_dibayar,
+    metode: row.metode,
+    status: row.status,
+    waktuBayar: row.waktu_bayar,
+    snapToken: row.snap_token,
+    redirectUrl: row.redirect_url,
+  });
+}
 
   async findById(idPayment, executor = db) {
     const query = `SELECT * FROM payments WHERE id_payment = $1`;
@@ -319,5 +321,27 @@ export class PaymentRepository {
 
     const result = await executor.query(query, params);
     return parseInt(result.rows[0].total, 10);
+  }
+
+  async getRevenueStats(executor = db) {
+    const query = `
+      SELECT 
+        COALESCE(SUM(total_dibayar), 0) AS total_revenue,
+        COALESCE(SUM(
+          CASE 
+            WHEN date_trunc('month', waktu_bayar) = date_trunc('month', CURRENT_DATE) 
+            AND date_trunc('year', waktu_bayar) = date_trunc('year', CURRENT_DATE)
+            THEN total_dibayar 
+            ELSE 0 
+          END
+        ), 0) AS monthly_revenue
+      FROM payments
+      WHERE status = 'Lunas'
+    `;
+    const result = await executor.query(query);
+    return {
+      totalRevenue: parseFloat(result.rows[0].total_revenue),
+      monthlyRevenue: parseFloat(result.rows[0].monthly_revenue)
+    };
   }
 }

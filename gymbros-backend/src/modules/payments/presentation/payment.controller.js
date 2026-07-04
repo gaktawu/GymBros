@@ -65,4 +65,13 @@ export class PaymentController {
       next(error);
     }
   };
+
+  getRevenueStats = async (req, res, next) => {
+    try {
+      const result = await this.paymentUseCase.getRevenueStats(req.user);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -28,6 +28,7 @@ router.get('/history', asyncHandler(paymentController.getTransactionHistory));
 
 // Simulasi hanya untuk sandbox/dev - usecase menolak otomatis di production
 router.post('/simulate-qris/:id', asyncHandler(paymentController.simulateQRIS));
+router.get('/revenue', asyncHandler(paymentController.getRevenueStats));
 
 router.get('/my-invoices', asyncHandler(async (req, res) => {
   const idUser = req.user.id_user;
