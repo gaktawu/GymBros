@@ -17,11 +17,19 @@ export class MembershipRepository {
 
   async findActiveByUserId(idUser) {
     const query = `
-    SELECT * FROM membership 
-    WHERE id_user = $1 AND tgl_berakhir >= NOW() AND status = 'Aktif';
+    SELECT m.*, p.nama_paket AS nama_paket_detail
+    FROM membership m
+    LEFT JOIN paket_membership p ON m.id_paket = p.id_paket
+    WHERE m.id_user = $1 AND m.tgl_berakhir >= NOW() AND m.status = 'Aktif';
   `;
     const result = await db.query(query, [idUser]);
-    return this._mapToDomain(result.rows[0]);
+
+    if (!result.rows[0]) return null;
+
+    const domainData = this._mapToDomain(result.rows[0]);
+    domainData.namaPaketObj = result.rows[0].nama_paket_detail;
+
+    return domainData;
   }
 
   async create(data) {

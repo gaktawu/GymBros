@@ -1,5 +1,4 @@
 export class Payment {
-  // PASTIKAN snapToken dan redirectUrl ADA DI DALAM KURUNG KURAWAL INI
   constructor({ idPayment, idUser, kategoriTransaksi, totalTagihan, totalDibayar, metode, status, waktuBayar, snapToken, redirectUrl }) {
     this.idPayment = idPayment;
     this.idUser = idUser;

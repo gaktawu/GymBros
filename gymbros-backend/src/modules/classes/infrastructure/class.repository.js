@@ -23,7 +23,7 @@ export class ClassRepository {
             ORDER BY k.id_kelas DESC
             LIMIT $2 OFFSET $3
         `;
-                 
+
         const countQuery = `
             SELECT COUNT(*)::int AS total 
             FROM kelas k
@@ -105,6 +105,17 @@ export class ClassRepository {
             ORDER BY bk.id_booking ASC
         `;
         const result = await pool.query(query, [id]);
+        return this._extractRows(result) || [];
+    }
+    async findBookingsByUserId(idUser) {
+        const query = `
+        SELECT bk.id_booking, bk.status, k.id_kelas, k.nama_kelas, k.waktu_mulai
+        FROM booking_kelas bk
+        JOIN kelas k ON bk.id_kelas = k.id_kelas
+        WHERE bk.id_user = $1 AND bk.status = 'confirmed'
+        ORDER BY k.waktu_mulai ASC
+    `;
+        const result = await pool.query(query, [idUser]);
         return this._extractRows(result) || [];
     }
 }

@@ -123,8 +123,6 @@ export class PaymentUseCase {
       throw new AppError('Paket membership tidak ditemukan atau tidak tersedia', 404);
     }
 
-    // Guard: cegah user membuat invoice Pending berkali-kali untuk paket yang sama
-    // (spam klik "Bayar" / refresh browser).
     const existingPending = await this.paymentRepo.findActivePendingInvoiceByReference(idUser, 'MBR', idPaket);
     if (existingPending) {
       const itemDetails = [
@@ -186,8 +184,6 @@ export class PaymentUseCase {
     return this._persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi: 'Kelas', totalTagihan, metode, itemDetails });
   }
 
-  // Insert invoice Pending lalu minta Snap Token. Jika Midtrans gagal, invoice langsung
-  // ditandai Gagal (bukan dibiarkan Pending tanpa token) agar tidak jadi data orphan.
   async _persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi, totalTagihan, metode, itemDetails }) {
     const payment = await this.paymentRepo.createInvoice({ idPayment, idUser, kategoriTransaksi, totalTagihan, metode });
 
@@ -224,8 +220,6 @@ export class PaymentUseCase {
     }
   }
 
-  // Menerbitkan ulang Snap Token untuk invoice Pending yang sudah ada, alih-alih membuat
-  // baris invoice baru (mencegah duplicate invoice akibat spam klik "Bayar").
   async _reissueSnapToken(existingPayment, itemDetails, idUser) {
     try {
       const midtransResponse = await snap.createTransaction({
@@ -255,9 +249,6 @@ export class PaymentUseCase {
     }
   }
 
-  // ============================================================
-  // GET INVOICE — Authorization check
-  // ============================================================
   async getInvoice(idPayment, requestingUser) {
     const payment = await this.paymentRepo.findById(idPayment);
     if (!payment) {
@@ -269,9 +260,6 @@ export class PaymentUseCase {
     return payment;
   }
 
-  // ============================================================
-  // MY INVOICES — pemetaan response dipindah dari routing layer ke sini
-  // ============================================================
   async getMyInvoices(idUser) {
     const invoices = await this.paymentRepo.findByUserId(idUser);
     return invoices.map((inv) => ({
@@ -283,17 +271,11 @@ export class PaymentUseCase {
       metode: inv.metode,
       nominal: inv.totalTagihan,
       status: inv.status,
-      // waktu_bayar NULL untuk invoice yang belum Lunas — jangan dipalsukan jadi "sekarang".
       tanggal: inv.waktuBayar || null,
       kategori: inv.kategoriTransaksi,
     }));
   }
 
-  // ============================================================
-  // WEBHOOK — Satu-satunya sumber kebenaran status pembayaran.
-  // Business logic (membership / booking kelas) HANYA dijalankan
-  // setelah status settlement dikonfirmasi Midtrans di sini.
-  // ============================================================
   async processWebhook(notification) {
     if (!verifyMidtransSignature(notification)) {
       throw new AppError('Signature tidak valid, notifikasi ditolak', 403);
@@ -306,11 +288,6 @@ export class PaymentUseCase {
       gross_amount: grossAmount,
     } = notification;
 
-    // =========================================================================
-    // BYPASS UNTUK MIDTRANS TEST NOTIFICATION
-    // Jika order_id diawali dengan payment_notif_test, langsung return sukses.
-    // Ini mengizinkan ping testing lewat tanpa mengorbankan keamanan transaksi asli.
-    // =========================================================================
     if (orderId && orderId.startsWith('payment_notif_test')) {
       console.log(`[Webhook Test] Menerima dummy request dari Midtrans: ${orderId}`);
       return {
@@ -325,9 +302,6 @@ export class PaymentUseCase {
       throw new AppError(`Payment dengan order_id ${orderId} tidak ditemukan`, 404);
     }
 
-    // Idempotency + anti out-of-order: Pending adalah satu-satunya state yang boleh
-    // diproses lebih lanjut. Kalau sudah Lunas/Gagal (final state), callback apa pun
-    // setelahnya (duplicate, atau expire yang datang telat setelah settlement) diabaikan.
     if (payment.status !== 'Pending') {
       return { success: true, status: payment.status, note: 'Callback diabaikan, invoice sudah pada status final' };
     }
@@ -347,15 +321,12 @@ export class PaymentUseCase {
 
     if (isFailed) {
       const failedPayment = await this.paymentRepo.markAsFailed(orderId);
-      if (!failedPayment) {
-        // Row sudah diubah request lain di antara pengecekan awal dan UPDATE ini.
-        const current = await this.paymentRepo.findById(orderId);
+      if (!failedPayment) {        const current = await this.paymentRepo.findById(orderId);
         return { success: true, status: current.status, note: 'Callback diabaikan, sudah diproses request lain' };
       }
       return { success: true, status: 'Gagal' };
     }
 
-    // --- PENDING / CHALLENGE ---
     return { success: true, status: 'Pending' };
   }
 
@@ -363,8 +334,6 @@ export class PaymentUseCase {
     const result = await this.paymentRepo.runInTransaction(async (client) => {
       const paidPayment = await this.paymentRepo.markAsPaid(orderId, grossAmount, client);
 
-      // Guard race: jika ternyata sudah diproses request paralel lain (bukan Pending lagi
-      // saat UPDATE dieksekusi), hentikan tanpa menjalankan business logic dua kali.
       if (!paidPayment) {
         return { alreadyProcessed: true };
       }
@@ -399,14 +368,6 @@ export class PaymentUseCase {
     };
   }
 
-  // Aturan membership:
-  // - Belum pernah punya membership -> buat baru (tgl_mulai = sekarang).
-  // - Membership sedang Aktif & belum expired -> perpanjang (tgl_berakhir += durasi_hari,
-  //   tgl_mulai TIDAK berubah).
-  // - Membership sudah Expired/Cancelled atau tgl_berakhir sudah lewat -> reaktivasi
-  //   dengan tgl_mulai baru (= sekarang).
-  // Row membership dikunci (FOR UPDATE) agar dua settlement bersamaan untuk user yang sama
-  // tidak saling menimpa (id_user bersifat UNIQUE di tabel membership).
   async _settleMembership(payment, orderId, client) {
     const [, idPaket] = orderId.split('-');
     const paket = await this.paymentRepo.getPaketMembershipById(idPaket, client);
@@ -441,9 +402,6 @@ export class PaymentUseCase {
     return { type: 'membership', detail: paket.nama_paket, action: isStillActive ? 'extended' : 'reactivated' };
   }
 
-  // Kelas dikunci (FOR UPDATE) lalu kuota, duplicate booking, dan time-overlap dicek ULANG
-  // sebagai final check di dalam transaksi (bukan cuma pre-emptive check saat create invoice),
-  // karena kondisi bisa berubah selama user menunggu pembayaran.
   async _settleKelas(payment, orderId, client) {
     const [, idKelas] = orderId.split('-');
     const kelas = await this.paymentRepo.lockKelasForUpdate(idKelas, client);
@@ -543,6 +501,40 @@ export class PaymentUseCase {
       data: {
         idPayment: canceledPayment.idPayment,
         status: canceledPayment.status
+      }
+    };
+  }
+
+  async getTransactionHistory(idUser, queryParams) {
+    const page = parseInt(queryParams.page) || 1;
+    const limit = parseInt(queryParams.limit) || 5; 
+    const search = queryParams.search || '';
+    const offset = (page - 1) * limit;
+
+    // Mengambil data yang sudah di-filter & di-join dari repository
+    const invoices = await this.paymentRepo.getPaginatedHistory(idUser, search, limit, offset);
+    const totalItems = await this.paymentRepo.countHistory(idUser, search);
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const data = invoices.map((inv) => ({
+      id_payment: inv.idPayment,
+      nama_item: inv.namaItemSpesifik || (inv.kategoriTransaksi === 'Membership' ? 'Membership' : 'Kelas Gym'),
+      metode: inv.metode,
+      nominal: inv.totalTagihan,
+      status: inv.status,
+      tanggal: inv.waktuBayar || null,
+      kategori: inv.kategoriTransaksi,
+    }));
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
       }
     };
   }

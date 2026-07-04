@@ -5,12 +5,22 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export default function Profile() {
+  // State Profil & Keanggotaan
   const [profile, setProfile] = useState(null);
   const [membership, setMembership] = useState(null);
-  const [riwayat, setRiwayat] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // State Riwayat Transaksi (Paginasi & Pencarian)
+  const [riwayat, setRiwayat] = useState([]);
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   const navigate = useNavigate();
 
+  // 1. Ambil Data Profil & Membership
   useEffect(() => {
     const fetchProfileData = async () => {
       const token = localStorage.getItem('token');
@@ -22,7 +32,7 @@ export default function Profile() {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       try {
-        // 1. Ambil Data User (Sesuai dengan toJSON() di User.js backend Anda)
+        // Ambil Data User
         const userRes = await axios.get(`${API_BASE_URL}/users/profile`, config);
         const userData = userRes.data.data;
 
@@ -30,27 +40,20 @@ export default function Profile() {
           idUser: userData.idUser,
           namaLengkap: userData.namaLengkap || "Member Gymbros",
           email: userData.email,
-          telepon: userData.noTelepon || "-", // Disesuaikan dengan backend
-          avatar: userData.fotoProfil || "https://i.pravatar.cc/150?img=11", // Disesuaikan dengan backend
+          telepon: userData.noTelepon || "-",
+          avatar: userData.fotoProfil || "https://i.pravatar.cc/150?img=11",
+          peran: userData.peran || "Member",             // <-- Menyimpan informasi peran
+          jenisKelamin: userData.jenisKelamin || "-",    // <-- Menyimpan informasi jenis kelamin
           qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GYMBROS-${userData.idUser}`
         });
 
-        // 2. Ambil Data Membership Aktif
+        // Ambil Data Membership Aktif
         try {
           const memRes = await axios.get(`${API_BASE_URL}/memberships/my-active`, config);
           setMembership(memRes.data.data);
         } catch (e) {
           setMembership(null); 
         }
-
-        // 3. Ambil Riwayat Pembelian
-        try {
-          const trxRes = await axios.get(`${API_BASE_URL}/transactions/my-history`, config);
-          setRiwayat(trxRes.data.data || []);
-        } catch (e) {
-          setRiwayat([]); 
-        }
-
       } catch (error) {
         console.error("Gagal memuat profil:", error);
         if (error.response?.status === 401) {
@@ -65,11 +68,52 @@ export default function Profile() {
     fetchProfileData();
   }, [navigate]);
 
+  // 2. Ambil Data Riwayat Transaksi
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      setHistoryLoading(true);
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      try {
+        const res = await axios.get(`${API_BASE_URL}/payments/history?page=${page}&limit=5&search=${search}`, config);
+        setRiwayat(res.data.data || []);
+        setMeta(res.data.meta || null);
+      } catch (error) {
+        console.error("Gagal memuat riwayat transaksi:", error);
+        setRiwayat([]);
+        setMeta(null);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [page, search]);
+
+  // Handler Pencarian
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1); 
+    setSearch(searchInput);
+  };
+
   const handleLogout = () => {
     const confirmLogout = window.confirm("Apakah Anda yakin ingin keluar dari akun?");
     if (confirmLogout) {
       localStorage.clear();
       navigate('/login'); 
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Lunas': return 'text-green-400 bg-green-400/10 border-green-400/20';
+      case 'Pending': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
+      case 'Gagal': return 'text-red-400 bg-red-400/10 border-red-400/20';
+      default: return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
     }
   };
 
@@ -83,23 +127,39 @@ export default function Profile() {
     );
   }
 
-  const planName = membership?.paket?.namaPaket || membership?.paket_membership?.nama_paket || "Belum Berlangganan";
-  const planEnd = membership?.tanggalBerakhir || membership?.tanggal_berakhir ? new Date(membership.tanggalBerakhir || membership.tanggal_berakhir).toLocaleDateString('id-ID') : "-";
-  const planStart = membership?.tanggalMulai || membership?.tanggal_mulai ? new Date(membership.tanggalMulai || membership.tanggal_mulai).toLocaleDateString('id-ID') : "-";
+  const planName = membership?.namaPaketObj || "Belum Berlangganan";
+  const planStart = membership?.tglMulai 
+    ? new Date(membership.tglMulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) 
+    : "-";
+  const planEnd = membership?.tglBerakhir 
+    ? new Date(membership.tglBerakhir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) 
+    : "-";
+  const isExpired = membership?.tglBerakhir ? new Date() > new Date(membership.tglBerakhir) : true;
 
   return (
     <main className="min-h-screen bg-[#111315] p-6 md:p-10 font-sans text-[#E0E0E0]">
       <section className="max-w-4xl mx-auto space-y-8">
         
+        {/* --- KARTU PROFIL --- */}
         <div className="bg-[#1A1C1E] p-8 rounded-3xl border border-[#333333] shadow-lg flex flex-col md:flex-row gap-8 items-center md:items-start">
           <img src={profile.avatar} alt="Profile" className="w-32 h-32 rounded-full border-4 border-[#C2A676] shadow-md object-cover" />
           <div className="flex-1 text-center md:text-left">
-            <h1 className="text-3xl font-black text-white mb-1 uppercase tracking-tight">{profile.namaLengkap}</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1 justify-center md:justify-start">
+              <h1 className="text-3xl font-black text-white uppercase tracking-tight">{profile.namaLengkap}</h1>
+              {/* Badge Peran */}
+              <span className="self-center md:self-auto text-[10px] px-2 py-0.5 bg-[#C2A676]/10 border border-[#C2A676]/30 text-[#C2A676] font-black uppercase tracking-wider rounded-md">
+                {profile.peran}
+              </span>
+            </div>
             <p className="text-[#C2A676] font-bold mb-4 tracking-widest uppercase text-xs">MEMBER ID: GB-{profile.idUser}</p>
+            
+            {/* Grid Detail Pengguna */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 text-sm text-[#888888]">
               <p><strong className="text-[#E0E0E0]">Email:</strong> {profile.email}</p>
               <p><strong className="text-[#E0E0E0]">Telepon:</strong> {profile.telepon}</p>
+              <p><strong className="text-[#E0E0E0]">Jenis Kelamin:</strong> {profile.jenisKelamin}</p>
             </div>
+            
             <button 
               onClick={() => navigate('/member/edit-profile')} 
               className="mt-6 px-6 py-2 bg-[#25282c] border border-white/10 text-white font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-[#C2A676] hover:text-[#111315] hover:border-transparent transition-all"
@@ -109,21 +169,28 @@ export default function Profile() {
           </div>
         </div>
 
+        {/* --- STATUS MEMBERSHIP & QR CODE --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <article className="bg-[#1A1C1E] p-6 rounded-3xl border border-[#333333] shadow-md">
-            <h2 className="text-sm tracking-widest uppercase font-black text-[#C2A676] mb-4 border-b border-[#333333] pb-3">Status Keanggotaan</h2>
+            <h2 className="text-sm tracking-widest uppercase font-black text-[#C2A676] mb-4 border-b border-[#333333] pb-3">
+              Status Keanggotaan
+            </h2>
             <div className="space-y-3 text-sm font-medium">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-[#888888]">Jenis Paket</span>
-                <span className="font-bold text-white uppercase">{planName}</span>
+                <span className="font-bold text-white uppercase bg-[#25282c] px-3 py-1 rounded-lg border border-white/10">
+                  {planName}
+                </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-[#888888]">Tanggal Mulai</span>
-                <span>{planStart}</span>
+                <span className="text-gray-300">{planStart}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-[#888888]">Masa Berlaku</span>
-                <span className={membership ? "text-green-400 font-bold" : "text-red-400 font-bold"}>{planEnd}</span>
+                <span className={!isExpired && membership ? "text-green-400 font-black" : "text-red-400 font-black"}>
+                  {planEnd} {isExpired && membership ? '(Kadaluarsa)' : ''}
+                </span>
               </div>
             </div>
           </article>
@@ -137,26 +204,76 @@ export default function Profile() {
           </article>
         </div>
 
+        {/* --- RIWAYAT TRANSAKSI --- */}
         <article className="bg-[#1A1C1E] p-6 rounded-3xl border border-[#333333] shadow-md">
-          <h2 className="text-sm tracking-widest uppercase font-black text-[#C2A676] mb-4 border-b border-[#333333] pb-3">Riwayat Transaksi</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#333333] pb-3 mb-4 gap-4">
+            <h2 className="text-sm tracking-widest uppercase font-black text-[#C2A676]">Riwayat Transaksi</h2>
+            <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto">
+              <input 
+                type="text" 
+                placeholder="Cari ID, Kelas..." 
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="bg-[#111315] border border-[#333333] rounded-l-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#C2A676] w-full sm:w-48"
+              />
+              <button type="submit" className="bg-[#C2A676] text-[#111315] px-3 py-1.5 rounded-r-lg font-bold text-sm hover:bg-[#e0c28d] transition">
+                Cari
+              </button>
+            </form>
+          </div>
+
           <div className="space-y-3">
-            {riwayat.length > 0 ? riwayat.map((trx) => (
-              <div key={trx.id || trx.id_booking} className="flex flex-col sm:flex-row justify-between sm:items-center bg-[#25282c] p-4 rounded-2xl border border-white/5">
-                <div>
-                  <p className="font-black text-[#E0E0E0] uppercase text-sm">{trx.nama_item || trx.layanan || 'Pembayaran Sistem'}</p>
-                  <p className="text-[10px] text-[#888888] uppercase tracking-wider mt-0.5">{new Date(trx.tanggal || trx.created_at).toLocaleDateString('id-ID')}</p>
+            {historyLoading ? (
+              <p className="text-sm text-[#C2A676] animate-pulse text-center py-4">Memuat data...</p>
+            ) : riwayat.length > 0 ? (
+              riwayat.map((trx) => (
+                <div key={trx.id_payment} className="flex flex-col sm:flex-row justify-between sm:items-center bg-[#25282c] p-4 rounded-2xl border border-white/5">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-black text-[#E0E0E0] uppercase text-sm">{trx.nama_item}</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wide ${getStatusColor(trx.status)}`}>
+                        {trx.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#888888] font-mono">ID: {trx.id_payment}</p>
+                    <p className="text-[10px] text-[#888888] uppercase tracking-wider mt-0.5">
+                      {trx.tanggal ? new Date(trx.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'} | {trx.metode}
+                    </p>
+                  </div>
+                  <div className="mt-3 sm:mt-0 font-black text-[#C2A676] text-lg sm:text-right">
+                    Rp {trx.nominal ? trx.nominal.toLocaleString('id-ID') : '0'}
+                  </div>
                 </div>
-                <div className="mt-2 sm:mt-0 font-black text-[#C2A676] text-sm">
-                  {trx.nominal || trx.harga ? `Rp ${(trx.nominal || trx.harga).toLocaleString('id-ID')}` : '-'}
-                </div>
-              </div>
-            )) : (
-              <p className="text-sm text-gray-500 text-center py-4">Belum ada riwayat transaksi.</p>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Data transaksi tidak ditemukan.</p>
             )}
           </div>
+
+          {meta && meta.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#333333]">
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={!meta.hasPrevPage || historyLoading}
+                className="px-4 py-2 bg-[#25282c] text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-[#333333] transition"
+              >
+                &laquo; Sebelumnya
+              </button>
+              <span className="text-xs text-[#888888] font-bold">
+                Halaman {meta.page} dari {meta.totalPages}
+              </span>
+              <button 
+                onClick={() => setPage(p => p + 1)}
+                disabled={!meta.hasNextPage || historyLoading}
+                className="px-4 py-2 bg-[#25282c] text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-[#333333] transition"
+              >
+                Selanjutnya &raquo;
+              </button>
+            </div>
+          )}
         </article>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end pt-2 pb-10">
           <button 
             onClick={handleLogout}
             className="px-8 py-3 bg-red-600/10 border border-red-500/30 text-red-400 text-xs tracking-widest uppercase font-black rounded-xl hover:bg-red-600 hover:text-white hover:border-transparent transition-all shadow-md active:scale-95"

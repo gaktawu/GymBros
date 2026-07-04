@@ -48,13 +48,24 @@ export class ClassController {
     getParticipants = asyncHandler(async (req, res) => {
         const { id } = req.params;
 
-        // id sudah divalidasi oleh middleware validateIdParam di routes,
-        // pengecekan ini tetap dijaga sebagai defense-in-depth.
         if (!id || id === 'undefined' || isNaN(Number(id))) {
             throw new AppError('ID kelas tidak valid', 400);
         }
 
         const participants = await this.classUseCase.getParticipants(id);
         res.status(200).json({ status: 'success', data: participants });
+    });
+
+    getMyBookings = asyncHandler(async (req, res) => {
+        // id_user didapatkan dengan aman dari decoded token JWT protect middleware
+        const idUser = req.user.id_user;
+
+        const bookings = await this.classUseCase.getMyBookedClasses(idUser);
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Berhasil mengambil daftar kelas yang dipesan',
+            data: bookings
+        });
     });
 }

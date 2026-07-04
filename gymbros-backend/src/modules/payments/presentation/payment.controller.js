@@ -51,4 +51,18 @@ export class PaymentController {
       next(error);
     }
   };
+
+  getTransactionHistory = async (req, res, next) => {
+    try {
+      const idUser = req.user.id_user;
+      const result = await this.paymentUseCase.getTransactionHistory(idUser, req.query);
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        meta: result.meta // Metadata untuk paginasi frontend
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

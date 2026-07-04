@@ -24,6 +24,7 @@ router.post('/invoice', validate(createInvoiceSchema), asyncHandler(paymentContr
 router.get('/invoice/:id', asyncHandler(paymentController.getInvoice));
 // Route untuk membatalkan invoice yang masih Pending
 router.post('/invoice/:id/cancel', asyncHandler(paymentController.cancelInvoice));
+router.get('/history', asyncHandler(paymentController.getTransactionHistory));
 
 // Simulasi hanya untuk sandbox/dev - usecase menolak otomatis di production
 router.post('/simulate-qris/:id', asyncHandler(paymentController.simulateQRIS));

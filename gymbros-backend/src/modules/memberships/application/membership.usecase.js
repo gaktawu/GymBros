@@ -50,6 +50,7 @@ export class MembershipUseCase {
         email: "member@gymbros.com",
       },
     };
+    
 
     // 6. Generate Snap Token
     const snapTransaction = await snap.createTransaction(parameter);
@@ -59,6 +60,11 @@ export class MembershipUseCase {
       token: snapTransaction.token,
       redirect_url: snapTransaction.redirect_url,
     };
+  }
+
+  async getMyActiveMembership(userId) {
+    const activeMembership = await this.membershipRepository.findActiveByUserId(userId);
+    return activeMembership;
   }
 
   async softDeleteUserMembership(idMembership) {
