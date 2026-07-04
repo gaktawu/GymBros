@@ -1,16 +1,16 @@
 import cron from 'node-cron';
-import { MembershipRepository } from '../modules/memberships/infrastructure/membership.repository.js';
-
-const membershipRepo = new MembershipRepository();
+import { db } from '../shared/config/database.js';
 
 export const startMembershipCron = () => {
-  // Jalan setiap hari jam 00:00
+  // Jalan setiap hari jam 00:00 WIB
   cron.schedule('0 0 * * *', async () => {
     console.log('[CRON] Menjalankan pembersihan membership user yang sudah expired...');
-    
-    // Menggunakan pool.connect() karena db di shared config biasanya berupa pg Pool
-    const client = await db.connect(); 
+
+    let client;
     try {
+      // db diekspor sebagai wrapper { query, getClient } dari shared/config/database.js
+      // getClient() mengembalikan pool.connect(), bukan db.connect() (db bukan Pool langsung)
+      client = await db.getClient();
       await client.query('BEGIN');
 
       // ============================================
@@ -29,18 +29,17 @@ export const startMembershipCron = () => {
       }
 
       // ============================================
-      // 2. HARD DELETE: Membership yang sudah 'Expired' lama (Misal: Lebih dari 30 hari)
-      //    (Disesuaikan karena tabel membership TIDAK punya kolom is_deleted)
+      // 2. HARD DELETE: Membership yang masa aktifnya telah habis (Expired)
+      //    Langsung dihapus karena database menggunakan ON DELETE CASCADE
       // ============================================
       const deleteRes = await client.query(`
         DELETE FROM membership
-        WHERE status = 'Expired'
-        AND tgl_berakhir < NOW() - INTERVAL '30 days'
+        WHERE tgl_berakhir < NOW()
         RETURNING id_membership, id_user, id_paket
       `);
-      
+
       if (deleteRes.rowCount > 0) {
-        console.log(`[CRON] Berhasil hard delete ${deleteRes.rowCount} riwayat membership yang sudah expired > 30 hari.`);
+        console.log(`[CRON] Berhasil hard delete ${deleteRes.rowCount} riwayat transaksi membership yang sudah expired.`);
         deleteRes.rows.forEach(row => {
           console.log(`  - Membership ID: ${row.id_membership}, User: ${row.id_user}, Paket: ${row.id_paket}`);
         });
@@ -58,17 +57,28 @@ export const startMembershipCron = () => {
             WHERE m.id_paket = pm.id_paket
         )
       `);
-      
+
       if (deletePaketRes.rowCount > 0) {
         console.log(`[CRON] Berhasil hard delete ${deletePaketRes.rowCount} paket membership yang sudah tidak terpakai.`);
       }
 
       await client.query('COMMIT');
     } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('[CRON ERROR] Gagal:', error);
+      // client bisa jadi undefined jika db.connect() sendiri yang gagal
+      if (client) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('[CRON ERROR] Gagal rollback:', rollbackError.message);
+        }
+      }
+      console.error('[CRON ERROR] Gagal menjalankan pembersihan membership:', error);
     } finally {
-      client.release(); // Mengembalikan koneksi ke pool
+      if (client) client.release(); // Mengembalikan koneksi ke pool
     }
+  }, {
+    timezone: 'Asia/Jakarta' // pastikan jam 00:00 mengacu ke WIB, bukan timezone server
   });
+
+  console.log('[CRON] Membership cleanup cron terdaftar: setiap hari 00:00 (Asia/Jakarta).');
 };

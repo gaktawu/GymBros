@@ -22,6 +22,8 @@ router.post('/webhook', asyncHandler(paymentController.handleMidtransWebhook));
 router.use(protect);
 router.post('/invoice', validate(createInvoiceSchema), asyncHandler(paymentController.createInvoice));
 router.get('/invoice/:id', asyncHandler(paymentController.getInvoice));
+// Route untuk membatalkan invoice yang masih Pending
+router.post('/invoice/:id/cancel', asyncHandler(paymentController.cancelInvoice));
 
 // Simulasi hanya untuk sandbox/dev - usecase menolak otomatis di production
 router.post('/simulate-qris/:id', asyncHandler(paymentController.simulateQRIS));

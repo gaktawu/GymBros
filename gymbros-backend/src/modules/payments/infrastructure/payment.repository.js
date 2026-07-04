@@ -55,6 +55,17 @@ export class PaymentRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
+  async saveSnapToken(idPayment, snapToken, redirectUrl, executor = db) {
+    const query = `
+      UPDATE payments 
+      SET snap_token = $1, redirect_url = $2
+      WHERE id_payment = $3
+      RETURNING *
+    `;
+    const result = await executor.query(query, [snapToken, redirectUrl, idPayment]);
+    return this._mapToDomain(result.rows[0]);
+  }
+
   async markAsPaid(idPayment, totalDibayar, executor = db) {
     const query = `
       UPDATE payments

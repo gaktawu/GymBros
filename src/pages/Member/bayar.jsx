@@ -4,206 +4,71 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 const formatRupiah = (n) => 'Rp ' + (n || 0).toLocaleString('id-ID');
-
-// Mengambil Client Key dari environment variable Vite
 const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY;
 
 // ============================================================
 // MIDTRANS SCRIPT LOADER
 // ============================================================
-const loadMidtransScript = (onLoad) => {
+const loadMidtransScript = (onLoad, onError) => {
   if (document.getElementById('midtrans-script')) {
     if (window.snap && onLoad) onLoad();
     return;
   }
-
   if (!MIDTRANS_CLIENT_KEY) {
-    console.error('VITE_MIDTRANS_CLIENT_KEY tidak ditemukan di environment.');
-    alert('Konfigurasi payment gateway salah. Silakan hubungi admin.');
+    onError('VITE_MIDTRANS_CLIENT_KEY tidak ditemukan. Hubungi admin.');
     return;
   }
-
   const script = document.createElement('script');
   script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
   script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
   script.id = 'midtrans-script';
-  script.onload = () => {
-    if (onLoad) onLoad();
-  };
-  script.onerror = () => {
-    console.error('Gagal memuat Midtrans Snap.js');
-  };
+  script.onload = () => { if (onLoad) onLoad(); };
+  script.onerror = () => { onError('Gagal memuat Midtrans Snap.js'); };
   document.body.appendChild(script);
 };
 
 const snapPay = (token, callbacks) => {
-  if (typeof window === 'undefined' || !window.snap) {
-    throw new Error('Midtrans Snap.js belum dimuat. Pastikan script snap.js sudah ter-load.');
-  }
+  if (typeof window === 'undefined' || !window.snap) throw new Error('Midtrans belum dimuat.');
   window.snap.pay(token, callbacks);
 };
 
 // ============================================================
-// SUB-COMPONENTS
+// CUSTOM ALERTS & MODALS
 // ============================================================
-const Header = memo(({ item, onNavigate }) => (
-  <header className="bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl shadow-xl">
-    <p className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">PROSES PEMBAYARAN</p>
-    <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">Checkout & Bayar</h1>
-    {item ? (
-      <div className="mt-3 flex flex-wrap gap-3">
-        <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Item Dipilih</p>
-          <p className="text-sm font-black text-[#C2A676] uppercase">{item.name}</p>
-        </div>
-        <div className="bg-[#111315] border border-white/5 px-4 py-2 rounded-xl">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total Bayar</p>
-          <p className="text-sm font-black text-white">{formatRupiah(item.finalPrice)}</p>
-        </div>
-      </div>
-    ) : (
-      <p className="text-sm text-yellow-400 mt-2">
-        ⚠️ Tidak ada item dipilih.{' '}
-        <button onClick={onNavigate} className="underline text-[#C2A676]">Pilih pesanan dulu</button>
-      </p>
-    )}
-  </header>
-));
-
-const OrderSummary = memo(({ item }) => {
-  if (!item) return <p className="text-xs text-gray-500">Belum ada item yang dipilih.</p>;
-  const isClass = item.type?.toLowerCase() === 'class' || item.type === 'Kelas';
-  const isCoaching = item.type === 'Paket_Coaching';
-
+const CustomAlert = memo(({ message, onClose }) => {
+  if (!message) return null;
   return (
-    <div className="space-y-3">
-      <div className="bg-[#25282c] border border-white/5 rounded-2xl p-4">
-        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-          {isClass ? 'Kelas Gym' : isCoaching ? 'Paket Coaching' : 'Membership'}
-        </p>
-        <p className="text-lg font-black text-[#C2A676] uppercase">{item.name}</p>
-      </div>
-      <div className="flex justify-between border-t border-white/10 pt-3">
-        <span className="text-sm font-black text-white">Total Tagihan</span>
-        <span className="text-sm font-black text-[#C2A676]">{formatRupiah(item.finalPrice)}</span>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
+      <div className="w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-6 text-center shadow-2xl transform scale-100">
+        <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-blue-500/15 border-2 border-blue-500/40 flex items-center justify-center text-blue-400 text-xl font-bold">!</div>
+        <h3 className="text-lg font-black text-white uppercase mb-2">Pemberitahuan</h3>
+        <p className="text-sm text-gray-400 mb-6">{message}</p>
+        <button onClick={onClose} className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black py-2.5 rounded-xl transition-colors">
+          Mengerti
+        </button>
       </div>
     </div>
   );
 });
 
-// ============================================================
-// MODALS
-// ============================================================
-const SuccessModal = memo(({ onClose }) => (
-  <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
-    <div className="w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-8 text-center shadow-2xl">
-      <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/40 flex items-center justify-center">
-        <span className="text-green-400 text-3xl">✓</span>
+const ConfirmCancelModal = memo(({ onConfirm, onClose, isCanceling }) => (
+  <div className="fixed inset-0 z-[85] flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+    <div className="w-full max-w-sm bg-[#1A1C1E] border border-red-500/30 rounded-3xl p-6 text-center shadow-2xl">
+      <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-red-500/15 border-2 border-red-500/40 flex items-center justify-center text-red-400 text-xl font-bold">?</div>
+      <h3 className="text-lg font-black text-white uppercase mb-2">Batalkan Pesanan?</h3>
+      <p className="text-sm text-gray-400 mb-6">Yakin ingin membatalkan pesanan tertunda ini? Anda bisa membuat pesanan baru setelahnya.</p>
+      <div className="flex gap-3">
+        <button 
+          onClick={onConfirm} 
+          disabled={isCanceling}
+          className="flex-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 font-bold text-sm py-2.5 rounded-xl transition-colors disabled:opacity-50"
+        >
+          {isCanceling ? 'Memproses...' : 'Ya, Batalkan'}
+        </button>
+        <button onClick={onClose} className="flex-1 bg-[#25282c] hover:bg-[#333] text-gray-300 text-sm font-medium py-2.5 rounded-xl border border-white/10 transition-colors">
+          Kembali
+        </button>
       </div>
-      <h3 className="text-2xl font-black text-white uppercase mb-4">Pembayaran Berhasil!</h3>
-      <p className="text-xs text-gray-400 mb-6">Terima kasih, transaksi Anda telah dikonfirmasi oleh sistem.</p>
-      <button onClick={onClose} className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black py-3 rounded-xl">
-        Kembali ke Dashboard
-      </button>
-    </div>
-  </div>
-));
-
-const ProcessingModal = memo(() => (
-  <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
-    <div className="w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-8 text-center shadow-2xl">
-      <div className="mx-auto mb-4 w-12 h-12 border-4 border-[#C2A676] border-t-transparent rounded-full animate-spin"></div>
-      <h3 className="text-lg font-black text-white uppercase mb-2">Memproses Transaksi</h3>
-      <p className="text-xs text-gray-400">Menyiapkan konfirmasi pembayaran Anda...</p>
-    </div>
-  </div>
-));
-
-const PendingVAModal = memo(({ pendingResult, onClose, onCheckStatus, isChecking }) => {
-  const [timeLeft, setTimeLeft] = useState(600);
-
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timerId = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearInterval(timerId);
-  }, [timeLeft]);
-
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
-
-  let paymentMethod = 'Menunggu Pembayaran';
-  let vaNumber = '-';
-
-  if (pendingResult?.va_numbers && pendingResult.va_numbers.length > 0) {
-    paymentMethod = `VA ${pendingResult.va_numbers[0].bank.toUpperCase()}`;
-    vaNumber = pendingResult.va_numbers[0].va_number;
-  } else if (pendingResult?.payment_type === 'echannel') {
-    paymentMethod = 'Mandiri Bill';
-    vaNumber = `Biller Code: ${pendingResult.biller_code} | Bill Key: ${pendingResult.bill_key}`;
-  } else if (pendingResult?.payment_type === 'permata_va') {
-    paymentMethod = 'Permata VA';
-    vaNumber = pendingResult.permata_va_number;
-  } else if (pendingResult?.payment_type === 'qris' || pendingResult?.payment_type === 'gopay') {
-    paymentMethod = 'QRIS / E-Wallet';
-    vaNumber = 'Silakan scan QR pada layar Snap sebelumnya.';
-  }
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[#1A1C1E] border border-yellow-500/30 rounded-3xl p-6 text-center shadow-2xl">
-        <h3 className="text-xl font-black text-yellow-400 uppercase mb-2">Selesaikan Pembayaran</h3>
-
-        <div className="my-4">
-          <p className="text-xs text-gray-400 mb-1">Sisa Waktu Pembayaran:</p>
-          <div className="text-3xl font-mono font-bold text-white bg-[#25282c] py-3 rounded-xl border border-white/5">
-            {timeLeft > 0 ? `${minutes}:${seconds < 10 ? '0' : ''}${seconds}` : <span className="text-red-500">KADALUARSA</span>}
-          </div>
-        </div>
-
-        <div className="bg-[#111315] border border-white/10 rounded-xl p-4 text-left space-y-3 mb-5">
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Metode Pembayaran</p>
-            <p className="text-sm font-bold text-white">{paymentMethod}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Nomor Virtual Account / Kode Bayar</p>
-            <p className="text-lg font-mono font-black text-[#C2A676] break-all">{vaNumber}</p>
-          </div>
-        </div>
-
-        <div className="mb-6 bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl text-left">
-          <p className="text-xs text-blue-300">
-            <strong>Cara Simulasi (Testing):</strong><br />
-            1. Copy kode VA di atas.<br />
-            2. Buka web <a href="https://simulator.sandbox.midtrans.com/" target="_blank" rel="noreferrer" className="underline font-bold text-blue-400">Midtrans Simulator</a>.<br />
-            3. Pilih bank sesuai metode, paste kode, dan klik Pay.<br />
-            4. Kembali ke halaman ini dan klik "Cek Status Pembayaran".
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          <button 
-            onClick={onCheckStatus} 
-            disabled={isChecking}
-            className="flex-1 bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black text-sm py-3 rounded-xl shadow-md disabled:opacity-50"
-          >
-            {isChecking ? 'Mengecek...' : 'Cek Status Pembayaran'}
-          </button>
-          <button onClick={onClose} className="flex-1 bg-[#25282c] hover:bg-[#333] text-gray-300 text-sm font-medium py-3 rounded-xl border border-white/10">
-            Tutup
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const ErrorModal = memo(({ message, onClose }) => (
-  <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
-    <div className="w-full max-w-sm bg-[#1A1C1E] border border-red-500/20 rounded-3xl p-8 text-center">
-      <h3 className="text-xl font-black text-white uppercase mb-2">Status Pembayaran</h3>
-      <p className="text-xs text-gray-400 mb-5">{message}</p>
-      <button onClick={onClose} className="w-full bg-[#25282c] text-gray-300 py-3 rounded-xl">Tutup</button>
     </div>
   </div>
 ));
@@ -216,12 +81,15 @@ export default function Bayar() {
   const navigate = useNavigate();
   const item = location.state?.item || null;
 
-  const [step, setStep] = useState('summary');
-  const [errorMsg, setErrorMsg] = useState('');
+  // States
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [globalPending, setGlobalPending] = useState(null); 
+  const [step, setStep] = useState('summary'); 
   const [paymentData, setPaymentData] = useState(null);
-  const [pendingResult, setPendingResult] = useState(null);
   const [snapReady, setSnapReady] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [alertMsg, setAlertMsg] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const goToDashboard = useCallback(() => navigate('/member/dashboardmember'), [navigate]);
   const goBack = useCallback(() => navigate(-1), [navigate]);
@@ -231,43 +99,63 @@ export default function Bayar() {
     const ori = document.body.style.backgroundColor;
     document.body.style.backgroundColor = '#111315';
 
-    loadMidtransScript(() => setSnapReady(true));
+    loadMidtransScript(
+      () => setSnapReady(true),
+      (errMsg) => setAlertMsg(errMsg)
+    );
+
+    const checkExistingPending = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_BASE_URL}/payments/my-invoices`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const pendingInvoice = res.data.data?.find(inv => inv.status === 'Pending');
+        
+        if (pendingInvoice) {
+          setGlobalPending(pendingInvoice);
+        }
+      } catch (err) {
+        console.error('Gagal memuat data transaksi', err);
+      } finally {
+        setIsPageLoading(false);
+      }
+    };
+
+    checkExistingPending();
 
     return () => { document.body.style.backgroundColor = ori; };
   }, []);
 
-  // Polling backend masih dilakukan untuk memastikan data sinkron
-  const pollPaymentStatus = async (idPayment, maxRetries = 3, delay = 1500) => {
-    const token = localStorage.getItem('token');
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/payments/invoice/${idPayment}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (res.data.status === 'Lunas') return 'Lunas';
-        if (res.data.status === 'Gagal') return 'Gagal';
-      } catch (err) {
-        console.error('Error fetching status', err);
-      }
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    return 'Pending';
+  const triggerSnap = (snapToken, idPayment) => {
+    snapPay(snapToken, {
+      onSuccess: () => {
+        setGlobalPending(null);
+        setStep('success');
+      },
+      onPending: () => {
+        setAlertMsg('Silakan selesaikan pembayaran sesuai instruksi bank.');
+        // Biarkan tetap di tampilan global pending
+        setStep('summary');
+      },
+      onError: () => {
+        setAlertMsg('Transaksi gagal atau telah kadaluwarsa.');
+        setStep('summary');
+      },
+      onClose: () => {
+        setStep('summary');
+      },
+    });
   };
 
   const handleBayar = useCallback(async () => {
-    if (!item) return;
-    if (!snapReady || !window.snap) {
-      alert('Gateway pembayaran sedang dimuat, tunggu sebentar...');
-      return;
-    }
-
+    if (!item || !snapReady) return;
     setStep('loading');
 
     try {
       const token = localStorage.getItem('token');
       const payload = { metode: 'Midtrans_Gateway' };
-
       if (item.type === 'Membership' || item.type === 'membership') {
         payload.kategoriTransaksi = 'Membership';
         payload.idPaket = Number(item.id);
@@ -285,99 +173,205 @@ export default function Bayar() {
       });
 
       const { snapToken, idPayment } = res.data;
-      setPaymentData({ idPayment });
+      setPaymentData({ idPayment, snapToken });
+      triggerSnap(snapToken, idPayment);
 
-      snapPay(snapToken, {
-        onSuccess: async () => {
-          setStep('processing');
-          
-          // Lakukan polling singkat (kurang lebih 4-5 detik total)
-          const status = await pollPaymentStatus(idPayment, 3, 1500);
-          
-          // LOGIKA YANG DIPERBAIKI:
-          if (status === 'Lunas') {
-            setStep('success'); 
-          } else if (status === 'Gagal') {
-            // Jika backend membatalkan (expired, ditolak sistem) maka wajib tampil Error
-            setErrorMsg('Pembayaran gagal atau dibatalkan oleh sistem. Silakan coba lagi.');
-            setStep('error');
-          } else {
-            // Optimistic UI: Jika Midtrans onSuccess tapi server masih Pending, anggap sukses.
-            setStep('success');
-          }
-        },
-        onPending: (result) => {
-          setPendingResult(result);
-          setStep('pending');
-        },
-        onError: (result) => {
-          setErrorMsg(result.status_message || 'Transaksi gagal.');
-          setStep('error');
-        },
-        onClose: () => {
-          setStep((current) => current === 'loading' ? 'summary' : current);
-        },
-      });
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Gagal terhubung ke server.');
-      setStep('error');
+      setAlertMsg(err.response?.data?.message || 'Gagal membuat pesanan.');
+      setStep('summary');
     }
   }, [item, snapReady]);
 
-  const handleCheckStatus = useCallback(async () => {
-    if (!paymentData?.idPayment) return;
-    setIsChecking(true);
-    
-    const status = await pollPaymentStatus(paymentData.idPayment, 3, 1000);
-    
-    if (status === 'Lunas') {
-      setStep('success');
-    } else if (status === 'Gagal') {
-      setErrorMsg('Pembayaran telah dibatalkan atau gagal (kadaluwarsa).');
-      setStep('error');
-    } else {
-      // Jika status masih pending saat di-klik manual, beri tahu user.
-      alert('Pembayaran belum dikonfirmasi oleh bank. Silakan selesaikan pembayaran sesuai instruksi VA.');
+  // FUNGSI BARU: Memanggil Snap Token untuk transaksi yang nyangkut
+  const handleResumePending = async () => {
+    if (!globalPending || !snapReady) {
+      setAlertMsg('Gateway pembayaran sedang disiapkan, tunggu sebentar...');
+      return;
     }
     
-    setIsChecking(false);
-  }, [paymentData]);
+    setStep('loading');
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Ekstrak ID Item dari format id_payment (Contoh: MBR-9-3-178...)
+      const parts = globalPending.id_payment.split('-');
+      const prefix = parts[0];
+      const idItem = Number(parts[1]);
+
+      let payload = { metode: 'Midtrans_Gateway' };
+
+      if (prefix === 'MBR') {
+        payload.kategoriTransaksi = 'Membership';
+        payload.idPaket = idItem;
+      } else if (prefix === 'KLS') {
+        payload.kategoriTransaksi = 'Kelas';
+        payload.idKelas = idItem;
+      }
+
+      // Hit ulang endpoint pembuatan invoice.
+      // Berkat _reissueSnapToken di backend kamu, ini tidak akan membuat duplikat, 
+      // melainkan mengambil Token Midtrans yang sudah ada!
+      const res = await axios.post(`${API_BASE_URL}/payments/invoice`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const { snapToken, idPayment } = res.data;
+      triggerSnap(snapToken, idPayment);
+
+    } catch (err) {
+      setAlertMsg(err.response?.data?.message || 'Gagal memuat ulang gateway pembayaran.');
+      setStep('summary');
+    }
+  };
+
+  const executeCancel = async () => {
+    const idToCancel = globalPending ? globalPending.id_payment : paymentData?.idPayment;
+    if (!idToCancel) return;
+    
+    setIsCanceling(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_BASE_URL}/payments/invoice/${idToCancel}/cancel`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowCancelConfirm(false);
+      setGlobalPending(null); 
+      setPaymentData(null);
+      setAlertMsg('Pesanan sebelumnya berhasil dibatalkan. Anda sekarang dapat melanjutkan pesanan baru.');
+    } catch (err) {
+      setShowCancelConfirm(false);
+      setAlertMsg(err.response?.data?.message || 'Gagal membatalkan pesanan.');
+    } finally {
+      setIsCanceling(false);
+    }
+  };
+
+  if (isPageLoading) {
+    return (
+      <div className="w-full flex justify-center items-center h-screen bg-[#111315]">
+         <div className="w-12 h-12 border-4 border-[#C2A676] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <main className="w-full max-w-5xl mx-auto space-y-6 text-[#E0E0E0] pb-10 mt-10 px-4">
-      {step === 'success' && <SuccessModal onClose={goToDashboard} />}
-      {step === 'processing' && <ProcessingModal />}
-      {step === 'pending' && <PendingVAModal pendingResult={pendingResult} onClose={() => setStep('summary')} onCheckStatus={handleCheckStatus} isChecking={isChecking} />}
-      {step === 'error' && <ErrorModal message={errorMsg} onClose={() => setStep('summary')} />}
+      <CustomAlert message={alertMsg} onClose={() => setAlertMsg('')} />
+      
+      {showCancelConfirm && (
+        <ConfirmCancelModal 
+          onConfirm={executeCancel} 
+          onClose={() => setShowCancelConfirm(false)} 
+          isCanceling={isCanceling}
+        />
+      )}
 
-      <Header item={item} onNavigate={goBack} />
-
-      <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
-        <h2 className="text-sm font-black tracking-widest text-white uppercase mb-4">Ringkasan Pesanan</h2>
-        <OrderSummary item={item} />
-
-        <div className="mt-8 space-y-3">
-          {step === 'loading' ? (
-            <div className="text-center text-sm text-[#C2A676] animate-pulse">Membuka Midtrans...</div>
-          ) : (
-            <>
-              <button
-                onClick={handleBayar}
-                disabled={!snapReady}
-                className={`w-full font-black text-sm py-4 rounded-xl shadow-md transition-all active:scale-95 ${snapReady
-                    ? 'bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315]'
-                    : 'bg-[#C2A676]/40 text-[#111315]/50 cursor-not-allowed'
-                  }`}
-              >
-                {snapReady ? '💳 Bayar Sekarang via Midtrans' : '⏳ Memuat Gateway Pembayaran...'}
-              </button>
-              <button onClick={goBack} className="w-full bg-transparent hover:bg-white/5 text-gray-400 py-3 rounded-xl font-bold">
-                Batal & Kembali
-              </button>
-            </>
-          )}
+      {step === 'success' && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#1A1C1E] border border-white/10 rounded-3xl p-8 text-center shadow-2xl">
+            <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/40 flex items-center justify-center">
+              <span className="text-green-400 text-3xl">✓</span>
+            </div>
+            <h3 className="text-2xl font-black text-white uppercase mb-4">Berhasil!</h3>
+            <button onClick={goToDashboard} className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black py-3 rounded-xl transition-colors">Kembali ke Dashboard</button>
+          </div>
         </div>
-      </section>
+      )}
+
+      {globalPending ? (
+        <section className="bg-[#1A1C1E] border border-yellow-500/30 rounded-3xl p-8 shadow-xl text-center animate-fade-in mt-20">
+          <div className="w-16 h-16 bg-yellow-500/20 border-2 border-yellow-500/40 text-yellow-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold">!</div>
+          <h2 className="text-2xl font-black text-yellow-400 uppercase mb-3">Ada Transaksi Tertunda</h2>
+          <p className="text-sm text-gray-300 mb-6">
+            Sistem mendeteksi Anda masih memiliki tagihan yang belum diselesaikan:
+          </p>
+          
+          <div className="bg-[#111315] border border-white/5 rounded-xl p-6 max-w-md mx-auto mb-8 text-left shadow-inner">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Item Tertunda</p>
+            <p className="text-base font-bold text-white mb-4">{globalPending.nama_item}</p>
+            
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Order ID</p>
+            <p className="text-sm font-mono text-gray-400 mb-4 break-all">{globalPending.id_payment}</p>
+            
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Nominal</p>
+            <p className="text-2xl font-black text-[#C2A676]">{formatRupiah(globalPending.nominal)}</p>
+          </div>
+
+          <div className="flex flex-col gap-3 max-w-md mx-auto">
+            {step === 'loading' ? (
+               <div className="bg-[#C2A676]/30 text-[#C2A676] font-bold py-4 rounded-xl text-sm animate-pulse">
+                 Memuat Midtrans...
+               </div>
+            ) : (
+               <button 
+                  onClick={handleResumePending}
+                  className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black py-4 rounded-xl shadow-md transition-all active:scale-95 text-sm"
+                >
+                  💳 Lanjutkan Pembayaran (Lihat VA / QRIS)
+                </button>
+            )}
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowCancelConfirm(true)}
+                className="flex-1 bg-transparent hover:bg-red-900/20 border border-red-500/30 text-red-400 font-bold py-3.5 rounded-xl transition-colors text-sm"
+              >
+                Batalkan Pesanan
+              </button>
+              <button 
+                onClick={goBack} 
+                className="flex-1 bg-[#25282c] hover:bg-[#333] border border-white/10 text-white font-bold py-3.5 rounded-xl transition-colors text-sm"
+              >
+                Kembali
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <>
+          <header className="bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl shadow-xl">
+            <p className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">PROSES PEMBAYARAN</p>
+            <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">Checkout & Bayar</h1>
+          </header>
+
+          <section className="bg-[#1A1C1E] border border-white/5 rounded-3xl p-6 shadow-lg">
+            {item ? (
+               <div className="space-y-3">
+                 <div className="bg-[#25282c] border border-white/5 rounded-2xl p-4">
+                   <p className="text-lg font-black text-[#C2A676] uppercase">{item.name}</p>
+                 </div>
+                 <div className="flex justify-between border-t border-white/10 pt-3">
+                   <span className="text-sm font-black text-white">Total Tagihan</span>
+                   <span className="text-sm font-black text-[#C2A676]">{formatRupiah(item.finalPrice)}</span>
+                 </div>
+               </div>
+            ) : (
+               <p className="text-sm text-yellow-400">Tidak ada item dipilih.</p>
+            )}
+
+            <div className="mt-8 space-y-3">
+              {step === 'loading' ? (
+                <div className="text-center text-sm font-bold text-[#C2A676] animate-pulse py-4">Membuka Midtrans...</div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleBayar}
+                    disabled={!snapReady}
+                    className="w-full bg-[#C2A676] hover:bg-[#d4b88a] text-[#111315] font-black text-sm py-4 rounded-xl shadow-md transition-all active:scale-95"
+                  >
+                    💳 Bayar Sekarang
+                  </button>
+                  <button onClick={goBack} className="w-full bg-transparent hover:bg-white/5 text-gray-400 py-3 rounded-xl font-bold transition-colors">
+                    Kembali
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </main>
   );
 }

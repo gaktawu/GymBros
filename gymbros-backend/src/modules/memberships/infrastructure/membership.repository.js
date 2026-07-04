@@ -17,9 +17,9 @@ export class MembershipRepository {
 
   async findActiveByUserId(idUser) {
     const query = `
-      SELECT * FROM user_memberships 
-      WHERE id_user = $1 AND tanggal_berakhir >= NOW() AND status = 'Aktif';
-    `;
+    SELECT * FROM membership 
+    WHERE id_user = $1 AND tgl_berakhir >= NOW() AND status = 'Aktif';
+  `;
     const result = await db.query(query, [idUser]);
     return this._mapToDomain(result.rows[0]);
   }

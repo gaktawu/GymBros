@@ -41,4 +41,14 @@ export class PaymentController {
       next(error);
     }
   };
+
+  cancelInvoice = async (req, res, next) => {
+    try {
+      // req.params.id didapat dari URL parameter /invoice/:id/cancel
+      const result = await this.paymentUseCase.cancelInvoice(req.params.id, req.user);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
