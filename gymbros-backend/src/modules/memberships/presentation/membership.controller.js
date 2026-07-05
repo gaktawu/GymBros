@@ -41,7 +41,7 @@ export class MembershipController {
       const { id_membership } = req.params;
 
       // Panggil UseCase
-      const result = await membershipUseCase.softDeleteUserMembership(id_membership);
+      const result = await this.membershipUseCase.softDeleteUserMembership(id_membership);
 
       // Kembalikan response sukses
       return res.status(200).json({

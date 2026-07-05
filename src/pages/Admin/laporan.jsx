@@ -21,7 +21,6 @@ export default function Laporan() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Perbaikan 1: baseURL diubah menjadi base endpoint dari modul user-reports
   const getApiConfig = () => ({
     baseURL: "http://localhost:5000/api/v1/user-reports", 
     headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
@@ -31,7 +30,6 @@ export default function Laporan() {
     setLoading(true);
     try {
       const api = axios.create(getApiConfig());
-      // Perbaikan 2: Memanggil rute yang benar sehingga menghasilkan /api/v1/user-reports/admin/dashboard
       const response = await api.get('/admin/dashboard', {
         params: { page, limit, search, statusFilter, sortBy }
       });
@@ -57,7 +55,6 @@ export default function Laporan() {
     
     try {
       const api = axios.create(getApiConfig());
-      // Perbaikan 3: Menghasilkan rute /api/v1/user-reports/admin/:id/status
       await api.patch(`/admin/${id}/status`, { status: nextStatus });
       showToast(`Status berhasil diubah menjadi ${nextStatus}`);
       if (detailReport) setDetailReport({ ...detailReport, status: nextStatus });
@@ -69,9 +66,9 @@ export default function Laporan() {
   };
 
   const confirmDelete = async () => {
+    if (!modalHapus.id) return;
     try {
       const api = axios.create(getApiConfig());
-      // Perbaikan 4: Menghasilkan rute /api/v1/user-reports/admin/:id (Sesuai rute DELETE Admin)
       await api.delete(`/admin/${modalHapus.id}`);
       showToast("Laporan berhasil dihapus");
       setModalHapus({ isOpen: false, id: null });
@@ -109,21 +106,45 @@ export default function Laporan() {
       )}
 
       {modalHapus.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm">
           <div className="bg-[#1A1C1E] p-8 rounded-xl border border-red-500 shadow-2xl max-w-sm w-full text-center">
             <h3 className="text-xl font-bold text-white mb-2">Hapus Laporan?</h3>
             <p className="text-[#888888] mb-6">Tindakan ini menghapus data secara permanen.</p>
             <div className="flex gap-4">
-              <button onClick={() => setModalHapus({ isOpen: false, id: null })} className="flex-1 py-3 bg-[#111315] border border-[#333333] text-white font-bold rounded hover:bg-[#333333]">Batal</button>
-              <button onClick={confirmDelete} className="flex-1 py-3 bg-red-500 text-white font-bold rounded hover:bg-red-600">Hapus</button>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModalHapus({ isOpen: false, id: null });
+                }} 
+                className="flex-1 py-3 bg-[#111315] border border-[#333333] text-white font-bold rounded hover:bg-[#333333]"
+              >
+                Batal
+              </button>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  confirmDelete();
+                }} 
+                className="flex-1 py-3 bg-red-500 text-white font-bold rounded hover:bg-red-600"
+              >
+                Hapus
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {detailReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4">
-          <div className="bg-[#1A1C1E] p-8 rounded-xl border border-[#C2A676] shadow-2xl max-w-2xl w-full">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4"
+          onClick={() => setDetailReport(null)}
+        >
+          <div 
+            className="bg-[#1A1C1E] p-8 rounded-xl border border-[#C2A676] shadow-2xl max-w-2xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-2xl font-bold text-[#C2A676]">{detailReport?.judul}</h3>
               <span className={`text-sm font-semibold px-3 py-1 rounded-full border ${getStatusColor(detailReport?.status)}`}>{detailReport?.status}</span>
@@ -136,13 +157,40 @@ export default function Laporan() {
             <div className="flex flex-col md:flex-row justify-between items-center bg-[#111315] p-4 rounded-lg border border-[#333333] gap-4">
               <div className="flex flex-wrap gap-3">
                 {sequence.indexOf(detailReport?.status) < sequence.length - 1 && (
-                  <button onClick={() => handleNextStatus(detailReport.idReport, detailReport.status)} className="px-4 py-2 bg-[#C2A676] text-[#111315] font-bold rounded hover:bg-[#a68c5b] text-sm md:text-base">
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNextStatus(detailReport.idReport, detailReport.status);
+                    }} 
+                    className="px-4 py-2 bg-[#C2A676] text-[#111315] font-bold rounded hover:bg-[#a68c5b] text-sm md:text-base"
+                  >
                     Update ke {sequence[sequence.indexOf(detailReport.status) + 1]}
                   </button>
                 )}
-                <button onClick={() => setModalHapus({ isOpen: true, id: detailReport.idReport })} className="px-4 py-2 bg-red-500 text-white font-bold rounded hover:bg-red-600 text-sm md:text-base">Hapus</button>
+                {/* PERBAIKAN: Button Hapus sekarang benar-benar memanggil setModalHapus */}
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalHapus({ isOpen: true, id: detailReport.idReport });
+                  }} 
+                  className="px-4 py-2 bg-red-500 text-white font-bold rounded hover:bg-red-600 text-sm md:text-base"
+                >
+                  Hapus
+                </button>
               </div>
-              <button onClick={() => setDetailReport(null)} className="px-6 py-2 bg-[#1A1C1E] border border-[#333333] text-white rounded hover:bg-[#333333]">Tutup</button>
+              {/* PERBAIKAN: Button Tutup sekarang benar-benar memanggil setDetailReport(null) */}
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDetailReport(null);
+                }} 
+                className="px-6 py-2 bg-[#1A1C1E] border border-[#333333] text-white rounded hover:bg-[#333333]"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>

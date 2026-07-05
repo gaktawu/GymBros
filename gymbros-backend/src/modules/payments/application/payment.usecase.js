@@ -40,7 +40,7 @@ export class PaymentUseCase {
         // Masih ada token valid → tinggal pakai lagi, tidak perlu hit Midtrans
         return this._reissueSnapToken(existingPending);
       }
-      
+
       // LOGIKA SELF-HEAL: Invoice "orphan" (Tercatat Pending tapi snapToken tidak pernah sukses dibuat)
       console.warn(`[Invoice Orphan] ${existingPending.idPayment} berstatus Pending tanpa snapToken. Menandai gagal otomatis.`);
       await this.paymentRepo.markAsFailed(existingPending.idPayment);
@@ -57,51 +57,88 @@ export class PaymentUseCase {
   }
 
   async _createKelasInvoice(idUser, idKelas, metode) {
+    // ── Self-heal: cek invoice pending lama untuk kelas ini ──
     const existingPending = await this.paymentRepo.findActivePendingInvoiceByReference(idUser, 'KLS', idKelas);
     if (existingPending) {
       if (existingPending.snapToken) {
-        // Masih ada token valid → tinggal pakai lagi, tidak perlu hit Midtrans
         return this._reissueSnapToken(existingPending);
       }
-
-      // LOGIKA SELF-HEAL: Invoice "orphan" (Tercatat Pending tapi snapToken tidak pernah sukses dibuat)
-      console.warn(`[Invoice Orphan] ${existingPending.idPayment} berstatus Pending tanpa snapToken. Menandai gagal otomatis.`);
-      await this.paymentRepo.markAsFailed(existingPending.idPayment);
-      // Eksekusi dibiarkan lolos ke bawah untuk membuat baris invoice baru dengan ID baru
+      console.warn(`[Invoice Orphan] ${existingPending.idPayment} berstatus Pending tanpa snapToken. Menandai gagal & membatalkan reserved.`);
+      await this.paymentRepo.runInTransaction(async (client) => {
+        await this.paymentRepo.markAsFailed(existingPending.idPayment, client);
+        await this.paymentRepo.cancelReservedBookingByPaymentId(existingPending.idPayment, client);
+      });
     }
 
-    const kelas = await this.paymentRepo.getKelasById(idKelas);
-    if (!kelas) {
-      throw new AppError('Kelas tidak ditemukan atau sudah dihapus', 404);
-    }
-    if (new Date(kelas.waktu_mulai) < new Date()) {
-      throw new AppError('Kelas sudah berlangsung atau berakhir', 400);
-    }
+    // ── Transaction: Lock → Cek → Reserve → Create Invoice ──
+    const { payment, kelas } = await this.paymentRepo.runInTransaction(async (client) => {
+      const kelas = await this.paymentRepo.lockKelasForUpdate(idKelas, client);
+      if (!kelas) throw new AppError('Kelas tidak ditemukan atau sudah dihapus', 404);
+      if (new Date(kelas.waktu_mulai) < new Date()) {
+        throw new AppError('Kelas sudah berlangsung atau berakhir', 400);
+      }
 
-    const alreadyBooked = await this.paymentRepo.isUserAlreadyBooked(idKelas, idUser);
-    if (alreadyBooked) {
-      throw new AppError('Anda sudah terdaftar di kelas ini', 409);
+      const alreadyBooked = await this.paymentRepo.isUserAlreadyBookedOrReserved(idKelas, idUser, client);
+      if (alreadyBooked) throw new AppError('Anda sudah terdaftar di kelas ini', 409);
+
+      const overlap = await this.paymentRepo.isUserBookingOverlapIncludingReserved(
+        idUser, kelas.waktu_mulai, kelas.waktu_selesai, client
+      );
+      if (overlap) throw new AppError('Jadwal kelas ini bertabrakan dengan kelas lain yang sudah Anda booking', 409);
+
+      const bookedCount = await this.paymentRepo.countBookingAndReservedById(idKelas, client);
+      if (bookedCount >= kelas.kapasitas) {
+        throw new AppError('Kelas sudah penuh, silakan pilih kelas lain', 409);
+      }
+
+      const totalTagihan = Number(kelas.harga || 0);
+      const idPayment = `KLS-${idKelas}-${idUser}-${Date.now()}`;
+
+      await this.paymentRepo.createReservedBooking({ idKelas, idUser, idPayment }, client);
+
+      const payment = await this.paymentRepo.createInvoice(
+        { idPayment, idUser, kategoriTransaksi: 'Kelas', totalTagihan, metode }, client
+      );
+
+      return { payment, kelas };
+    });
+
+    // ── Midtrans Snap (di luar transaction) ──
+    try {
+      const midtransResponse = await snap.createTransaction({
+        transaction_details: {
+          order_id: payment.idPayment,
+          gross_amount: Math.round(payment.totalTagihan),
+        },
+        item_details: [
+          { id: `KLS-${idKelas}`, price: Math.round(payment.totalTagihan), quantity: 1, name: kelas.nama_kelas },
+        ],
+        customer_details: { first_name: `User-${idUser}` },
+        expiry: { duration: 30, unit: 'minute' }, // ⏱️ Invoice hanya berlaku 30 menit
+      });
+
+      await this.paymentRepo.saveSnapToken(payment.idPayment, midtransResponse.token, midtransResponse.redirect_url);
+
+      return {
+        idPayment: payment.idPayment,
+        kategoriTransaksi: payment.kategoriTransaksi,
+        totalTagihan: payment.totalTagihan,
+        status: payment.status,
+        snapToken: midtransResponse.token,
+        redirectUrl: midtransResponse.redirect_url,
+      };
+    } catch (midtransErr) {
+      console.error('--- ERROR MIDTRANS ---');
+      console.error(midtransErr?.ApiResponse?.error_messages || midtransErr.message);
+
+      // Cleanup: lepas reserved seat + mark invoice gagal
+      await this.paymentRepo.runInTransaction(async (client) => {
+        await this.paymentRepo.cancelReservedBookingByPaymentId(payment.idPayment, client);
+        await this.paymentRepo.markAsFailed(payment.idPayment, client);
+      });
+
+      throw new AppError('Gagal membuat transaksi pembayaran. Silakan coba lagi.', 502);
     }
-
-    // Validasi time-overlap
-    const overlap = await this.paymentRepo.isUserBookingOverlap(idUser, kelas.waktu_mulai, kelas.waktu_selesai);
-    if (overlap) {
-      throw new AppError('Jadwal kelas ini bertabrakan dengan kelas lain yang sudah Anda booking', 409);
-    }
-
-    // Cek kuota
-    const bookedCount = await this.paymentRepo.countBookingKelasById(idKelas);
-    if (bookedCount >= kelas.kapasitas) {
-      throw new AppError('Kelas sudah penuh, silakan pilih kelas lain', 409);
-    }
-
-    const totalTagihan = Number(kelas.harga || 0);
-    const idPayment = `KLS-${idKelas}-${idUser}-${Date.now()}`;
-    const itemDetails = [
-      { id: `KLS-${idKelas}`, price: totalTagihan, quantity: 1, name: kelas.nama_kelas },
-    ];
-
-    return this._persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi: 'Kelas', totalTagihan, metode, itemDetails });
   }
 
   async _persistAndCreateSnap({ idPayment, idUser, kategoriTransaksi, totalTagihan, metode, itemDetails }) {
@@ -233,8 +270,15 @@ export class PaymentUseCase {
     }
 
     if (isFailed) {
-      const failedPayment = await this.paymentRepo.markAsFailed(orderId);
-      if (!failedPayment) {
+      const result = await this.paymentRepo.runInTransaction(async (client) => {
+        const failedPayment = await this.paymentRepo.markAsFailed(orderId, client);
+        if (failedPayment) {
+          await this.paymentRepo.cancelReservedBookingByPaymentId(orderId, client);
+        }
+        return failedPayment;
+      });
+
+      if (!result) {
         const current = await this.paymentRepo.findById(orderId);
         return { success: true, status: current.status, note: 'Callback diabaikan, sudah diproses request lain' };
       }
@@ -323,16 +367,13 @@ export class PaymentUseCase {
       throw new AppError(`Kelas ${idKelas} tidak ditemukan saat settlement`, 404);
     }
 
-    const alreadyBooked = await this.paymentRepo.isUserAlreadyBooked(idKelas, payment.idUser, client);
-    if (alreadyBooked) {
-      await this._failKelasSettlement(orderId, kelas, client, 'User sudah terdaftar di kelas ini sebelumnya');
-      return { type: 'kelas', detail: 'OVERBOOKED', kelasName: kelas.nama_kelas };
-    }
-
-    const bookedCount = await this.paymentRepo.countBookingKelasById(idKelas, client);
-    if (bookedCount >= kelas.kapasitas) {
-      await this._failKelasSettlement(orderId, kelas, client, 'Kelas penuh saat konfirmasi pembayaran');
-      return { type: 'kelas', detail: 'OVERBOOKED', kelasName: kelas.nama_kelas };
+    const reserved = await this.paymentRepo.findReservedBookingByPaymentId(orderId, client);
+    if (!reserved) {
+      const alreadyBooked = await this.paymentRepo.isUserAlreadyBooked(idKelas, payment.idUser, client);
+      if (alreadyBooked) {
+        return { type: 'kelas', detail: 'ALREADY_BOOKED', kelasName: kelas.nama_kelas };
+      }
+      throw new AppError(`Data reserved booking untuk ${orderId} tidak ditemukan`, 404);
     }
 
     const overlap = await this.paymentRepo.isUserBookingOverlap(
@@ -343,12 +384,14 @@ export class PaymentUseCase {
       return { type: 'kelas', detail: 'OVERLAP', kelasName: kelas.nama_kelas };
     }
 
-    await this.paymentRepo.createBookingKelas({ idKelas, idUser: payment.idUser, idPayment: orderId }, client);
+    await this.paymentRepo.confirmReservedBooking(orderId, client);
     return { type: 'kelas', detail: kelas.nama_kelas };
   }
 
   async _failKelasSettlement(orderId, kelas, client, reason) {
     await this.paymentRepo.markAsFailed(orderId, client);
+    await this.paymentRepo.cancelReservedBookingByPaymentId(orderId, client);
+
     const admins = await this.paymentRepo.findAdmins(client);
     for (const admin of admins) {
       await this.paymentRepo.createNotification(
@@ -379,15 +422,10 @@ export class PaymentUseCase {
 
   async cancelInvoice(idPayment, requestingUser) {
     const payment = await this.paymentRepo.findById(idPayment);
-
-    if (!payment) {
-      throw new AppError('Invoice tidak ditemukan', 404);
-    }
-
+    if (!payment) throw new AppError('Invoice tidak ditemukan', 404);
     if (requestingUser.peran !== 'Admin' && payment.idUser !== requestingUser.id_user) {
       throw new AppError('Anda tidak memiliki izin untuk membatalkan invoice ini', 403);
     }
-
     if (payment.status !== 'Pending') {
       throw new AppError(`Invoice tidak dapat dibatalkan karena sudah berstatus ${payment.status}`, 400);
     }
@@ -396,24 +434,25 @@ export class PaymentUseCase {
       await snap.transaction.cancel(idPayment);
       console.log(`[Midtrans] Transaksi ${idPayment} berhasil dibatalkan di sistem Midtrans.`);
     } catch (error) {
-      console.warn(`[Midtrans Warning] Gagal membatalkan di Midtrans (mungkin sudah terhapus/expire): ${error.message}`);
+      console.warn(`[Midtrans Warning] Gagal membatalkan di Midtrans: ${error.message}`);
     }
 
-    const canceledPayment = await this.paymentRepo.markAsFailed(idPayment);
+    const canceledPayment = await this.paymentRepo.runInTransaction(async (client) => {
+      const cp = await this.paymentRepo.markAsFailed(idPayment, client);
+      await this.paymentRepo.cancelReservedBookingByPaymentId(idPayment, client);
+      return cp;
+    });
 
     return {
       success: true,
       message: 'Pesanan berhasil dibatalkan',
-      data: {
-        idPayment: canceledPayment.idPayment,
-        status: canceledPayment.status
-      }
+      data: { idPayment: canceledPayment.idPayment, status: canceledPayment.status }
     };
   }
 
   async getTransactionHistory(idUser, queryParams) {
     const page = parseInt(queryParams.page) || 1;
-    const limit = parseInt(queryParams.limit) || 5; 
+    const limit = parseInt(queryParams.limit) || 5;
     const search = queryParams.search || '';
     const offset = (page - 1) * limit;
 
@@ -452,13 +491,38 @@ export class PaymentUseCase {
     }
 
     const stats = await this.paymentRepo.getRevenueStats();
-    
+
     return {
       success: true,
       data: {
         totalPendapatan: stats.totalRevenue,
         pendapatanBulanIni: stats.monthlyRevenue
       }
+    };
+  }
+
+  async expireStaleReservedBookings() {
+    const stale = await this.paymentRepo.runInTransaction(async (client) => {
+      return this.paymentRepo.expireStaleReservedBookings(30, client);
+    });
+
+    if (stale.length > 0) {
+      console.log(`[Cron] Expired ${stale.length} stale reserved bookings:`, stale.map(s => s.id_payment));
+      if (this.notificationService) {
+        for (const item of stale) {
+          await this.notificationService.notifyMember(
+            item.id_user,
+            'Pemesanan Kelas Dibatalkan',
+            'Pemesanan kelas Anda dibatalkan karena melewati batas waktu pembayaran (30 menit). Kuota telah dilepas kembali.'
+          );
+        }
+      }
+    }
+
+    return {
+      success: true,
+      expiredCount: stale.length,
+      expiredIds: stale.map(s => s.id_payment),
     };
   }
 }

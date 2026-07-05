@@ -246,6 +246,115 @@ export class PaymentRepository {
     }
   }
 
+  async countBookingAndReservedById(idKelas, executor = db) {
+    const query = `
+      SELECT COUNT(*) as total
+      FROM booking_kelas
+      WHERE id_kelas = $1 AND status IN ('Booked', 'Reserved')
+    `;
+    const result = await executor.query(query, [idKelas]);
+    return parseInt(result.rows[0].total, 10);
+  }
+
+  async isUserAlreadyBookedOrReserved(idKelas, idUser, executor = db) {
+    const query = `
+      SELECT id_booking
+      FROM booking_kelas
+      WHERE id_kelas = $1 AND id_user = $2 AND status IN ('Booked', 'Reserved')
+      LIMIT 1
+    `;
+    const result = await executor.query(query, [idKelas, idUser]);
+    return !!result.rows[0];
+  }
+
+  async isUserBookingOverlapIncludingReserved(idUser, waktuMulai, waktuSelesai, executor = db, excludeIdKelas = null) {
+    const query = `
+      SELECT bk.id_booking
+      FROM booking_kelas bk
+      INNER JOIN kelas k ON k.id_kelas = bk.id_kelas
+      WHERE bk.id_user = $1
+        AND bk.status IN ('Booked', 'Reserved')
+        AND k.waktu_mulai < $3
+        AND k.waktu_selesai > $2
+        ${excludeIdKelas ? 'AND bk.id_kelas <> $4' : ''}
+      LIMIT 1
+    `;
+    const params = excludeIdKelas
+      ? [idUser, waktuMulai, waktuSelesai, excludeIdKelas]
+      : [idUser, waktuMulai, waktuSelesai];
+    const result = await executor.query(query, params);
+    return !!result.rows[0];
+  }
+
+  async createReservedBooking({ idKelas, idUser, idPayment }, executor = db) {
+    const query = `
+      INSERT INTO booking_kelas (id_kelas, id_user, status, waktu_booking, id_payment)
+      VALUES ($1, $2, 'Reserved', NOW(), $3)
+      RETURNING *
+    `;
+    const result = await executor.query(query, [idKelas, idUser, idPayment]);
+    return result.rows[0];
+  }
+
+  async findReservedBookingByPaymentId(idPayment, executor = db) {
+    const query = `
+      SELECT * FROM booking_kelas
+      WHERE id_payment = $1 AND status = 'Reserved'
+      LIMIT 1
+    `;
+    const result = await executor.query(query, [idPayment]);
+    return result.rows[0] || null;
+  }
+
+  async confirmReservedBooking(idPayment, executor = db) {
+    const query = `
+      UPDATE booking_kelas
+      SET status = 'Booked'
+      WHERE id_payment = $1 AND status = 'Reserved'
+      RETURNING *
+    `;
+    const result = await executor.query(query, [idPayment]);
+    return result.rows[0] || null;
+  }
+
+  async cancelReservedBookingByPaymentId(idPayment, executor = db) {
+    const query = `
+      UPDATE booking_kelas
+      SET status = 'Cancelled'
+      WHERE id_payment = $1 AND status = 'Reserved'
+      RETURNING *
+    `;
+    const result = await executor.query(query, [idPayment]);
+    return result.rows[0] || null;
+  }
+
+  async expireStaleReservedBookings(maxAgeMinutes = 30, executor = db) {
+    const findQuery = `
+      SELECT id_payment, id_kelas, id_user
+      FROM booking_kelas
+      WHERE status = 'Reserved'
+        AND waktu_booking < NOW() - ($1 * INTERVAL '1 minute')
+      FOR UPDATE
+    `;
+    const findResult = await executor.query(findQuery, [maxAgeMinutes]);
+    const stale = findResult.rows;
+    if (stale.length === 0) return [];
+
+    const paymentIds = stale.map(b => b.id_payment);
+
+    await executor.query(
+      `UPDATE booking_kelas SET status = 'Cancelled' WHERE id_payment = ANY($1) AND status = 'Reserved'`,
+      [paymentIds]
+    );
+
+    await executor.query(
+      `UPDATE payments SET status = 'Gagal', waktu_bayar = NOW() WHERE id_payment = ANY($1) AND status = 'Pending'`,
+      [paymentIds]
+    );
+
+    return stale;
+  }
+
   async getPaginatedHistory(idUser, search, limit, offset, executor = db) {
     let query = `
       SELECT p.*,

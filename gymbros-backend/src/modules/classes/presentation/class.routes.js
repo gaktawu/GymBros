@@ -4,18 +4,19 @@ import { ClassUseCase } from '../application/class.usecase.js';
 import { ClassRepository } from '../infrastructure/class.repository.js';
 import { validateClassInput, validateIdParam } from './class.validation.js';
 import { protect, restrictTo } from '../../../shared/middlewares/authMiddleware.js'; 
+
 const router = Router();
 const repository = new ClassRepository();
 const usecase = new ClassUseCase(repository);
 const controller = new ClassController(usecase);
 
-// Endpoint umum yang tidak butuh login ketat (jika ada)
 router.get('/', controller.getAllClasses);
 
-// --- SEMUA ROUTE DI BAWAH INI WAJIB LOGIN ---
 router.use(protect);
 
-// Letakkan di atas /:id agar tidak terkena tabrakan parameter (route conflict)
+router.get('/admin/all', restrictTo('Admin'), controller.getAllClassesAdmin);
+router.get('/my-classes', restrictTo('Coach'), controller.getMyCoachClasses);
+
 router.get('/my-bookings', restrictTo('Member'), controller.getMyBookings); 
 
 router.get('/:id', validateIdParam, controller.getClassById);
@@ -23,5 +24,14 @@ router.post('/', restrictTo('Admin'), validateClassInput, controller.createClass
 router.put('/:id', restrictTo('Admin'), validateIdParam, validateClassInput, controller.updateClass);
 router.delete('/:id', restrictTo('Admin'), validateIdParam, controller.deleteClass);
 router.get('/:id/participants', restrictTo('Admin', 'Coach'), validateIdParam, controller.getParticipants);
+router.get('/my-bookings', protect, async (req, res) => {
+  try {
+    const repo = new ClassRepository();
+    const bookings = await repo.findBookingsByUserId(req.user.id_user);
+    res.status(200).json({ success: true, data: bookings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 export default router;

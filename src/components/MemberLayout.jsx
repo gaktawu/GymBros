@@ -15,21 +15,74 @@ export default function MemberLayout() {
   
   const navigate = useNavigate();
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: "Paket Membership Akan Habis", message: "Paket Elite Anda akan berakhir dalam 7 hari. Segera perpanjang!", time: "1 jam lalu", read: false, type: "membership" },
-    { id: 2, title: "Booking Kelas Dikonfirmasi", message: "Kelas HIIT Cardio Sabtu 07.00 berhasil dibooking.", time: "2 jam lalu", read: false, type: "classes" },
-    { id: 3, title: "Promo: Diskon Suplemen 20%", message: "Gunakan kartu member Anda untuk diskon hingga 31 Mei.", time: "1 hari lalu", read: true, type: "promo" },
-    { id: 4, title: "Laporan PT Tersedia", message: "Coach Rian mengunggah laporan perkembangan fisik bulan Mei.", time: "2 hari lalu", read: true, type: "pt" },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  // ==========================================
+  // FETCH NOTIFIKASI DARI DATABASE BACKEND
+  // ==========================================
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        // PERBAIKAN: Tambahkan "/mine" di akhir URL agar sama dengan halaman MemberNotifications
+        const res = await axios.get(`${API_BASE_URL}/notifications/mine`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (res.data && res.data.data) {
+          const formattedNotifs = res.data.data.map(n => ({
+            id: n.idNotifikasi || n.id_notifikasi,
+            title: n.judul,
+            message: n.pesan,
+            time: new Date(n.waktuDikirim || n.waktu_dikirim).toLocaleString('id-ID', {
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            }),
+            // Menyesuaikan logika pengecekan dari database (1, atau "Closed")
+            read: n.statusBaca === 1 || n.status_baca === 1 || n.status_baca === 'Closed',
+            type: "system"
+          }));
+          setNotifications(formattedNotifs);
+        }
+      } catch (err) {
+        console.error("Gagal memuat notifikasi:", err);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  // PERBAIKAN: Gunakan axios.put jika di backend menggunakan PUT
+  const markAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_BASE_URL}/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error("Gagal mengubah status notifikasi:", err);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const unreadNotifs = notifications.filter(n => !n.read);
+      
+      await Promise.all(unreadNotifs.map(n => 
+        axios.put(`${API_BASE_URL}/notifications/${n.id}/read`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Gagal mengubah semua status notifikasi:", err);
+    }
   };
 
   const navItems = [
@@ -54,7 +107,6 @@ export default function MemberLayout() {
         });
         
         const userData = res.data.data;
-        // Gunakan fotoProfil (sesuai toJSON backend) atau fallback default
         if (userData.fotoProfil || userData.avatar) {
           setUserAvatar(userData.fotoProfil || userData.avatar);
         }
@@ -74,7 +126,7 @@ export default function MemberLayout() {
 
   const confirmLogout = () => {
     setIsLogoutPopupOpen(false);
-    localStorage.clear(); // Pastikan sesi benar-benar dibersihkan
+    localStorage.clear(); 
     navigate("/landingpage");
   };
 
@@ -120,7 +172,7 @@ export default function MemberLayout() {
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-              <path fillRule="evenodd" d="M3 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 5.25Zm0 4.5A.75.75 0 0 1 3.75 9h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 9.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M3 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 5.25Zm0 4.5A.75.75 0 0 1 3.75 9h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 9.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 9.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
             </svg>
           </button>
 
@@ -159,22 +211,24 @@ export default function MemberLayout() {
                   <div className="max-h-72 overflow-y-auto notif-scroll">
                     {notifications.length === 0 ? (
                       <div className="px-4 py-8 text-center text-xs text-gray-500">Belum ada notifikasi.</div>
-                    ) : notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        onClick={() => markAsRead(notif.id)}
-                        className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-white truncate">{notif.title}</p>
-                            <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">{notif.message}</p>
-                            <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                    ) : (
+                      notifications.slice(0, 3).map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => markAsRead(notif.id)}
+                          className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{notif.title}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed truncate">{notif.message}</p>
+                              <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
 
                   {/* Footer: View All */}

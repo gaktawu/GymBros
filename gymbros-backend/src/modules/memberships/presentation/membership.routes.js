@@ -7,12 +7,20 @@ import { asyncHandler } from '../../../shared/core/asyncHandler.js';
 import { validate } from '../../../shared/middlewares/validateMiddleware.js';
 import { protect, restrictTo } from '../../../shared/middlewares/authMiddleware.js';
 import { subscribeSchema } from './membership.validation.js';
+import { NotificationRepository } from '../../notifications/infrastructure/notification.repository.js';
+import { NotificationService } from '../../notifications/application/notification.service.js';
+import { UsersRepository } from '../../users/infrastructure/users.repository.js';
 
 const router = express.Router();
 
 // 1. Dependency Injection Lintas Modul
+
 const membershipRepository = new MembershipRepository();
 const paketMembershipRepository = new PaketMembershipRepository(); 
+
+const userRepo = new UsersRepository();
+const notifRepo = new NotificationRepository();
+const notifService = new NotificationService(notifRepo, userRepo);
 
 const membershipUseCase = new MembershipUseCase(membershipRepository, paketMembershipRepository);
 const membershipController = new MembershipController(membershipUseCase);

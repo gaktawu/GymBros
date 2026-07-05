@@ -6,17 +6,11 @@ export const startClassCron = () => {
   cron.schedule('0 * * * *', async () => {
     console.log('[CRON] Menjalankan pembersihan kelas yang waktu pelaksanaannya telah selesai...');
     
-    // Menggunakan pool koneksi dari database config
     let client;
     try {
-      // db diekspor sebagai wrapper { query, getClient }, bukan Pool langsung
       client = await db.getClient();
       await client.query('BEGIN');
 
-      // PENTING: constraint booking_kelas_id_kelas_fkey TIDAK memakai ON DELETE CASCADE
-      // (lihat skema DB), jadi baris booking_kelas terkait harus dihapus dulu secara
-      // eksplisit, kalau tidak DELETE FROM kelas akan gagal dengan foreign key violation
-      // setiap kali kelas yang sudah selesai masih punya booking.
       const deleteBookingRes = await client.query(`
         DELETE FROM booking_kelas
         WHERE id_kelas IN (
@@ -24,7 +18,6 @@ export const startClassCron = () => {
         )
       `);
 
-      // HARD DELETE kelas yang waktu pelaksanaannya sudah lewat dari waktu sekarang
       const deleteClassRes = await client.query(`
         DELETE FROM kelas
         WHERE waktu_selesai < NOW()
@@ -45,10 +38,10 @@ export const startClassCron = () => {
       }
       console.error('[CRON ERROR] Gagal menghapus kelas otomatis:', error);
     } finally {
-      if (client) client.release(); // Mengembalikan koneksi ke pool
+      if (client) client.release(); 
     }
   }, {
-    timezone: 'Asia/Jakarta' // konsisten dengan membershipCron, meski job ini per-jam
+    timezone: 'Asia/Jakarta' 
   });
 
   console.log('[CRON] Class cleanup cron terdaftar: setiap jam (Asia/Jakarta).');
