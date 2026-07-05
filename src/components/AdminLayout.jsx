@@ -20,20 +20,34 @@ export default function AdminLayout() {
         const token = localStorage.getItem('token');
         if (!token) return;
         
-        // Memanggil endpoint khusus admin untuk melihat semua notifikasi
         const res = await axios.get(`${API_BASE_URL}/notifications/admin/all`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
         if (res.data && res.data.data) {
-          const formattedNotifs = res.data.data.map(n => ({
-            id: n.idNotifikasi || n.id_notifikasi,
-            title: n.judul,
-            message: n.pesan,
-            time: new Date(n.waktuDikirim || n.waktu_dikirim).toLocaleString('id-ID'),
-            read: n.statusBaca === 1 || n.status_baca === 1 || n.status_baca === 'Closed',
-            type: "system"
-          }));
+          const formattedNotifs = res.data.data.map(n => {
+            const namaUser = n.nama_lengkap || `User ID ${n.id_user}`;
+            let judulAdmin = n.judul;
+            let pesanAdmin = n.pesan;
+
+            // KONDISI FORMATTING MARKDOWN UNTUK DISPLAY ADMIN
+            if (n.judul === 'Menunggu Pembayaran Membership' || n.judul === 'Pemesanan Membership Baru') {
+              judulAdmin = 'Pemesanan Membership Baru';
+              pesanAdmin = `User dengan nama ${namaUser} baru saja membuat pesanan dan saat ini sedang menunggu proses pembayaran.`;
+            } else if (n.judul?.includes('Pembayaran Berhasil') || n.judul === 'Pembayaran Membership Berhasil') {
+              judulAdmin = 'Pembayaran Membership Berhasil';
+              pesanAdmin = `User dengan nama ${namaUser} telah menyelesaikan pembayaran.`;
+            }
+
+            return {
+              id: n.idNotifikasi || n.id_notifikasi,
+              title: judulAdmin,
+              message: pesanAdmin,
+              time: new Date(n.waktuDikirim || n.waktu_db || n.waktu_dikirim).toLocaleString('id-ID'),
+              read: n.statusBaca === 1 || n.status_baca === 1 || n.status_baca === 'Closed',
+              type: "system"
+            };
+          });
           setNotifications(formattedNotifs);
         }
       } catch (err) {
@@ -49,7 +63,7 @@ export default function AdminLayout() {
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`${API_BASE_URL}/notifications/${id}/read`, {}, {
+      await axios.put(`${API_BASE_URL}/notifications/${id}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -64,7 +78,7 @@ export default function AdminLayout() {
       const unreadNotifs = notifications.filter(n => !n.read);
       
       await Promise.all(unreadNotifs.map(n => 
-        axios.patch(`${API_BASE_URL}/notifications/${n.id}/read`, {}, {
+        axios.put(`${API_BASE_URL}/notifications/${n.id}/read`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ));
@@ -150,18 +164,22 @@ export default function AdminLayout() {
                     {unreadCount > 0 && <button onClick={markAllAsRead} className="text-[10px] font-bold text-[#C2A676] hover:text-white uppercase tracking-wider transition-colors">Mark all read</button>}
                   </div>
                   <div className="max-h-72 overflow-y-auto notif-scroll">
-                    {notifications.length === 0 ? <div className="px-4 py-8 text-center text-xs text-gray-500">No notifications yet.</div> : notifications.map((notif) => (
-                      <div key={notif.id} onClick={() => markAsRead(notif.id)} className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}>
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`}></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-white truncate">{notif.title}</p>
-                            <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">{notif.message}</p>
-                            <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs text-gray-500">No notifications yet.</div>
+                    ) : (
+                      notifications.slice(0, 3).map((notif) => (
+                        <div key={notif.id} onClick={() => markAsRead(notif.id)} className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}>
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`}></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{notif.title}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed truncate">{notif.message}</p>
+                              <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                   <div className="px-4 py-2.5 border-t border-white/10 bg-[#1a1c1f] text-center">
                     <Link to="/admin/notifications" onClick={() => setIsNotifOpen(false)} className="text-[10px] font-black text-[#C2A676] uppercase tracking-widest hover:text-white transition-colors">View All Notifications →</Link>
@@ -183,7 +201,7 @@ export default function AdminLayout() {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-gray-400">Navigation</span>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e2023] text-gray-300 ring-1 ring-white/10 transition hover:bg-[#47484c] hover:text-white">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               </div>
               <nav className="divide-y divide-white/10">
@@ -207,7 +225,7 @@ export default function AdminLayout() {
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsLogoutPopupOpen(false)}></div>
           <div className="relative w-full max-w-sm rounded-2xl bg-[#1e2023] p-6 text-center shadow-2xl ring-1 ring-white/10 animate-pop-bounce">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20 text-[#af0909]">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             </div>
             <h3 className="mb-2 text-xl font-bold text-white">Konfirmasi Logout</h3>
             <p className="mb-6 text-sm text-gray-400">Apakah Anda yakin ingin keluar dari sesi ini?</p>

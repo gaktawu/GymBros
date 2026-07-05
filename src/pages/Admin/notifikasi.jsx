@@ -94,7 +94,7 @@ export default function AdminNotifications() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#111315] text-[#888888] text-sm uppercase">
-                  <th className="p-4 border-b border-[#333333]">ID User</th>
+                  <th className="p-4 border-b border-[#333333]">Nama User</th>
                   <th className="p-4 border-b border-[#333333]">Judul Notifikasi</th>
                   <th className="p-4 border-b border-[#333333]">Status</th>
                   <th className="p-4 border-b border-[#333333]">Waktu Kirim</th>
@@ -109,7 +109,9 @@ export default function AdminNotifications() {
                 ) : (
                   notifications.map((notif) => (
                     <tr key={notif.id_notifikasi} className="hover:bg-[#111315] border-b border-[#333333] transition-colors">
-                      <td className="p-4 text-sm font-bold text-white">{notif.id_user}</td>
+                      <td className="p-4 text-sm font-bold text-white">
+                        {notif.nama_lengkap || `User ID: ${notif.id_user}`}
+                      </td>
                       <td className="p-4 text-sm text-[#E0E0E0]">{notif.judul}</td>
                       <td className="p-4">
                         <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusStyle(notif.status_baca)}`}>
@@ -142,8 +144,10 @@ export default function AdminNotifications() {
             <div className="space-y-4 mb-6">
               <div className="pb-4 border-b border-[#333333] text-sm text-[#888888] grid grid-cols-2 gap-4">
                 <div>
-                  <p><strong className="text-white uppercase text-[10px]">ID User:</strong></p>
-                  <p className="font-bold text-white">{detailNotif.id_user}</p>
+                  <p><strong className="text-white uppercase text-[10px]">Nama User:</strong></p>
+                  <p className="font-bold text-white">
+                    {detailNotif.nama_lengkap || `User ID: ${detailNotif.id_user}`}
+                  </p>
                 </div>
                 <div>
                   <p><strong className="text-white uppercase text-[10px]">Status:</strong></p>

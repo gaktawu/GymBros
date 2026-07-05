@@ -172,7 +172,7 @@ export default function MemberLayout() {
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-              <path fillRule="evenodd" d="M3 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 5.25Zm0 4.5A.75.75 0 0 1 3.75 9h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 9.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M3 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 5.25Zm0 4.5A.75.75 0 0 1 3.75 9h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 9.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 9.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Zm0 4.5a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
             </svg>
           </button>
 
@@ -211,22 +211,24 @@ export default function MemberLayout() {
                   <div className="max-h-72 overflow-y-auto notif-scroll">
                     {notifications.length === 0 ? (
                       <div className="px-4 py-8 text-center text-xs text-gray-500">Belum ada notifikasi.</div>
-                    ) : notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        onClick={() => markAsRead(notif.id)}
-                        className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-white truncate">{notif.title}</p>
-                            <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">{notif.message}</p>
-                            <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                    ) : (
+                      notifications.slice(0, 3).map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => markAsRead(notif.id)}
+                          className={`px-4 py-3 border-b border-white/5 cursor-pointer transition-colors hover:bg-[#25282c]/50 ${!notif.read ? 'bg-[#C2A676]/5' : ''}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!notif.read ? 'bg-[#C2A676]' : 'bg-gray-600'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{notif.title}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed truncate">{notif.message}</p>
+                              <p className="text-[10px] text-gray-600 mt-1 font-medium">{notif.time}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
 
                   {/* Footer: View All */}

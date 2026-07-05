@@ -58,17 +58,43 @@ export class NotificationController {
 
   triggerNotification = async (req, res) => {
     const idUser = req.user.id_user;
-    const { judul, pesan } = req.body;
+    
+    // Kita tangkap parameter detail transaksi dari body
+    const { namaPaket, harga, statusEvent } = req.body; 
 
-    // Hanya kirim notifikasi ke Member (status: Menunggu Pembayaran)
-    await this.notificationUseCase.createNotification(idUser, judul, pesan);
+    if (!namaPaket || !harga || !statusEvent) {
+        return res.status(400).json({
+            success: false,
+            message: 'Data tidak lengkap. Butuh namaPaket, harga, dan statusEvent (PENDING/SUCCESS)',
+        });
+    }
 
-    // BLOK KODE UNTUK NOTIFY ADMIN TELAH DIHAPUS DARI SINI
-    // Admin tidak akan lagi menerima notifikasi saat member baru klik "Lanjut Bayar"
+    // Eksekusi pembuatan notifikasi terpisah untuk Member dan Admin
+    await this.notificationService.handlePaymentNotification(idUser, namaPaket, harga, statusEvent);
 
     res.status(201).json({
       success: true,
-      message: 'Notifikasi berhasil dipicu dan disimpan ke database (Hanya Member)',
+      message: 'Notifikasi berhasil dibuat dan dipisahkan untuk Member dan Admin',
+    });
+  };
+
+  triggerPaymentNotification = async (req, res) => {
+    const idUser = req.user.id_user;
+    
+    const { namaPaket, statusEvent } = req.body; 
+
+    if (!namaPaket || !statusEvent) {
+        return res.status(400).json({
+            success: false,
+            message: 'namaPaket dan statusEvent (PENDING/SUCCESS) wajib diisi'
+        });
+    }
+
+    await this.notificationService.handlePaymentNotification(idUser, namaPaket, statusEvent);
+
+    res.status(201).json({
+      success: true,
+      message: 'Notifikasi pembayaran berhasil dipicu untuk Member dan Admin',
     });
   };
 }

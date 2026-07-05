@@ -24,5 +24,5 @@ router.get('/admin/all', asyncHandler(notificationController.getAllNotifications
 router.put('/:id/read', asyncHandler(notificationController.markAsRead));
 router.delete('/:id', asyncHandler(notificationController.deleteNotification));
 router.post('/trigger', asyncHandler(notificationController.triggerNotification));
-
+router.post('/payment-trigger', asyncHandler(notificationController.triggerPaymentNotification));
 export default router;
