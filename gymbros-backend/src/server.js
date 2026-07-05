@@ -5,6 +5,10 @@ import { startClassCron } from './cron/classCron.js'; // 1. Import class cron ba
 
 const PORT = process.env.PORT || 5000;
 
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server berhasil jalan di port ${PORT}`);
+});
+
 const startServer = async () => {
   try {
     const res = await db.query('SELECT NOW() AS current_time');
