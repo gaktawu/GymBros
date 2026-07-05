@@ -12,6 +12,6 @@ export class NotificationService {
   }
 
   async notifyMember(id_user, judul, pesan) {
-    return await this.notificationRepository.save({ id_user, judul, pesan, status_baca: 0 });
+    return await this.notificationRepository.createSystemNotification(id_user, judul, pesan);
   }
 }

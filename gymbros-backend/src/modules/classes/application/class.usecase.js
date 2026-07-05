@@ -29,7 +29,7 @@ export class ClassUseCase {
 
     async deleteClass(id) {
         await this.getClassById(id);
-        return await this.repository.delete(id);
+        return await this.repository.softDelete(id);
     }
 
     async getParticipants(id) {
@@ -41,6 +41,20 @@ export class ClassUseCase {
             throw new AppError('User ID wajib diisi', 400);
         }
         return await this.repository.findBookingsByUserId(userId);
+    }
+
+    async getCoachClasses(coachId) {
+        const classes = await this.repository.findByCoachId(coachId);
+
+        // Ambil peserta untuk setiap kelas secara paralel
+        const classesWithParticipants = await Promise.all(
+            classes.map(async (cls) => {
+                const participants = await this.repository.findParticipantsByClassId(cls.id_kelas);
+                return { ...cls, participants };
+            })
+        );
+
+        return classesWithParticipants;
     }
 }
 
@@ -54,6 +68,10 @@ export class ClassBookingUseCase {
         const targetClass = await this.classRepository.findById(classId);
         if (!targetClass) {
             throw new AppError('Kelas yang Anda pilih tidak ditemukan.', 404);
+        }
+
+        if (targetClass.is_deleted) {
+            throw new AppError('Kelas ini tidak tersedia.', 400);
         }
 
         const existingBooking = await this.bookingRepository.findUserBookingInClass(userId, classId);
@@ -70,9 +88,11 @@ export class ClassBookingUseCase {
         const newBooking = {
             user_id: userId,
             class_id: classId,
-            status: 'confirmed',
+            status: 'Booked',
         };
 
         return await this.bookingRepository.create(newBooking);
     }
+
+    
 }

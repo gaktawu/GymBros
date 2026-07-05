@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, Outlet } from "react-router-dom";
+import axios from "axios";
 import Footer from "./Footer";
+
+const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export default function AdminLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -8,21 +11,68 @@ export default function AdminLayout() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const navigate = useNavigate();
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: "New Member Registration", message: "Alexander Bro has registered as Elite Bro plan.", time: "2 min ago", read: false, type: "member" },
-    { id: 2, title: "Payment Received", message: "Monthly subscription payment from Chris Gains confirmed.", time: "15 min ago", read: false, type: "payment" },
-    { id: 3, title: "Class Booking", message: "Budi Squat booked Advanced Leg Day class for tomorrow.", time: "1 hour ago", read: true, type: "booking" },
-    { id: 4, title: "Equipment Maintenance", message: "Treadmill #3 scheduled for maintenance check.", time: "3 hours ago", read: true, type: "system" }
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  // FETCH NOTIFIKASI DARI BACKEND
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        // Memanggil endpoint khusus admin untuk melihat semua notifikasi
+        const res = await axios.get(`${API_BASE_URL}/notifications/admin/all`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (res.data && res.data.data) {
+          const formattedNotifs = res.data.data.map(n => ({
+            id: n.idNotifikasi || n.id_notifikasi,
+            title: n.judul,
+            message: n.pesan,
+            time: new Date(n.waktuDikirim || n.waktu_dikirim).toLocaleString('id-ID'),
+            read: n.statusBaca === 1 || n.status_baca === 1 || n.status_baca === 'Closed',
+            type: "system"
+          }));
+          setNotifications(formattedNotifs);
+        }
+      } catch (err) {
+        console.error("Gagal memuat notifikasi admin:", err);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const markAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(`${API_BASE_URL}/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error("Gagal mengubah status notifikasi:", err);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const unreadNotifs = notifications.filter(n => !n.read);
+      
+      await Promise.all(unreadNotifs.map(n => 
+        axios.patch(`${API_BASE_URL}/notifications/${n.id}/read`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Gagal mengubah semua status notifikasi:", err);
+    }
   };
 
   const navItems = [

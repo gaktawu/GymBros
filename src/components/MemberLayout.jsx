@@ -15,21 +15,74 @@ export default function MemberLayout() {
   
   const navigate = useNavigate();
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: "Paket Membership Akan Habis", message: "Paket Elite Anda akan berakhir dalam 7 hari. Segera perpanjang!", time: "1 jam lalu", read: false, type: "membership" },
-    { id: 2, title: "Booking Kelas Dikonfirmasi", message: "Kelas HIIT Cardio Sabtu 07.00 berhasil dibooking.", time: "2 jam lalu", read: false, type: "classes" },
-    { id: 3, title: "Promo: Diskon Suplemen 20%", message: "Gunakan kartu member Anda untuk diskon hingga 31 Mei.", time: "1 hari lalu", read: true, type: "promo" },
-    { id: 4, title: "Laporan PT Tersedia", message: "Coach Rian mengunggah laporan perkembangan fisik bulan Mei.", time: "2 hari lalu", read: true, type: "pt" },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  // ==========================================
+  // FETCH NOTIFIKASI DARI DATABASE BACKEND
+  // ==========================================
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        // PERBAIKAN: Tambahkan "/mine" di akhir URL agar sama dengan halaman MemberNotifications
+        const res = await axios.get(`${API_BASE_URL}/notifications/mine`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (res.data && res.data.data) {
+          const formattedNotifs = res.data.data.map(n => ({
+            id: n.idNotifikasi || n.id_notifikasi,
+            title: n.judul,
+            message: n.pesan,
+            time: new Date(n.waktuDikirim || n.waktu_dikirim).toLocaleString('id-ID', {
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            }),
+            // Menyesuaikan logika pengecekan dari database (1, atau "Closed")
+            read: n.statusBaca === 1 || n.status_baca === 1 || n.status_baca === 'Closed',
+            type: "system"
+          }));
+          setNotifications(formattedNotifs);
+        }
+      } catch (err) {
+        console.error("Gagal memuat notifikasi:", err);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  // PERBAIKAN: Gunakan axios.put jika di backend menggunakan PUT
+  const markAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_BASE_URL}/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error("Gagal mengubah status notifikasi:", err);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const unreadNotifs = notifications.filter(n => !n.read);
+      
+      await Promise.all(unreadNotifs.map(n => 
+        axios.put(`${API_BASE_URL}/notifications/${n.id}/read`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Gagal mengubah semua status notifikasi:", err);
+    }
   };
 
   const navItems = [
@@ -54,7 +107,6 @@ export default function MemberLayout() {
         });
         
         const userData = res.data.data;
-        // Gunakan fotoProfil (sesuai toJSON backend) atau fallback default
         if (userData.fotoProfil || userData.avatar) {
           setUserAvatar(userData.fotoProfil || userData.avatar);
         }
@@ -74,7 +126,7 @@ export default function MemberLayout() {
 
   const confirmLogout = () => {
     setIsLogoutPopupOpen(false);
-    localStorage.clear(); // Pastikan sesi benar-benar dibersihkan
+    localStorage.clear(); 
     navigate("/landingpage");
   };
 

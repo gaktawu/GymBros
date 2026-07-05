@@ -1,6 +1,9 @@
+// src/modules/payments/interfaces/payment.controller.js
 export class PaymentController {
-  constructor(paymentUseCase) {
+  constructor(paymentUseCase, notificationUseCase, notificationService) {
     this.paymentUseCase = paymentUseCase;
+    this.notificationUseCase = notificationUseCase;
+    this.notificationService = notificationService;
   }
 
   handleMidtransWebhook = async (req, res) => {
@@ -44,7 +47,6 @@ export class PaymentController {
 
   cancelInvoice = async (req, res, next) => {
     try {
-      // req.params.id didapat dari URL parameter /invoice/:id/cancel
       const result = await this.paymentUseCase.cancelInvoice(req.params.id, req.user);
       res.status(200).json(result);
     } catch (error) {
@@ -59,7 +61,7 @@ export class PaymentController {
       res.status(200).json({
         success: true,
         data: result.data,
-        meta: result.meta // Metadata untuk paginasi frontend
+        meta: result.meta 
       });
     } catch (error) {
       next(error);
@@ -70,6 +72,34 @@ export class PaymentController {
     try {
       const result = await this.paymentUseCase.getRevenueStats(req.user);
       res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // --- ENDPOINT BARU UNTUK TRIGGER NOTIFIKASI SUKSES DARI FRONTEND ---
+  confirmPayment = async (req, res, next) => {
+    try {
+      const idUser = req.user.id_user;
+      const idPayment = req.params.id;
+      const { nama_paket } = req.body;
+
+      if (this.notificationUseCase) {
+        await this.notificationUseCase.createNotification(
+          idUser,
+          "Pembayaran Berhasil 🎉",
+          `Pembayaran Anda untuk ${nama_paket || 'pesanan ini'} telah berhasil diverifikasi. Transaksi sukses!`
+        );
+      }
+
+      if (this.notificationService) {
+        await this.notificationService.notifyAdmins(
+          "Pembayaran Lunas & Berhasil",
+          `User ID: ${idUser} telah berhasil melunasi pembayaran untuk ${nama_paket || 'sebuah pesanan'} (Order ID: ${idPayment}).`
+        );
+      }
+
+      res.status(200).json({ success: true, message: 'Notifikasi pembayaran sukses berhasil dikirim' });
     } catch (error) {
       next(error);
     }

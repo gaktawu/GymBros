@@ -8,18 +8,20 @@ export class ClassRepository {
         return result;
     }
 
-    async findAll({ search = '', page = 1, limit = 10 } = {}) {
+    async findAll({ search = '', page = 1, limit = 10, includeDeleted = false } = {}) {
         const safePage = Math.max(1, parseInt(page, 10) || 1);
         const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 10));
         const offset = (safePage - 1) * safeLimit;
         const searchTerm = `%${search}%`;
 
-        // PERBAIKAN: Menggunakan id_coach sesuai skema database
+        // Filter is_deleted hanya untuk non-admin
+        const deletedFilter = includeDeleted ? '' : 'AND k.is_deleted = false';
+
         const dataQuery = `
             SELECT k.*, u.nama_lengkap AS pengajar_nama
             FROM kelas k
             LEFT JOIN users u ON k.id_coach = u.id_user
-            WHERE k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1
+            WHERE (k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1) ${deletedFilter}
             ORDER BY k.id_kelas DESC
             LIMIT $2 OFFSET $3
         `;
@@ -89,9 +91,16 @@ export class ClassRepository {
         return this._extractRows(result)[0];
     }
 
-    async delete(id) {
-        await pool.query(`DELETE FROM booking_kelas WHERE id_kelas = $1`, [id]);
-        const query = `DELETE FROM kelas WHERE id_kelas = $1 RETURNING *`;
+    // SOFT DELETE: Ubah status & flag is_deleted
+    async softDelete(id) {
+        const query = `
+            UPDATE kelas
+            SET is_deleted = true,
+                deleted_at = NOW(),
+                status = 'Completed'
+            WHERE id_kelas = $1
+            RETURNING *
+        `;
         const result = await pool.query(query, [id]);
         return this._extractRows(result)[0];
     }
@@ -107,15 +116,30 @@ export class ClassRepository {
         const result = await pool.query(query, [id]);
         return this._extractRows(result) || [];
     }
+
     async findBookingsByUserId(idUser) {
         const query = `
-        SELECT bk.id_booking, bk.status, k.id_kelas, k.nama_kelas, k.waktu_mulai
+        SELECT bk.id_booking, bk.status, k.id_kelas, k.nama_kelas, k.waktu_mulai,
+               u.nama_lengkap AS pengajar_nama
         FROM booking_kelas bk
         JOIN kelas k ON bk.id_kelas = k.id_kelas
-        WHERE bk.id_user = $1 AND bk.status = 'confirmed'
+        LEFT JOIN users u ON k.id_coach = u.id_user
+        WHERE bk.id_user = $1 AND bk.status = 'Booked'
         ORDER BY k.waktu_mulai ASC
     `;
         const result = await pool.query(query, [idUser]);
         return this._extractRows(result) || [];
+    }
+
+    async findByCoachId(coachId) {
+        const query = `
+        SELECT k.*, u.nama_lengkap AS pengajar_nama
+        FROM kelas k
+        LEFT JOIN users u ON k.id_coach = u.id_user
+        WHERE k.id_coach = $1 AND k.is_deleted = false
+        ORDER BY k.waktu_mulai ASC
+    `;
+        const result = await pool.query(query, [coachId]);
+        return this._extractRows(result);
     }
 }

@@ -1,27 +1,34 @@
+import { gymState } from '../infrastructure/gym.state.js';
+
 export class AttendanceController {
   constructor(attendanceUseCase) {
     this.attendanceUseCase = attendanceUseCase;
   }
 
-  checkIn = async (req, res) => {
-    const idUser = req.user.id_user; // Diambil otomatis dari token
-    const record = await this.attendanceUseCase.processCheckIn(idUser);
+  redeemCode = async (req, res) => {
+    const idUser = req.user.id_user;
+    const { code } = req.body;
 
-    res.status(201).json({
+    const result = await this.attendanceUseCase.processRedeemCode(idUser, code);
+    res.status(200).json({ success: true, ...result });
+  };
+
+  manualGenerateCode = async (req, res) => {
+    const { code, expiresAt } = this.attendanceUseCase.generateNewCode();
+    res.status(200).json({
       success: true,
-      message: 'Check-In berhasil. Selamat berlatih!',
-      data: record,
+      message: 'Kode baru berhasil di-generate',
+      data: { code, expiresAt }
     });
   };
 
-  checkOut = async (req, res) => {
+   getAttendanceStats = async (req, res) => {
     const idUser = req.user.id_user;
-    const record = await this.attendanceUseCase.processCheckOut(idUser);
-
+    const stats = await this.attendanceUseCase.getAttendanceStats(idUser);
     res.status(200).json({
       success: true,
-      message: 'Check-Out berhasil. Sampai jumpa kembali!',
-      data: record,
+      message: 'Statistik absensi berhasil diambil',
+      data: stats
     });
   };
 }

@@ -1,26 +1,79 @@
+import 'dotenv/config';
+import http from 'http';
+import { Server } from 'socket.io';
 import app from './app.js';
 import { db } from './shared/config/database.js';
+
 import { startMembershipCron } from './cron/membershipCron.js';
-import { startClassCron } from './cron/classCron.js'; // 1. Import class cron baru
+import { startClassCron } from './cron/classCron.js';
+import { startAttendanceCron } from './cron/attendanceCron.js';
+
+import { AttendanceRepository } from './modules/attendance/infrastructure/attendance.repository.js';
+import { gymState } from './modules/attendance/infrastructure/gym.state.js';
+import { registerAttendanceSocket } from './modules/attendance/presentation/attendance.socket.js';
 
 const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.FRONTEND_URL
+      : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling'],
+  pingInterval: 25000,
+  pingTimeout: 20000
+});
+
+app.set('io', io);
+
+registerAttendanceSocket(io);
+app.set('attendanceNamespace', io.of('/attendance'));
 
 const startServer = async () => {
   try {
-    const res = await db.query('SELECT NOW() AS current_time');
-    console.log(` Database connected successfully! Server time: ${res.rows[0].current_time}`);
+    await db.query('SELECT NOW()');
+    console.log('✅ Database connected');
 
-    // Jalankan semua background service cron job
+    const repo = new AttendanceRepository();
+    const count = await repo.countActiveMembers();
+    gymState.syncCount(count);
+    console.log(`✅ Gym state synced. Active members: ${count}`);
+
+    // 🔑 FIX: Mulai auto-generate kode dinamis (ini yang selama ini hilang)
+    gymState.startAutoGenerate(io);
+    console.log('✅ Dynamic code auto-generate started');
+
     startMembershipCron();
-    startClassCron(); // 2. Eksekusi scheduler kelas di sini
+    startClassCron();
+    startAttendanceCron();
+    console.log('✅ All cron jobs started');
 
-    app.listen(PORT, () => {
-      console.log(` GymBros Server is running on http://localhost:${PORT}`);
+    server.listen(PORT, () => {
+      console.log(`
+╔════════════════════════════════════════╗
+║  🚀 Server & WebSockets running        ║
+║  📍 Port: ${PORT}                          ║
+║  🔗 WebSocket: ws://localhost:${PORT}    ║
+║  📡 Namespace: /attendance              ║
+╚════════════════════════════════════════╝
+      `);
     });
   } catch (error) {
-    console.error(' Database connection failed:', error.message);
+    console.error('❌ Server startup error:', error.message);
     process.exit(1);
   }
 };
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
 
 startServer();

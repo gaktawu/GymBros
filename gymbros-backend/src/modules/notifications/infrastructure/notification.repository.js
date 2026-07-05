@@ -1,3 +1,4 @@
+// src/modules/notifications/infrastructure/notification.repository.js
 import { db } from '../../../shared/config/database.js';
 import { Notification } from '../domain/Notification.js';
 
@@ -14,7 +15,6 @@ export class NotificationRepository {
     });
   }
 
-  // Mengambil semua notifikasi milik seorang user, diurutkan dari yang terbaru
   async findByUserId(idUser) {
     const query = `
       SELECT * FROM notifications 
@@ -25,7 +25,15 @@ export class NotificationRepository {
     return result.rows.map(row => this._mapToDomain(row));
   }
 
-  // Mengubah status notifikasi menjadi "Read" (1)
+  async findAll() {
+    const query = `
+      SELECT * FROM notifications 
+      ORDER BY waktu_dikirim DESC
+    `;
+    const result = await db.query(query);
+    return result.rows.map(row => this._mapToDomain(row));
+  }
+
   async markAsRead(idNotifikasi, idUser) {
     const query = `
       UPDATE notifications 
@@ -36,7 +44,6 @@ export class NotificationRepository {
     const result = await db.query(query, [idNotifikasi, idUser]);
     return this._mapToDomain(result.rows[0]);
   }
-
   
   async createSystemNotification(idUser, judul, pesan) {
     const query = `
@@ -48,6 +55,21 @@ export class NotificationRepository {
     return this._mapToDomain(result.rows[0]);
   }
 
+  async saveMany(notifications) {
+    if (!notifications || notifications.length === 0) return [];
+    
+    const values = notifications.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(', ');
+    const flatParams = notifications.flatMap(n => [n.id_user, n.judul, n.pesan, n.status_baca]);
+    
+    const query = `
+      INSERT INTO notifications (id_user, judul, pesan, status_baca)
+      VALUES ${values}
+      RETURNING *
+    `;
+    
+    const result = await db.query(query, flatParams);
+    return result.rows.map(row => this._mapToDomain(row));
+  }
   
   async deleteByIdAndUserId(idNotifikasi, idUser) {
     const query = `
@@ -57,5 +79,15 @@ export class NotificationRepository {
     `;
     const result = await db.query(query, [idNotifikasi, idUser]);
     return result.rowCount > 0; 
+  }
+
+  async deleteById(idNotifikasi) {
+    const query = `
+      DELETE FROM notifications 
+      WHERE id_notifikasi = $1
+      RETURNING *;
+    `;
+    const result = await db.query(query, [idNotifikasi]);
+    return result.rowCount > 0;
   }
 }

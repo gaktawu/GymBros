@@ -1,3 +1,4 @@
+// src/pages/member/Bayar.jsx
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
@@ -91,13 +92,11 @@ export default function Bayar() {
   const [alertMsg, setAlertMsg] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   
-  // Ref untuk menyimpan interval polling status
   const pollingIntervalRef = useRef(null);
 
   const goToDashboard = useCallback(() => navigate('/member/dashboardmember'), [navigate]);
   const goBack = useCallback(() => navigate(-1), [navigate]);
 
-  // Fungsi fetch invoice pending dari database
   const fetchPendingInvoice = useCallback(async (isSilent = false) => {
     try {
       const token = localStorage.getItem('token');
@@ -107,19 +106,14 @@ export default function Bayar() {
       
       const pendingInvoice = res.data.data?.find(inv => inv.status === 'Pending');
       
-      // Jika sebelumnya pending, lalu tiba-tiba hilang (berarti sudah sukses via webhook)[cite: 2]
       if (globalPending && !pendingInvoice) {
         setGlobalPending(null);
-        setStep('success'); // Langsung arahkan ke screen sukses otomatis!
+        setStep('success'); 
         return;
       }
 
       setGlobalPending(pendingInvoice || null);
 
-      // PENTING: step harus keluar dari 'loading' di SEMUA kondisi setelah fetch selesai,
-      // bukan cuma saat pendingInvoice sudah hilang. Sebelumnya kalau pendingInvoice MASIH
-      // ada (kasus normal: user sudah pilih VA/QRIS dan onPending Midtrans terpanggil),
-      // step tidak pernah direset dan UI nyangkut permanen di "Memuat Midtrans...".
       if (step === 'loading') {
         setStep('summary');
       } else if (!pendingInvoice && step !== 'success') {
@@ -132,16 +126,14 @@ export default function Bayar() {
     }
   }, [globalPending, step]);
 
-  // Fungsi untuk menyalakan Auto-Refresh / Polling status
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) return; // Cegah ganda
+    if (pollingIntervalRef.current) return; 
     
     pollingIntervalRef.current = setInterval(() => {
-      fetchPendingInvoice(true); // silent update tanpa loading spinner kelap-kelip
-    }, 5000); // Cek setiap 5 detik ke database
+      fetchPendingInvoice(true); 
+    }, 5000); 
   }, [fetchPendingInvoice]);
 
-  // Fungsi untuk mematikan Polling status
   const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -149,7 +141,6 @@ export default function Bayar() {
     }
   }, []);
 
-  // Efek inisialisasi awal[cite: 2]
   useEffect(() => {
     document.title = 'Gymbros | Pembayaran';
     const ori = document.body.style.backgroundColor;
@@ -164,33 +155,23 @@ export default function Bayar() {
 
     return () => { 
       document.body.style.backgroundColor = ori; 
-      stopPolling(); // Bersihkan interval saat pindah page
+      stopPolling(); 
     };
   }, []);
 
-  // Pantau status globalPending untuk aktivasi/deaktivasi auto-refresh
   useEffect(() => {
     if (globalPending) {
-      startPolling(); // Aktifkan polling jika ada tagihan pending agar responsif
+      startPolling(); 
     } else {
-      stopPolling(); // Matikan polling jika tidak ada tagihan pending
+      stopPolling(); 
     }
   }, [globalPending, startPolling, stopPolling]);
 
   const triggerSnap = useCallback((snapToken, idPayment) => {
-    stopPolling(); // Matikan polling sejenak saat modal Midtrans terbuka agar tidak konflik
+    stopPolling(); 
 
-    // Flag ini menandai apakah user SEMPAT memilih metode pembayaran (VA/QRIS/dll)
-    // sebelum menutup popup. Jika iya, transaksi tsb memang sudah benar-benar
-    // terdaftar di Midtrans (onPending akan terpanggil lebih dulu) sehingga aman
-    // dibiarkan Pending. Jika TIDAK (user langsung pencet silang), transaksi itu
-    // tidak pernah benar-benar tercatat di Midtrans, sehingga invoice yang sudah
-    // kadung dibuat di DB (oleh handleBayar/handleResumePending) adalah "hantu"
-    // dan harus ikut dibatalkan, bukan dibiarkan menggantung sebagai Pending.
     let hasProgressed = false;
 
-    // Membatalkan invoice "hantu" tsb ke backend (endpoint cancel yang sama
-    // dengan tombol "Batalkan Pesanan"), lalu bersihkan state lokal.
     const cancelGhostInvoice = async () => {
       if (idPayment) {
         try {
@@ -209,37 +190,44 @@ export default function Bayar() {
     };
 
     snapPay(snapToken, {
-      onSuccess: () => {
+      onSuccess: async (result) => {
+        // --- TRIGGER NOTIFIKASI BERHASIL SAAT PEMBAYARAN SELESAI ---
+        try {
+          const token = localStorage.getItem('token');
+          const finalIdPayment = idPayment || result.order_id;
+          await axios.post(
+            `${API_BASE_URL}/payments/invoice/${finalIdPayment}/confirm`,
+            { nama_paket: item?.name || globalPending?.nama_item || 'Pembelian' },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (err) {
+          console.error("Gagal mengirim notifikasi pembayaran berhasil:", err);
+        }
+
         setGlobalPending(null);
         setStep('success');
       },
       onPending: () => {
-        hasProgressed = true; // transaksi sudah benar-benar ada di Midtrans (mis. VA sudah terbit)
-        setStep('summary'); // keluar dari 'loading' seketika, jangan tunggu round-trip fetch
+        hasProgressed = true; 
+        setStep('summary'); 
         setAlertMsg('Silakan selesaikan pembayaran sesuai instruksi bank.');
         fetchPendingInvoice();
       },
       onError: () => {
-        // Transaksi gagal/ditolak Midtrans -> invoice lokal juga tidak valid, batalkan sekalian
         setAlertMsg('Transaksi ditolak atau kadaluwarsa. Pesanan otomatis dibatalkan, silakan coba lagi.');
         cancelGhostInvoice();
       },
       onClose: () => {
         if (hasProgressed) {
-          // User sudah dapat VA/QRIS lalu menutup popup untuk bayar belakangan -> JANGAN dibatalkan.
           setStep('summary');
           fetchPendingInvoice();
         } else {
-          // User pencet tombol silang (X) SEBELUM memilih metode pembayaran apa pun.
-          // Di Midtrans transaksi ini tidak pernah benar-benar tercatat, jadi invoice
-          // yang sudah kadung dibuat di database harus ikut dibatalkan di sini juga,
-          // supaya tidak ada payment "hantu" yang nyangkut sebagai Pending.
           setAlertMsg('Pembayaran dibatalkan.');
           cancelGhostInvoice();
         }
       },
     });
-  }, [fetchPendingInvoice, stopPolling]);
+  }, [fetchPendingInvoice, stopPolling, item, globalPending]);
 
   const handleBayar = useCallback(async () => {
     if (!item || !snapReady) return;
@@ -275,7 +263,7 @@ export default function Bayar() {
     } catch (err) {
       setAlertMsg(err.response?.data?.message || err.message || 'Gagal membuat pesanan.');
       setStep('summary');
-      fetchPendingInvoice(); // Refresh state jika ternyata gagal akibat ada yang menyangkut
+      fetchPendingInvoice(); 
     }
   }, [item, snapReady, triggerSnap, fetchPendingInvoice]);
 
@@ -327,7 +315,7 @@ export default function Bayar() {
     if (!idToCancel) return;
     
     setIsCanceling(true);
-    stopPolling(); // Matikan sementara sewaktu proses hapus data
+    stopPolling(); 
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${API_BASE_URL}/payments/invoice/${idToCancel}/cancel`, {}, {

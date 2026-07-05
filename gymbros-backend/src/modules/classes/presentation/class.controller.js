@@ -6,9 +6,31 @@ export class ClassController {
         this.classUseCase = classUseCase;
     }
 
+    // PUBLIK / MEMBER: Hanya kelas aktif
     getAllClasses = asyncHandler(async (req, res) => {
         const { search = '', page = 1, limit = 10 } = req.query;
-        const result = await this.classUseCase.getAllClasses({ search, page, limit });
+        const result = await this.classUseCase.getAllClasses({
+            search, page, limit, includeDeleted: false
+        });
+
+        res.status(200).json({
+            status: 'success',
+            data: result.data,
+            meta: {
+                total: result.total,
+                page: result.page,
+                limit: result.limit,
+                totalPages: result.totalPages,
+            },
+        });
+    });
+
+    // ADMIN: Semua kelas termasuk yang diarsipkan
+    getAllClassesAdmin = asyncHandler(async (req, res) => {
+        const { search = '', page = 1, limit = 10 } = req.query;
+        const result = await this.classUseCase.getAllClasses({
+            search, page, limit, includeDeleted: true
+        });
 
         res.status(200).json({
             status: 'success',
@@ -41,8 +63,12 @@ export class ClassController {
 
     deleteClass = asyncHandler(async (req, res) => {
         const { id } = req.params;
-        await this.classUseCase.deleteClass(id);
-        res.status(200).json({ status: 'success', message: 'Kelas berhasil dihapus' });
+        const deletedClass = await this.classUseCase.deleteClass(id);
+        res.status(200).json({
+            status: 'success',
+            message: 'Kelas berhasil diarsipkan',
+            data: deletedClass
+        });
     });
 
     getParticipants = asyncHandler(async (req, res) => {
@@ -57,15 +83,23 @@ export class ClassController {
     });
 
     getMyBookings = asyncHandler(async (req, res) => {
-        // id_user didapatkan dengan aman dari decoded token JWT protect middleware
         const idUser = req.user.id_user;
-
         const bookings = await this.classUseCase.getMyBookedClasses(idUser);
 
         res.status(200).json({
             status: 'success',
             message: 'Berhasil mengambil daftar kelas yang dipesan',
             data: bookings
+        });
+    });
+
+    getMyCoachClasses = asyncHandler(async (req, res) => {
+        const coachId = req.user.id_user;
+        const classes = await this.classUseCase.getCoachClasses(coachId);
+        res.status(200).json({
+            status: 'success',
+            message: 'Berhasil mengambil kelas yang diajar',
+            data: classes
         });
     });
 }

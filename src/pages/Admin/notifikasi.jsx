@@ -1,125 +1,183 @@
+// src/pages/admin/AdminNotifications.jsx
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const AdminNotifications = () => {
-    const [activeTab, setActiveTab] = useState('All');
-    const [notifications, setNotifications] = useState([
-        { id: "NOTIF-001", category: "Member", title: "CHECK-IN MEMBER: QR CODE VIA RFID", description: "Member GB-99201 (ADRIAN SUTANTO) melakukan check-in di Gate 1.", timestamp: "2026-05-22T19:05:00Z", status: "unread", type: "info" },
-        { id: "NOTIF-002", category: "Member", title: "RIWAYAT MEDIS BARU", description: "Member GB-99245 (REZA ALDIAN) memperbarui data riwayat medis.", timestamp: "2026-05-22T15:30:00Z", status: "unread", type: "warning" },
-        { id: "NOTIF-003", category: "Classes", title: "PEMBATALAN OTOMATIS: KUOTA KELAS PENUH", description: "Kelas HIIT Cardio pukul 20.00 telah penuh.", timestamp: "2026-05-22T18:45:00Z", status: "unread", type: "danger" },
-        { id: "NOTIF-004", category: "Classes", title: "ABSENSI INSTRUKTUR KELAS", description: "Coach Hendra telah melakukan check-in kehadiran.", timestamp: "2026-05-22T18:15:00Z", status: "read", type: "success" },
-        { id: "NOTIF-005", category: "PT", title: "PENCOCOKAN KLIEN BARU", description: "Member baru GB-99310 memerlukan PT spesialisasi Fat Loss.", timestamp: "2026-05-22T16:20:00Z", status: "unread", type: "info" },
-        { id: "NOTIF-006", category: "PT", title: "EVALUASI PERFORMA FISIK", description: "Coach Rian mengunggah grafik perkembangan fisik member GB-99205.", timestamp: "2026-05-22T12:00:00Z", status: "read", type: "success" },
-        { id: "NOTIF-007", category: "Finance", title: "KASIR DIGITAL (POS): PENJUALAN", description: "Transaksi POS Berhasil. Penjualan 2 botol Whey Protein.", timestamp: "2026-05-22T19:00:00Z", status: "unread", type: "success" },
-        { id: "NOTIF-008", category: "Finance", title: "INVOICE OTOMATIS GENERATED", description: "Sistem recurring billing berhasil menerbitkan tagihan.", timestamp: "2026-05-22T01:00:00Z", status: "read", type: "info" },
-        { id: "NOTIF-009", category: "Facilities", title: "LAPORAN KERUSAKAN ALAT", description: "Treadmill Zona B (Unit T-04) mengalami error sensor.", timestamp: "2026-05-22T14:10:00Z", status: "unread", type: "danger" },
-        { id: "NOTIF-010", category: "Facilities", title: "LOG PERAWATAN RUTIN ALAT", description: "Teknisi menjadwalkan servis rutin berkala.", timestamp: "2026-05-21T10:00:00Z", status: "read", type: "warning" },
-        { id: "NOTIF-011", category: "CRM", title: "PENGINGAT OTOMATIS: PAKET HABIS", description: "Sistem mengirimkan notifikasi via WhatsApp kepada 15 member.", timestamp: "2026-05-22T08:00:00Z", status: "unread", type: "info" },
-        { id: "NOTIF-012", category: "CRM", title: "BROADCASTER PROMO BERHASIL", description: "Pesan massal diskon suplemen 20% telah disiarkan.", timestamp: "2026-05-21T15:00:00Z", status: "read", type: "success" }
-    ]);
+export default function AdminNotifications() {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [detailNotif, setDetailNotif] = useState(null);
 
-    const [deleteId, setDeleteId] = useState(null);
+  const getApiConfig = () => ({
+    baseURL: "http://localhost:5000/api/v1/notifications", 
+    headers: { 
+      Authorization: `Bearer ${localStorage.getItem("token") || ""}` 
+    }
+  });
 
-    useEffect(() => {
-        document.title = 'Admin Notifications | System Log & CRM';
-    }, []);
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
-    const markAsRead = (id) => {
-        setNotifications(notifications.map(notif => notif.id === id ? { ...notif, status: 'read' } : notif));
-    };
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const api = axios.create(getApiConfig());
+      const response = await api.get('/admin/all');
+      
+      if (response.data && response.data.data) {
+        setNotifications(response.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+      const errorMsg = error.response?.data?.message || 'Gagal memuat semua notifikasi';
+      showToast(errorMsg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const confirmDelete = () => {
-        setNotifications(notifications.filter(n => n.id !== deleteId));
-        setDeleteId(null);
-    };
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-    const categories = [
-        { key: 'All', label: 'All Notifications' },
-        { key: 'Member', label: 'Members' },
-        { key: 'Classes', label: 'Classes' },
-        { key: 'PT', label: 'Personal Trainers' },
-        { key: 'Finance', label: 'Finance & POS' },
-        { key: 'Facilities', label: 'Facilities' },
-        { key: 'CRM', label: 'CRM & Promo' }
-    ];
+  const confirmDelete = async () => {
+    try {
+      const api = axios.create(getApiConfig());
+      await api.delete(`/${deleteId}`); 
+      
+      setNotifications(notifications.filter(n => n.id_notifikasi !== deleteId));
+      showToast('Data berhasil dihapus');
+      setDeleteId(null);
+      setDetailNotif(null);
+    } catch (error) {
+      console.error(error);
+      const errorMsg = error.response?.data?.message || 'Gagal menghapus data';
+      showToast(errorMsg, 'error');
+      setDeleteId(null);
+    }
+  };
 
-    const filteredNotifications = activeTab === 'All' ? notifications : notifications.filter(n => n.category === activeTab);
+  const viewDetail = (notif) => {
+    setDetailNotif(notif);
+  };
 
-    const getTypeStyles = (type) => {
-        switch (type) {
-            case 'danger': return { border: 'border-l-4 border-l-red-500', badgeBg: 'bg-red-500/10 text-red-400' };
-            case 'warning': return { border: 'border-l-4 border-l-amber-500', badgeBg: 'bg-amber-500/10 text-amber-400' };
-            case 'success': return { border: 'border-l-4 border-l-emerald-500', badgeBg: 'bg-emerald-500/10 text-emerald-400' };
-            default: return { border: 'border-l-4 border-l-blue-500', badgeBg: 'bg-blue-500/10 text-blue-400' };
-        }
-    };
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'Pending': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400';
+      case 'In Progress': return 'text-blue-400 bg-blue-400/10 border-blue-400';
+      case 'Resolved': return 'text-green-400 bg-green-400/10 border-green-400';
+      case 'Closed': return 'text-gray-400 bg-gray-400/10 border-gray-400';
+      default: return 'text-white border-white';
+    }
+  };
 
-    return (
-        <>
-            <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] p-6">
-                <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex justify-between items-center shadow-xl">
-                    <div>
-                        <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase">System Log & CRM</h4>
-                        <h3 className="text-3xl font-black text-white uppercase tracking-tight">Notifications</h3>
-                    </div>
+  return (
+    <main className="min-h-screen bg-[#111315] p-6 md:p-10 font-sans text-[#E0E0E0] relative">
+      {toast && (
+        <div className={`fixed top-5 right-5 z-50 p-4 rounded shadow-lg font-bold text-white transition-all
+          ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+          {toast.message}
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="mb-8 border-b border-[#333333] pb-4">
+          <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">Semua Notifikasi</h1>
+          <p className="text-[#888888]">Log sistem dan riwayat notifikasi user GymBros.</p>
+        </div>
+
+        <div className="bg-[#1A1C1E] p-6 rounded-xl border border-[#333333] shadow-lg mb-8">
+          <div className="overflow-x-auto rounded-lg border border-[#333333]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#111315] text-[#888888] text-sm uppercase">
+                  <th className="p-4 border-b border-[#333333]">ID User</th>
+                  <th className="p-4 border-b border-[#333333]">Judul Notifikasi</th>
+                  <th className="p-4 border-b border-[#333333]">Status</th>
+                  <th className="p-4 border-b border-[#333333]">Waktu Kirim</th>
+                  <th className="p-4 border-b border-[#333333] text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="5" className="p-8 text-center text-[#C2A676] animate-pulse">Memuat data table...</td></tr>
+                ) : !notifications || notifications.length === 0 ? (
+                  <tr><td colSpan="5" className="p-8 text-center text-[#888888]">Tidak ada data notifikasi tersimpan.</td></tr>
+                ) : (
+                  notifications.map((notif) => (
+                    <tr key={notif.id_notifikasi} className="hover:bg-[#111315] border-b border-[#333333] transition-colors">
+                      <td className="p-4 text-sm font-bold text-white">{notif.id_user}</td>
+                      <td className="p-4 text-sm text-[#E0E0E0]">{notif.judul}</td>
+                      <td className="p-4">
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusStyle(notif.status_baca)}`}>
+                          {notif.status_baca}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm text-[#888888]">
+                        {new Date(notif.waktu_dikirim).toLocaleString('id-ID')}
+                      </td>
+                      <td className="p-4 text-right flex justify-end gap-3">
+                        <button onClick={() => viewDetail(notif)} className="text-blue-400 hover:underline text-sm font-bold">Detail</button>
+                        <button onClick={() => setDeleteId(notif.id_notifikasi)} className="text-red-500 hover:underline text-sm font-bold">Hapus</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {detailNotif && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4">
+          <div className="bg-[#1A1C1E] border border-[#C2A676] p-8 rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-bold text-[#C2A676] uppercase">Detail Log Notifikasi</h3>
+              <button onClick={() => setDetailNotif(null)} className="text-[#888888] hover:text-white font-bold">X</button>
+            </div>
+            <div className="space-y-4 mb-6">
+              <div className="pb-4 border-b border-[#333333] text-sm text-[#888888] grid grid-cols-2 gap-4">
+                <div>
+                  <p><strong className="text-white uppercase text-[10px]">ID User:</strong></p>
+                  <p className="font-bold text-white">{detailNotif.id_user}</p>
                 </div>
-
-                <form className="flex gap-2 overflow-x-auto pb-2 border-b border-white/5" onSubmit={(e) => e.preventDefault()}>
-                    {categories.map((cat) => (
-                        <button
-                            key={cat.key}
-                            type="button"
-                            onClick={() => setActiveTab(cat.key)}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === cat.key ? 'bg-[#C2A676] text-[#111315] font-black' : 'bg-[#1e2023] text-gray-400 hover:text-white border border-white/5'}`}
-                        >
-                            {cat.label}
-                        </button>
-                    ))}
-                </form>
-
-                <div className="space-y-4">
-                    {filteredNotifications.map((notif) => {
-                        const styles = getTypeStyles(notif.type);
-                        return (
-                            <div key={notif.id} className={`bg-[#1e2023] border border-white/5 ${styles.border} rounded-2xl p-5 ${notif.status === 'unread' ? 'shadow-inner ring-1 ring-[#C2A676]/10' : 'opacity-70'}`}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${styles.badgeBg}`}>{notif.category}</span>
-                                    <span className="text-[10px] text-gray-500">{new Date(notif.timestamp).toLocaleTimeString()}</span>
-                                </div>
-                                <h5 className="text-sm font-bold text-white mb-1">{notif.title}</h5>
-                                <p className="text-xs text-gray-400 mb-4">{notif.description}</p>
-                                <div className="flex justify-end gap-3">
-                                    {notif.status === 'unread' && (
-                                        <button onClick={() => markAsRead(notif.id)} className="text-[10px] font-bold text-[#C2A676] hover:underline uppercase">Mark as Read</button>
-                                    )}
-                                    <button
-                                        onClick={() => setDeleteId(notif.id)}
-                                        disabled={notif.status === 'unread'}
-                                        className={`text-[10px] font-bold uppercase ${notif.status === 'unread' ? 'text-gray-700 cursor-not-allowed' : 'text-red-500 hover:text-red-400'}`}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                <div>
+                  <p><strong className="text-white uppercase text-[10px]">Status:</strong></p>
+                  <p className="font-bold text-[#C2A676]">{detailNotif.status_baca}</p>
                 </div>
-            </main>
-
-            {/* CUSTOM MODAL */}
-            {deleteId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-[#1e2023] border border-white/10 p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center">
-                        <h3 className="text-lg font-black text-white uppercase mb-2">Hapus Notifikasi</h3>
-                        <p className="text-xs text-gray-400 mb-6">Apakah Anda yakin ingin menghapus log ini secara permanen?</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setDeleteId(null)} className="flex-1 py-2 rounded-xl bg-gray-700 text-white text-xs font-bold uppercase hover:bg-gray-600 transition">Batal</button>
-                            <button onClick={confirmDelete} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-bold uppercase hover:bg-red-500 transition">Hapus</button>
-                        </div>
-                    </div>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#888888] uppercase font-bold">Judul</p>
+                <p className="text-sm text-white font-bold">{detailNotif.judul}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#888888] uppercase font-bold">Pesan Lengkap</p>
+                <div className="bg-[#111315] p-4 rounded-lg border border-[#333333] text-sm text-[#E0E0E0] whitespace-pre-wrap mt-1">
+                  {detailNotif.pesan}
                 </div>
-            )}
-        </>
-    );
-};
+              </div>
+            </div>
+            <button onClick={() => setDetailNotif(null)} className="w-full py-3 rounded bg-[#111315] border border-[#333333] text-white text-sm font-bold uppercase hover:bg-[#333333] transition">Tutup</button>
+          </div>
+        </div>
+      )}
 
-export default AdminNotifications;
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4">
+          <div className="bg-[#1A1C1E] border border-red-500 p-8 rounded-xl shadow-2xl max-w-sm w-full text-center">
+            <h3 className="text-xl font-bold text-white mb-2">Hapus Log?</h3>
+            <p className="text-[#888888] mb-6 text-sm">Apakah Anda yakin ingin menghapus data notifikasi ini dari database?</p>
+            <div className="flex gap-4">
+              <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded bg-[#111315] border border-[#333333] text-white text-sm font-bold uppercase hover:bg-[#333333] transition">Batal</button>
+              <button onClick={confirmDelete} className="flex-1 py-3 rounded bg-red-500 text-white text-sm font-bold uppercase hover:bg-red-600 transition">Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
