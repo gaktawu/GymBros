@@ -14,11 +14,22 @@ export class ClassRepository {
         const offset = (safePage - 1) * safeLimit;
         const searchTerm = `%${search}%`;
 
-        // Filter is_deleted hanya untuk non-admin
         const deletedFilter = includeDeleted ? '' : 'AND k.is_deleted = false';
 
         const dataQuery = `
-            SELECT k.*, u.nama_lengkap AS pengajar_nama
+            SELECT k.*, u.nama_lengkap AS pengajar_nama,
+                (
+                    SELECT COUNT(*) 
+                    FROM booking_kelas bk 
+                    WHERE bk.id_kelas = k.id_kelas 
+                    AND bk.status IN ('Booked', 'Reserved')
+                ) AS total_booked,
+                k.kapasitas - (
+                    SELECT COUNT(*) 
+                    FROM booking_kelas bk 
+                    WHERE bk.id_kelas = k.id_kelas 
+                    AND bk.status IN ('Booked', 'Reserved')
+                ) AS sisa_kuota
             FROM kelas k
             LEFT JOIN users u ON k.id_coach = u.id_user
             WHERE (k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1) ${deletedFilter}
@@ -30,7 +41,8 @@ export class ClassRepository {
             SELECT COUNT(*)::int AS total 
             FROM kelas k
             LEFT JOIN users u ON k.id_coach = u.id_user
-            WHERE k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1
+            WHERE (k.nama_kelas ILIKE $1 OR u.nama_lengkap ILIKE $1)
+            ${deletedFilter.replace('k.is_deleted', 'k.is_deleted')}
         `;
 
         const [dataResult, countResult] = await Promise.all([
@@ -51,9 +63,20 @@ export class ClassRepository {
     }
 
     async findById(id) {
-        // PERBAIKAN: Menggunakan k.id_coach sesuai skema database
         const query = `
-            SELECT k.*, u.nama_lengkap AS pengajar_nama 
+            SELECT k.*, u.nama_lengkap AS pengajar_nama,
+                (
+                    SELECT COUNT(*) 
+                    FROM booking_kelas bk 
+                    WHERE bk.id_kelas = k.id_kelas 
+                    AND bk.status IN ('Booked', 'Reserved')
+                ) AS total_booked,
+                k.kapasitas - (
+                    SELECT COUNT(*) 
+                    FROM booking_kelas bk 
+                    WHERE bk.id_kelas = k.id_kelas 
+                    AND bk.status IN ('Booked', 'Reserved')
+                ) AS sisa_kuota
             FROM kelas k
             LEFT JOIN users u ON k.id_coach = u.id_user 
             WHERE k.id_kelas = $1
@@ -141,5 +164,21 @@ export class ClassRepository {
     `;
         const result = await pool.query(query, [coachId]);
         return this._extractRows(result);
+    }
+
+    // Tambahkan di ClassRepository
+    async getRemainingQuota(idKelas) {
+        const query = `
+        SELECT k.kapasitas - COUNT(bk.id_booking) as sisa_kuota
+        FROM kelas k
+        LEFT JOIN booking_kelas bk 
+          ON k.id_kelas = bk.id_kelas 
+          AND bk.status IN ('Booked', 'Reserved')
+        WHERE k.id_kelas = $1
+        GROUP BY k.id_kelas, k.kapasitas
+    `;
+        const result = await pool.query(query, [idKelas]);
+        const rows = this._extractRows(result);
+        return rows[0]?.sisa_kuota ?? 0;
     }
 }

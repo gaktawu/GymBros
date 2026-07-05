@@ -24,5 +24,14 @@ router.post('/', restrictTo('Admin'), validateClassInput, controller.createClass
 router.put('/:id', restrictTo('Admin'), validateIdParam, validateClassInput, controller.updateClass);
 router.delete('/:id', restrictTo('Admin'), validateIdParam, controller.deleteClass);
 router.get('/:id/participants', restrictTo('Admin', 'Coach'), validateIdParam, controller.getParticipants);
+router.get('/my-bookings', protect, async (req, res) => {
+  try {
+    const repo = new ClassRepository();
+    const bookings = await repo.findBookingsByUserId(req.user.id_user);
+    res.status(200).json({ success: true, data: bookings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 export default router;

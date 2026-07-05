@@ -61,7 +61,7 @@ export class PaymentController {
       res.status(200).json({
         success: true,
         data: result.data,
-        meta: result.meta 
+        meta: result.meta
       });
     } catch (error) {
       next(error);
@@ -100,6 +100,15 @@ export class PaymentController {
       }
 
       res.status(200).json({ success: true, message: 'Notifikasi pembayaran sukses berhasil dikirim' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  expireStaleReservedBookings = async (req, res, next) => {
+    try {
+      const result = await this.paymentUseCase.expireStaleReservedBookings();
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

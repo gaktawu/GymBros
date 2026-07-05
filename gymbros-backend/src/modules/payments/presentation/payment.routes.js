@@ -36,6 +36,8 @@ router.post('/invoice', validate(createInvoiceSchema), asyncHandler(paymentContr
 router.get('/invoice/:id', asyncHandler(paymentController.getInvoice));
 router.post('/invoice/:id/cancel', asyncHandler(paymentController.cancelInvoice));
 router.get('/history', asyncHandler(paymentController.getTransactionHistory));
+// ── CRON: Expire reserved bookings yang menggantung ──
+router.post('/cron/expire-reserved', asyncHandler(paymentController.expireStaleReservedBookings));
 
 // Endpoint memicu notifikasi sukses pembayaran
 router.post('/invoice/:id/confirm', asyncHandler(paymentController.confirmPayment));

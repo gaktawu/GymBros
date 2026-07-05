@@ -3,6 +3,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import app from './app.js';
 import { db } from './shared/config/database.js';
+import cron from 'node-cron';
 
 import { startMembershipCron } from './cron/membershipCron.js';
 import { startClassCron } from './cron/classCron.js';
@@ -11,6 +12,16 @@ import { startAttendanceCron } from './cron/attendanceCron.js';
 import { AttendanceRepository } from './modules/attendance/infrastructure/attendance.repository.js';
 import { gymState } from './modules/attendance/infrastructure/gym.state.js';
 import { registerAttendanceSocket } from './modules/attendance/presentation/attendance.socket.js';
+
+cron.schedule('*/10 * * * *', async () => {
+  console.log('[Cron] Running expireStaleReservedBookings...');
+  try {
+    // Panggil langsung use case atau hit internal endpoint
+    await paymentUseCase.expireStaleReservedBookings();
+  } catch (err) {
+    console.error('[Cron Error]', err.message);
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -43,7 +54,6 @@ const startServer = async () => {
     gymState.syncCount(count);
     console.log(`✅ Gym state synced. Active members: ${count}`);
 
-    // 🔑 FIX: Mulai auto-generate kode dinamis (ini yang selama ini hilang)
     gymState.startAutoGenerate(io);
     console.log('✅ Dynamic code auto-generate started');
 
