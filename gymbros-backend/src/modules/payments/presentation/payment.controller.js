@@ -41,4 +41,37 @@ export class PaymentController {
       next(error);
     }
   };
+
+  cancelInvoice = async (req, res, next) => {
+    try {
+      // req.params.id didapat dari URL parameter /invoice/:id/cancel
+      const result = await this.paymentUseCase.cancelInvoice(req.params.id, req.user);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getTransactionHistory = async (req, res, next) => {
+    try {
+      const idUser = req.user.id_user;
+      const result = await this.paymentUseCase.getTransactionHistory(idUser, req.query);
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        meta: result.meta // Metadata untuk paginasi frontend
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getRevenueStats = async (req, res, next) => {
+    try {
+      const result = await this.paymentUseCase.getRevenueStats(req.user);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -36,6 +36,12 @@ export class ClassUseCase {
         await this.getClassById(id);
         return await this.repository.findParticipantsByClassId(id);
     }
+    async getMyBookedClasses(userId) {
+        if (!userId) {
+            throw new AppError('User ID wajib diisi', 400);
+        }
+        return await this.repository.findBookingsByUserId(userId);
+    }
 }
 
 export class ClassBookingUseCase {

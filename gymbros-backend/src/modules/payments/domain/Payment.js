@@ -1,13 +1,17 @@
 export class Payment {
-  constructor({ idPayment, idUser, kategoriTransaksi, totalTagihan, totalDibayar, metode, status, waktuBayar }) {
+  constructor({ idPayment, idUser, kategoriTransaksi, totalTagihan, totalDibayar, metode, status, waktuBayar, snapToken, redirectUrl }) {
     this.idPayment = idPayment;
     this.idUser = idUser;
-    this.kategoriTransaksi = kategoriTransaksi; // 'Membership' atau 'Paket_Coaching'
+    this.kategoriTransaksi = kategoriTransaksi;
     this.totalTagihan = parseFloat(totalTagihan);
     this.totalDibayar = parseFloat(totalDibayar);
     this.metode = metode;
-    this.status = status; // 'Pending', 'Lunas', 'Gagal'
+    this.status = status;
     this.waktuBayar = waktuBayar;
+    
+    // Properti Baru
+    this.snapToken = snapToken;
+    this.redirectUrl = redirectUrl;
   }
 
   isPaid() {

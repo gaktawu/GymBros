@@ -14,13 +14,12 @@ export class UsersRepository {
       peran: row.peran,
       statusAkun: row.status_akun,
       fotoProfil: row.foto_profil, 
+      jenisKelamin: row.jenis_kelamin, 
     });
   }
 
-  // --- Diperbarui untuk menerima filter (seperti role/peran) ---
   async findAll({ role } = {}) {
     if (role) {
-      // Menggunakan kolom 'peran' sesuai dengan skema domain Anda
       const query = `
         SELECT * FROM users 
         WHERE LOWER(peran) = LOWER($1) 

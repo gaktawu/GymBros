@@ -13,7 +13,8 @@ const ICON_PATHS = {
   Search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   ChevronLeft: "M15 19l-7-7 7-7",
   ChevronRight: "M9 5l7 7-7 7",
-  Refresh: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+  Refresh: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+  Money: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" // Icon baru untuk uang/pendapatan
 };
 
 const Icon = React.memo(({ name, className = "w-5 h-5" }) => (
@@ -38,6 +39,11 @@ const INITIAL_FORM_STATE = { nama_paket: '', tipe_paket: 'Berjangka', durasi_har
 export default function DashboardAdmin() {
   const [classes, setClasses] = useState([]);
   const [totalMembers, setTotalMembers] = useState(0);
+  
+  // State baru untuk pendapatan
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+
   const [isLoading, setIsLoading] = useState(true);
 
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', description: '', onConfirm: () => {}, type: 'danger' });
@@ -61,6 +67,7 @@ export default function DashboardAdmin() {
     const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
 
     try {
+      // 1. Fetch Paket Membership
       try {
         const packageRes = await axios.get("http://localhost:5000/api/v1/paket-membership/admin/all", apiConfig);
         const packageData = packageRes.data.data || packageRes.data;
@@ -81,11 +88,25 @@ export default function DashboardAdmin() {
         setClasses(normalizedData);
       } catch (err) { console.error("Gagal menarik paket dari API Admin:", err); }
 
+      // 2. Fetch Total Member
       try {
         const userRes = await axios.get("http://localhost:5000/api/v1/users", apiConfig);
         const userData = userRes.data.data || userRes.data;
         setTotalMembers(userData.length);
       } catch (err) { setTotalMembers(0); }
+
+      // 3. Fetch Data Pendapatan
+      try {
+        const revRes = await axios.get("http://localhost:5000/api/v1/payments/revenue", apiConfig);
+        const revData = revRes.data.data || revRes.data;
+        setTotalRevenue(revData.totalPendapatan || 0);
+        setMonthlyRevenue(revData.pendapatanBulanIni || 0);
+      } catch (err) { 
+        console.error("Gagal menarik data pendapatan:", err);
+        setTotalRevenue(0);
+        setMonthlyRevenue(0);
+      }
+
     } finally { setIsLoading(false); }
   }, []);
 
@@ -167,7 +188,6 @@ export default function DashboardAdmin() {
     });
   }, [editingClass, showToast, fetchMembershipData]);
 
-  // PERBAIKAN TOTAL: Memanggil API /restore khusus yang sudah dibuat di backend
   const handleToggleStatus = useCallback(async (id) => {
     const target = classes.find(c => c.id_paket === id);
     if (!target) return;
@@ -175,7 +195,6 @@ export default function DashboardAdmin() {
     const token = localStorage.getItem('token');
     const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
 
-    // KONDISI 1: JIKA TERHAPUS -> TEMBAK KE ENDPOINT RESTORE KHUSUS
     if (target.isDeleted) {
       setModalConfig({
         isOpen: true,
@@ -199,7 +218,6 @@ export default function DashboardAdmin() {
       return;
     }
 
-    // KONDISI 2: JIKA NORMAL -> TOGGLE STATUS AKTIF BIASA
     const newStatus = target.status_aktif === 'Tersedia' || target.statusAktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
     try {
       await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, apiConfig);
@@ -271,7 +289,10 @@ export default function DashboardAdmin() {
             </div>
 
             <div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-8">
+              {/* Grid yang sudah disesuaikan agar bisa menampung 5 buah StatCard */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6 mb-8">
+                <StatCard title="Pendapatan Bulan Ini" icon="Money" value={isLoading ? '...' : formatRupiah(monthlyRevenue)} />
+                <StatCard title="Total Pendapatan" icon="Money" value={isLoading ? '...' : formatRupiah(totalRevenue)} />
                 <StatCard title="Total Paket" icon="Package" value={isLoading ? '...' : classes.length} />
                 <StatCard title="Paket Tersedia" icon="Check" value={isLoading ? '...' : stats.activePackages} subtitle={`${stats.inactivePackages} nonaktif, ${stats.deletedPackages} dihapus`} />
                 <StatCard title="Jumlah Member" icon="Users" value={isLoading ? '...' : totalMembers} />

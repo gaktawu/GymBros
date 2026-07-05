@@ -3,18 +3,20 @@ import { Payment } from '../domain/Payment.js';
 
 export class PaymentRepository {
   _mapToDomain(row) {
-    if (!row) return null;
-    return new Payment({
-      idPayment: row.id_payment,
-      idUser: row.id_user,
-      kategoriTransaksi: row.kategori_transaksi,
-      totalTagihan: row.total_tagihan,
-      totalDibayar: row.total_dibayar,
-      metode: row.metode,
-      status: row.status,
-      waktuBayar: row.waktu_bayar,
-    });
-  }
+  if (!row) return null;
+  return new Payment({
+    idPayment: row.id_payment,
+    idUser: row.id_user,
+    kategoriTransaksi: row.kategori_transaksi,
+    totalTagihan: row.total_tagihan,
+    totalDibayar: row.total_dibayar,
+    metode: row.metode,
+    status: row.status,
+    waktuBayar: row.waktu_bayar,
+    snapToken: row.snap_token,
+    redirectUrl: row.redirect_url,
+  });
+}
 
   async findById(idPayment, executor = db) {
     const query = `SELECT * FROM payments WHERE id_payment = $1`;
@@ -52,6 +54,17 @@ export class PaymentRepository {
       RETURNING *
     `;
     const result = await executor.query(query, [idPayment, idUser, kategoriTransaksi, totalTagihan, metode]);
+    return this._mapToDomain(result.rows[0]);
+  }
+
+  async saveSnapToken(idPayment, snapToken, redirectUrl, executor = db) {
+    const query = `
+      UPDATE payments 
+      SET snap_token = $1, redirect_url = $2
+      WHERE id_payment = $3
+      RETURNING *
+    `;
+    const result = await executor.query(query, [snapToken, redirectUrl, idPayment]);
     return this._mapToDomain(result.rows[0]);
   }
 
@@ -218,9 +231,7 @@ export class PaymentRepository {
   }
 
   async runInTransaction(callback) {
-    // PERUBAHAN DI SINI:
-    // Menggunakan getClient() karena object db di database.js 
-    // mendefinisikan method getClient(), bukan connect()
+
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
@@ -233,5 +244,104 @@ export class PaymentRepository {
     } finally {
       client.release();
     }
+  }
+
+  async getPaginatedHistory(idUser, search, limit, offset, executor = db) {
+    let query = `
+      SELECT p.*,
+             CASE 
+               WHEN p.kategori_transaksi = 'Membership' THEN pm.nama_paket
+               WHEN p.kategori_transaksi = 'Kelas' THEN k.nama_kelas
+               ELSE 'Transaksi'
+             END as nama_item_spesifik
+      FROM public.payments p
+      LEFT JOIN public.paket_membership pm 
+        ON p.kategori_transaksi = 'Membership' 
+        AND split_part(p.id_payment, '-', 2) ~ '^[0-9]+$' 
+        AND split_part(p.id_payment, '-', 2)::bigint = pm.id_paket
+      LEFT JOIN public.kelas k 
+        ON p.kategori_transaksi = 'Kelas' 
+        AND split_part(p.id_payment, '-', 2) ~ '^[0-9]+$' 
+        AND split_part(p.id_payment, '-', 2)::bigint = k.id_kelas
+      WHERE p.id_user = $1
+    `;
+    const params = [idUser];
+    let paramIndex = 2;
+
+    if (search) {
+      query += ` AND (
+        p.id_payment ILIKE $${paramIndex} 
+        OR p.status ILIKE $${paramIndex}
+        OR pm.nama_paket ILIKE $${paramIndex}
+        OR k.nama_kelas ILIKE $${paramIndex}
+      )`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY p.waktu_bayar DESC NULLS LAST, p.id_payment DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await executor.query(query, params);
+    
+    return result.rows.map(row => {
+      const domain = this._mapToDomain(row);
+      if (domain) {
+        domain.namaItemSpesifik = row.nama_item_spesifik;
+      }
+      return domain;
+    });
+  }
+
+  async countHistory(idUser, search, executor = db) {
+    let query = `
+      SELECT COUNT(*) as total 
+      FROM public.payments p
+      LEFT JOIN public.paket_membership pm 
+        ON p.kategori_transaksi = 'Membership' 
+        AND split_part(p.id_payment, '-', 2) ~ '^[0-9]+$' 
+        AND split_part(p.id_payment, '-', 2)::bigint = pm.id_paket
+      LEFT JOIN public.kelas k 
+        ON p.kategori_transaksi = 'Kelas' 
+        AND split_part(p.id_payment, '-', 2) ~ '^[0-9]+$' 
+        AND split_part(p.id_payment, '-', 2)::bigint = k.id_kelas
+      WHERE p.id_user = $1
+    `;
+    const params = [idUser];
+    
+    if (search) {
+      query += ` AND (
+        p.id_payment ILIKE $2 
+        OR p.status ILIKE $2
+        OR pm.nama_paket ILIKE $2
+        OR k.nama_kelas ILIKE $2
+      )`;
+      params.push(`%${search}%`);
+    }
+
+    const result = await executor.query(query, params);
+    return parseInt(result.rows[0].total, 10);
+  }
+
+  async getRevenueStats(executor = db) {
+    const query = `
+      SELECT 
+        COALESCE(SUM(total_dibayar), 0) AS total_revenue,
+        COALESCE(SUM(
+          CASE 
+            WHEN date_trunc('month', waktu_bayar) = date_trunc('month', CURRENT_DATE) 
+            AND date_trunc('year', waktu_bayar) = date_trunc('year', CURRENT_DATE)
+            THEN total_dibayar 
+            ELSE 0 
+          END
+        ), 0) AS monthly_revenue
+      FROM payments
+      WHERE status = 'Lunas'
+    `;
+    const result = await executor.query(query);
+    return {
+      totalRevenue: parseFloat(result.rows[0].total_revenue),
+      monthlyRevenue: parseFloat(result.rows[0].monthly_revenue)
+    };
   }
 }
