@@ -8,3 +8,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+import axios from 'axios';
+
+
+axios.interceptors.request.use((config) => {
+  if (config.url && config.url.includes('http://localhost:5000')) {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    config.url = config.url.replace('http://localhost:5000', apiUrl);
+  }
+  return config;
+});

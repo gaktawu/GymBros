@@ -205,7 +205,7 @@ const AdminManageMembers = () => {
             <select
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full bg-[#1e2023] border border-white/5 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none shadow-md cursor-pointer text-gray-300"
+              className="w-full bg-[#1e2023] border border-white/5 rounded-2xl px-4 py-3 text-sm focus:outline-none shadow-md cursor-pointer text-gray-300"
             >
               <option value="All">All Status</option>
               <option value="Active">Active</option>
