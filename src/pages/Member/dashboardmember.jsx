@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { io } from "socket.io-client";
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 const DashboardMember = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -44,45 +45,6 @@ const DashboardMember = () => {
     };
   }, []);
 
-  // ==========================================
-  // 1. USE-EFFECT KHUSUS UNTUK SOCKET.IO
-  // ==========================================
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return; // Jangan konek socket kalau belum login
-
-    const socket = io(`${BASE_URL}/attendance`, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      timeout: 20000
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ Socket Member terhubung, ID:', socket.id);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('❌ Socket Member error:', err.message);
-    });
-
-    socket.on('gym-count-updated', (count) => {
-      setVisitorCount(count);
-    });
-
-    return () => {
-      console.log('🧹 Cleaning up Member socket');
-      socket.off('connect');
-      socket.off('connect_error');
-      socket.off('gym-count-updated');
-      socket.disconnect();
-    };
-  }, []); // <-- Dependency array kosong agar dipanggil 1x saja
-
-  // ==========================================
-  // 2. USE-EFFECT KHUSUS UNTUK FETCH REST API
-  // ==========================================
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userDataStr = localStorage.getItem('user');
@@ -108,40 +70,60 @@ const DashboardMember = () => {
       id: user.idUser ? `GB-${user.idUser.toString().padStart(5, '0')}` : 'GB-00000'
     });
 
+    const socket = io(`${BASE_URL}/attendance`, {
+      withCredentials: true,
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 20000
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Socket Member terhubung, ID:', socket.id);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Socket Member error:', err.message);
+    });
+
+    socket.on('gym-count-updated', (count) => {
+      setVisitorCount(count);
+    });
+
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
 
         try {
-          const membershipRes = await axios.get(`${BASE_URL}/memberships/my-active`, config);
+          const membershipRes = await axios.get(`${API_BASE_URL}/api/v1/memberships/my-active`, config);
           setMembership(membershipRes.data?.data || null);
         } catch (memError) {
-          console.error("❌ Mem API Error:", memError.response || memError.message);
           setMembership(null);
         }
 
         try {
-          const classesRes = await axios.get(`${BASE_URL}/classes`, config);
+          const classesRes = await axios.get(`${API_BASE_URL}/api/v1/classes`, config);
           const dataList = classesRes.data?.data || classesRes.data || [];
           if (Array.isArray(dataList)) setUpcomingClasses(dataList.slice(0, 2));
         } catch (clsError) {
-          console.error("❌ Class API Error:", clsError.response || clsError.message);
+          console.error("Gagal mengambil data kelas:", clsError);
         }
 
         try {
-          const myClassesRes = await axios.get(`${BASE_URL}/classes/my-bookings`, config);
+          const myClassesRes = await axios.get(`${API_BASE_URL}/api/v1/classes/my-bookings`, config);
           const myBookings = myClassesRes.data?.data || [];
           setPurchasedClassesCount(myBookings.length);
         } catch (error) {
-          console.error("❌ Booking API Error:", error.response || error.message);
+          console.error("Gagal mengambil data kelas yang dibeli:", error);
           setPurchasedClassesCount(0);
         }
 
         try {
-          const statsRes = await axios.get(`${BASE_URL}/attendance/stats`, config);
+          const statsRes = await axios.get(`${API_BASE_URL}/api/v1/attendance/stats`, config);
           setAttendanceDays(statsRes.data?.data?.totalDays || 0);
         } catch (statsError) {
-          console.error("❌ Stats API Error:", statsError.response || statsError.message);
+          console.error("Gagal mengambil statistik absensi:", statsError);
           setAttendanceDays(0);
         }
 
@@ -151,6 +133,12 @@ const DashboardMember = () => {
     };
 
     fetchDashboardData();
+
+    return () => {
+      console.log('🧹 Cleaning up Member socket');
+      socket.off('gym-count-updated');
+      socket.disconnect();
+    };
   }, [showToast]);
 
   const openBookingsModal = async () => {
@@ -163,7 +151,7 @@ const DashboardMember = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${BASE_URL}/classes/my-bookings`, {
+      const res = await axios.get(`${API_BASE_URL}/api/v1/classes/my-bookings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const bookings = res.data?.data || [];
@@ -187,7 +175,7 @@ const DashboardMember = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${BASE_URL}/attendance/redeem`,
+        `${API_BASE_URL}/api/v1/attendance/redeem`,
         { code: redeemCode.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -198,7 +186,7 @@ const DashboardMember = () => {
       if (response.data.action === 'CHECKOUT') setIsCheckedIn(false);
 
       try {
-        const statsRes = await axios.get(`${BASE_URL}/attendance/stats`, {
+        const statsRes = await axios.get(`${API_BASE_URL}/api/v1/attendance/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAttendanceDays(statsRes.data?.data?.totalDays || 0);
