@@ -70,7 +70,7 @@ const DashboardMember = () => {
       id: user.idUser ? `GB-${user.idUser.toString().padStart(5, '0')}` : 'GB-00000'
     });
 
-    const socket = io(`${BASE_URL}/attendance`, {
+    const socket = io(`${API_BASE_URL}/attendance`, {
       withCredentials: true,
       auth: { token },
       transports: ['websocket', 'polling'],
