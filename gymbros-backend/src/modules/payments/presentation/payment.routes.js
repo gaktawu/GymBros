@@ -1,3 +1,4 @@
+// src/modules/payments/interfaces/payment.routes.js
 import express from 'express';
 import { PaymentRepository } from '../infrastructure/payment.repository.js';
 import { PaymentUseCase } from '../application/payment.usecase.js';
@@ -6,15 +7,26 @@ import { asyncHandler } from '../../../shared/core/asyncHandler.js';
 import { validate } from '../../../shared/middlewares/validateMiddleware.js';
 import { protect } from '../../../shared/middlewares/authMiddleware.js';
 import { createInvoiceSchema } from './payment.validation.js';
-// import { NotificationService } from '../../notifications/application/notification.service.js';
+
+// Import modul notifikasi untuk diinjeksi
+import { NotificationRepository } from '../../notifications/infrastructure/notification.repository.js';
+import { NotificationUseCase } from '../../notifications/application/notification.usecase.js';
+import { NotificationService } from '../../notifications/application/notification.service.js';
+import { UsersRepository } from '../../users/infrastructure/users.repository.js';
 
 const router = express.Router();
 const paymentRepo = new PaymentRepository();
 
-// Aktifkan notification service jika modul notifikasi sudah siap
-const notificationService = null; // new NotificationService();
+// Inisialisasi Repository & Service Notifikasi
+const notificationRepo = new NotificationRepository();
+const usersRepo = new UsersRepository();
+const notificationUseCase = new NotificationUseCase(notificationRepo);
+const notificationService = new NotificationService(notificationRepo, usersRepo);
+
 const paymentUseCase = new PaymentUseCase(paymentRepo, notificationService);
-const paymentController = new PaymentController(paymentUseCase);
+
+// Inject Payment & Notification ke dalam PaymentController
+const paymentController = new PaymentController(paymentUseCase, notificationUseCase, notificationService);
 
 router.post('/webhook', asyncHandler(paymentController.handleMidtransWebhook));
 
@@ -22,11 +34,14 @@ router.post('/webhook', asyncHandler(paymentController.handleMidtransWebhook));
 router.use(protect);
 router.post('/invoice', validate(createInvoiceSchema), asyncHandler(paymentController.createInvoice));
 router.get('/invoice/:id', asyncHandler(paymentController.getInvoice));
-// Route untuk membatalkan invoice yang masih Pending
 router.post('/invoice/:id/cancel', asyncHandler(paymentController.cancelInvoice));
 router.get('/history', asyncHandler(paymentController.getTransactionHistory));
+// ── CRON: Expire reserved bookings yang menggantung ──
+router.post('/cron/expire-reserved', asyncHandler(paymentController.expireStaleReservedBookings));
 
-// Simulasi hanya untuk sandbox/dev - usecase menolak otomatis di production
+// Endpoint memicu notifikasi sukses pembayaran
+router.post('/invoice/:id/confirm', asyncHandler(paymentController.confirmPayment));
+
 router.post('/simulate-qris/:id', asyncHandler(paymentController.simulateQRIS));
 router.get('/revenue', asyncHandler(paymentController.getRevenueStats));
 

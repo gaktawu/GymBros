@@ -45,8 +45,6 @@ export class MembershipRepository {
   }
 
   async updateStatusExpired() {
-    // Query optimasi: Langsung update status menjadi 'Expired' untuk semua membership 
-    // yang tgl_berakhir-nya sudah lewat dari waktu saat ini (NOW()) dan statusnya masih 'Aktif'.
     const query = `
       UPDATE membership 
       SET status = 'Expired' 
@@ -59,7 +57,7 @@ export class MembershipRepository {
 
   async softDelete(idMembership) {
     const query = `
-    UPDATE user_memberships 
+    UPDATE membership 
     SET is_deleted = true, deleted_at = NOW()
     WHERE id_membership = $1
     RETURNING *
@@ -69,7 +67,7 @@ export class MembershipRepository {
   }
 
   async findById(idMembership) {
-    const query = `SELECT * FROM user_memberships WHERE id_membership = $1`;
+    const query = `SELECT * FROM membership WHERE id_membership = $1`;
     const result = await db.query(query, [idMembership]);
     return result.rows[0];
   }

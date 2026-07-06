@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api/v1';
+const EMPTY_CONFIRM = { isOpen: false, title: '', message: '', onConfirm: null, confirmText: 'Ya', cancelText: 'Batal', variant: 'danger' };
 
 export default function Profile() {
-  // State Profil & Keanggotaan
   const [profile, setProfile] = useState(null);
   const [membership, setMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // State Riwayat Transaksi (Paginasi & Pencarian)
   const [riwayat, setRiwayat] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
@@ -18,9 +17,9 @@ export default function Profile() {
   const [searchInput, setSearchInput] = useState('');
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const [confirmModal, setConfirmModal] = useState(EMPTY_CONFIRM);
   const navigate = useNavigate();
 
-  // 1. Ambil Data Profil & Membership
   useEffect(() => {
     const fetchProfileData = async () => {
       const token = localStorage.getItem('token');
@@ -32,7 +31,6 @@ export default function Profile() {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       try {
-        // Ambil Data User
         const userRes = await axios.get(`${API_BASE_URL}/users/profile`, config);
         const userData = userRes.data.data;
 
@@ -42,12 +40,11 @@ export default function Profile() {
           email: userData.email,
           telepon: userData.noTelepon || "-",
           avatar: userData.fotoProfil || "https://i.pravatar.cc/150?img=11",
-          peran: userData.peran || "Member",             // <-- Menyimpan informasi peran
-          jenisKelamin: userData.jenisKelamin || "-",    // <-- Menyimpan informasi jenis kelamin
+          peran: userData.peran || "Member",
+          jenisKelamin: userData.jenisKelamin || "-",
           qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GYMBROS-${userData.idUser}`
         });
 
-        // Ambil Data Membership Aktif
         try {
           const memRes = await axios.get(`${API_BASE_URL}/memberships/my-active`, config);
           setMembership(memRes.data.data);
@@ -68,7 +65,6 @@ export default function Profile() {
     fetchProfileData();
   }, [navigate]);
 
-  // 2. Ambil Data Riwayat Transaksi
   useEffect(() => {
     const fetchHistory = async () => {
       const token = localStorage.getItem('token');
@@ -93,19 +89,33 @@ export default function Profile() {
     fetchHistory();
   }, [page, search]);
 
-  // Handler Pencarian
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1); 
     setSearch(searchInput);
   };
 
+  const showConfirm = ({ title, message, onConfirm, confirmText = 'Ya', cancelText = 'Batal', variant = 'danger' }) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm, confirmText, cancelText, variant });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal(EMPTY_CONFIRM);
+  };
+
   const handleLogout = () => {
-    const confirmLogout = window.confirm("Apakah Anda yakin ingin keluar dari akun?");
-    if (confirmLogout) {
-      localStorage.clear();
-      navigate('/login'); 
-    }
+    showConfirm({
+      title: 'Konfirmasi Keluar',
+      message: 'Apakah Anda yakin ingin keluar dari akun? Anda perlu login kembali untuk mengakses fitur member.',
+      confirmText: 'Ya, Keluar',
+      cancelText: 'Batal',
+      variant: 'danger',
+      onConfirm: () => {
+        localStorage.clear();
+        navigate('/login');
+        closeConfirm();
+      }
+    });
   };
 
   const getStatusColor = (status) => {
@@ -138,22 +148,24 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-[#111315] p-6 md:p-10 font-sans text-[#E0E0E0]">
+      <style>{`
+        @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-modal { animation: scaleUp 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      `}</style>
+
       <section className="max-w-4xl mx-auto space-y-8">
         
-        {/* --- KARTU PROFIL --- */}
         <div className="bg-[#1A1C1E] p-8 rounded-3xl border border-[#333333] shadow-lg flex flex-col md:flex-row gap-8 items-center md:items-start">
           <img src={profile.avatar} alt="Profile" className="w-32 h-32 rounded-full border-4 border-[#C2A676] shadow-md object-cover" />
           <div className="flex-1 text-center md:text-left">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1 justify-center md:justify-start">
               <h1 className="text-3xl font-black text-white uppercase tracking-tight">{profile.namaLengkap}</h1>
-              {/* Badge Peran */}
               <span className="self-center md:self-auto text-[10px] px-2 py-0.5 bg-[#C2A676]/10 border border-[#C2A676]/30 text-[#C2A676] font-black uppercase tracking-wider rounded-md">
                 {profile.peran}
               </span>
             </div>
             <p className="text-[#C2A676] font-bold mb-4 tracking-widest uppercase text-xs">MEMBER ID: GB-{profile.idUser}</p>
             
-            {/* Grid Detail Pengguna */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 text-sm text-[#888888]">
               <p><strong className="text-[#E0E0E0]">Email:</strong> {profile.email}</p>
               <p><strong className="text-[#E0E0E0]">Telepon:</strong> {profile.telepon}</p>
@@ -169,7 +181,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* --- STATUS MEMBERSHIP & QR CODE --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <article className="bg-[#1A1C1E] p-6 rounded-3xl border border-[#333333] shadow-md">
             <h2 className="text-sm tracking-widest uppercase font-black text-[#C2A676] mb-4 border-b border-[#333333] pb-3">
@@ -204,7 +215,6 @@ export default function Profile() {
           </article>
         </div>
 
-        {/* --- RIWAYAT TRANSAKSI --- */}
         <article className="bg-[#1A1C1E] p-6 rounded-3xl border border-[#333333] shadow-md">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#333333] pb-3 mb-4 gap-4">
             <h2 className="text-sm tracking-widest uppercase font-black text-[#C2A676]">Riwayat Transaksi</h2>
@@ -283,6 +293,35 @@ export default function Profile() {
         </div>
 
       </section>
+
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className={`bg-[#1A1C1E] rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-modal border-t-4 ${confirmModal.variant === 'danger' ? 'border-red-500' : 'border-[#C2A676]'}`}>
+            <div className="mb-5">
+              <h3 className="text-lg font-black text-white mb-2 tracking-wide">{confirmModal.title}</h3>
+              <p className="text-[#888888] text-sm leading-relaxed">{confirmModal.message}</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeConfirm}
+                className="px-4 py-2 text-[#E0E0E0] bg-[#25282c] hover:bg-[#333333] rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-white/10"
+              >
+                {confirmModal.cancelText}
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className={`px-4 py-2 rounded-lg font-black text-xs uppercase tracking-wider shadow transition-colors ${
+                  confirmModal.variant === 'danger' 
+                    ? 'bg-red-600 hover:bg-red-500 text-white' 
+                    : 'bg-[#C2A676] hover:bg-[#e0c28d] text-[#111315]'
+                }`}
+              >
+                {confirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -2,21 +2,16 @@ import cron from 'node-cron';
 import { db } from '../shared/config/database.js';
 
 export const startMembershipCron = () => {
-  // Jalan setiap hari jam 00:00 WIB
+  //setiap jam 00.00
   cron.schedule('0 0 * * *', async () => {
     console.log('[CRON] Menjalankan pembersihan membership user yang sudah expired...');
 
     let client;
     try {
-      // db diekspor sebagai wrapper { query, getClient } dari shared/config/database.js
-      // getClient() mengembalikan pool.connect(), bukan db.connect() (db bukan Pool langsung)
+
       client = await db.getClient();
       await client.query('BEGIN');
 
-      // ============================================
-      // 1. UPDATE STATUS: membership yang sudah lewat tgl_berakhir → 'Expired'
-      //    (Nama tabel diubah ke 'membership', kolom ke 'tgl_berakhir')
-      // ============================================
       const expireRes = await client.query(`
         UPDATE membership 
         SET status = 'Expired' 
@@ -28,10 +23,6 @@ export const startMembershipCron = () => {
         console.log(`[CRON] ${expireRes.rowCount} membership user diubah jadi Expired.`);
       }
 
-      // ============================================
-      // 2. HARD DELETE: Membership yang masa aktifnya telah habis (Expired)
-      //    Langsung dihapus karena database menggunakan ON DELETE CASCADE
-      // ============================================
       const deleteRes = await client.query(`
         DELETE FROM membership
         WHERE tgl_berakhir < NOW()
@@ -45,10 +36,6 @@ export const startMembershipCron = () => {
         });
       }
 
-      // ============================================
-      // 3. HARD DELETE: paket_membership yang sudah soft-delete DAN tidak dirujuk lagi
-      //    (Nama tabel relasi diubah ke 'membership')
-      // ============================================
       const deletePaketRes = await client.query(`
         DELETE FROM paket_membership pm
         WHERE pm.is_deleted = true
@@ -64,7 +51,6 @@ export const startMembershipCron = () => {
 
       await client.query('COMMIT');
     } catch (error) {
-      // client bisa jadi undefined jika db.connect() sendiri yang gagal
       if (client) {
         try {
           await client.query('ROLLBACK');
@@ -74,10 +60,10 @@ export const startMembershipCron = () => {
       }
       console.error('[CRON ERROR] Gagal menjalankan pembersihan membership:', error);
     } finally {
-      if (client) client.release(); // Mengembalikan koneksi ke pool
+      if (client) client.release(); 
     }
   }, {
-    timezone: 'Asia/Jakarta' // pastikan jam 00:00 mengacu ke WIB, bukan timezone server
+    timezone: 'Asia/Jakarta' 
   });
 
   console.log('[CRON] Membership cleanup cron terdaftar: setiap hari 00:00 (Asia/Jakarta).');

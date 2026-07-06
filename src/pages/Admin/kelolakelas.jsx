@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-// 1. Konfigurasi Endpoint
 const API_URL_CLASSES = 'http://localhost:5000/api/v1/classes';
 const API_URL_COACHES = 'http://localhost:5000/api/v1/users/coaches';
 
-// 2. API Client dengan Token Interceptor
 const apiClient = axios.create();
 
 apiClient.interceptors.request.use((config) => {
@@ -40,6 +38,7 @@ const getErrorMessage = (error, fallback) => {
 
 const EMPTY_FORM = { nama_kelas: '', pengajar: '', waktu_mulai: '', waktu_selesai: '', kapasitas: '', harga: '' };
 const EMPTY_MODAL = { isOpen: false, type: 'add', data: null };
+const EMPTY_CONFIRM = { isOpen: false, title: '', message: '', onConfirm: null, confirmText: 'Ya', cancelText: 'Batal', variant: 'danger' };
 
 export default function KelolaKelas() {
     const [classes, setClasses] = useState([]);
@@ -55,15 +54,25 @@ export default function KelolaKelas() {
     const [participantModal, setParticipantModal] = useState({ isOpen: false, loading: false, data: [] });
     const [alertMsg, setAlertMsg] = useState(null);
     const [formData, setFormData] = useState(EMPTY_FORM);
+    
+    const [confirmModal, setConfirmModal] = useState(EMPTY_CONFIRM);
 
     const showAlert = useCallback((type, message) => {
         setAlertMsg({ type, message });
-        setTimeout(() => setAlertMsg(null), 3000);
+        setTimeout(() => setAlertMsg(null), 4000);
+    }, []);
+
+    const showConfirm = useCallback(({ title, message, onConfirm, confirmText = 'Ya', cancelText = 'Batal', variant = 'danger' }) => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm, confirmText, cancelText, variant });
+    }, []);
+
+    const closeConfirm = useCallback(() => {
+        setConfirmModal(EMPTY_CONFIRM);
     }, []);
 
     const fetchClasses = useCallback(async () => {
         try {
-            const response = await apiClient.get(API_URL_CLASSES, {
+            const response = await apiClient.get(`${API_URL_CLASSES}/admin/all`, {
                 params: { search: searchTerm, page, limit },
             });
             const payload = response.data;
@@ -97,7 +106,6 @@ export default function KelolaKelas() {
         fetchDataLengkap();
     }, [fetchDataLengkap]);
 
-    // PERBAIKAN 1: Menghilangkan error dependency array yang berubah-ubah ukurannya
     useEffect(() => {
         const timeout = setTimeout(() => {
             setPage(1);
@@ -112,7 +120,7 @@ export default function KelolaKelas() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page]);
 
-    const isValidId = (id) => id !== undefined && id !== null && id !== 'undefined' && !isNaN(Number(id));
+    const isValidId = (id) => id !== undefined && id !== null && id !== 'undefined' && id !== '' && !isNaN(Number(id));
 
     const fetchParticipants = async (classId) => {
         if (!isValidId(classId)) {
@@ -138,14 +146,13 @@ export default function KelolaKelas() {
                 return (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
             };
 
-            // PERBAIKAN 2: Mengamankan nilai null dari DB menjadi string kosong ('') agar tidak muncul warning Uncontrolled Component
             setFormData({
                 nama_kelas: data.nama_kelas || '',
-                pengajar: data.id_pelatih || '', 
+                pengajar: data.id_coach != null ? String(data.id_coach) : '',
                 waktu_mulai: formatDateForInput(data.waktu_mulai),
                 waktu_selesai: formatDateForInput(data.waktu_selesai),
-                kapasitas: data.kapasitas || '',
-                harga: data.harga || ''
+                kapasitas: data.kapasitas != null ? String(data.kapasitas) : '',
+                harga: data.harga != null ? String(data.harga) : ''
             });
         } else {
             setFormData(EMPTY_FORM);
@@ -160,21 +167,36 @@ export default function KelolaKelas() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (formData.waktu_selesai && formData.waktu_mulai) {
+            const start = new Date(formData.waktu_mulai);
+            const end = new Date(formData.waktu_selesai);
+            if (end <= start) {
+                showAlert('error', 'Waktu selesai harus lebih besar dari waktu mulai.');
+                return;
+            }
+        }
+        
         try {
-            // PERBAIKAN 3: Mengekstrak dummy 'hari', 'jam_mulai', 'jam_selesai' agar validasi backend lama Anda tetap lolos (Mencegah 400 Bad Request)
             const dMulai = formData.waktu_mulai ? new Date(formData.waktu_mulai) : new Date();
             const hariHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const namaHari = hariHari[dMulai.getDay()];
-            
-            const extractTime = (datetimeStr) => datetimeStr.includes('T') ? datetimeStr.split('T')[1].substring(0, 5) : '00:00';
+
+            const extractTime = (datetimeStr) => {
+                if (!datetimeStr || !datetimeStr.includes('T')) return '00:00';
+                return datetimeStr.split('T')[1].substring(0, 5);
+            };
 
             const payload = {
-                ...formData,
+                nama_kelas: formData.nama_kelas.trim(),
+                pengajar: Number(formData.pengajar),
                 hari: namaHari,
                 jam_mulai: extractTime(formData.waktu_mulai),
                 jam_selesai: extractTime(formData.waktu_selesai),
                 waktu_mulai: new Date(formData.waktu_mulai).toISOString(),
-                waktu_selesai: new Date(formData.waktu_selesai).toISOString()
+                waktu_selesai: new Date(formData.waktu_selesai).toISOString(),
+                kapasitas: Number(formData.kapasitas),
+                harga: Number(formData.harga)
             };
 
             if (modalConfig.type === 'add') {
@@ -189,22 +211,32 @@ export default function KelolaKelas() {
                 showAlert('success', 'Kelas berhasil diperbarui!');
             }
             closeModal();
-            await fetchClasses(); 
+            await fetchClasses();
         } catch (error) {
             showAlert('error', getErrorMessage(error, 'Terjadi kesalahan saat memproses data'));
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = (id) => {
         if (!isValidId(id)) return;
-        if (!window.confirm('Yakin ingin menghapus kelas ini?')) return;
-        try {
-            await apiClient.delete(`${API_URL_CLASSES}/${id}`);
-            showAlert('success', 'Kelas berhasil dihapus!');
-            await fetchClasses();
-        } catch (error) {
-            showAlert('error', getErrorMessage(error, 'Gagal menghapus kelas.'));
-        }
+        
+        showConfirm({
+            title: 'Konfirmasi Arsipkan',
+            message: 'Yakin ingin mengarsipkan kelas ini? Kelas yang diarsipkan tidak akan terlihat oleh member.',
+            confirmText: 'Ya, Arsipkan',
+            cancelText: 'Batal',
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await apiClient.delete(`${API_URL_CLASSES}/${id}`);
+                    showAlert('success', 'Kelas berhasil diarsipkan!');
+                    await fetchClasses();
+                } catch (error) {
+                    showAlert('error', getErrorMessage(error, 'Gagal mengarsipkan kelas.'));
+                }
+                closeConfirm();
+            }
+        });
     };
 
     return (
@@ -241,9 +273,8 @@ export default function KelolaKelas() {
             </div>
 
             {alertMsg && (
-                <div className={`animate-alert mb-6 p-4 rounded-lg flex items-center border ${
-                    alertMsg.type === 'success' ? 'bg-[#1a2a1a] border-green-900/50 text-green-400' : 'bg-[#2a1a1a] border-red-900/50 text-red-400'
-                }`}>
+                <div className={`animate-alert mb-6 p-4 rounded-lg flex items-center border ${alertMsg.type === 'success' ? 'bg-[#1a2a1a] border-green-900/50 text-green-400' : 'bg-[#2a1a1a] border-red-900/50 text-red-400'
+                    }`}>
                     <span className="font-medium">{alertMsg.message}</span>
                 </div>
             )}
@@ -258,43 +289,67 @@ export default function KelolaKelas() {
                                 <th className="px-6 py-4 font-semibold">Jadwal</th>
                                 <th className="px-6 py-4 font-semibold">Kapasitas</th>
                                 <th className="px-6 py-4 font-semibold">Harga</th>
+                                <th className="px-6 py-4 font-semibold text-center">Status</th>
                                 <th className="px-6 py-4 font-semibold text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#2a2a2a] text-gray-300">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                                         Memuat data...
                                     </td>
                                 </tr>
                             ) : classes.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">Belum ada kelas yang terdaftar.</td>
+                                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">Belum ada kelas yang terdaftar.</td>
                                 </tr>
                             ) : (
                                 classes.map((cls, index) => {
                                     const rowKey = cls.id_kelas != null ? `class-${cls.id_kelas}` : `row-${index}`;
                                     const hasValidId = isValidId(cls.id_kelas);
+                                    const isArchived = cls.is_deleted === true || cls.status === 'Completed';
 
                                     return (
-                                        <tr key={rowKey} className="hover:bg-[#1a1a0f]/30 transition-colors duration-200">
-                                            <td className="px-6 py-4 font-medium text-white">{cls.nama_kelas || 'N/A'}</td>
-                                            <td className="px-6 py-4">{cls.pengajar_nama || '-'}</td>
+                                        <tr
+                                            key={rowKey}
+                                            className={`transition-colors duration-200 ${isArchived
+                                                ? 'bg-gray-900/40 opacity-60'
+                                                : 'hover:bg-[#1a1a0f]/30'
+                                                }`}
+                                        >
+                                            <td className={`px-6 py-4 font-medium ${isArchived ? 'text-gray-500 line-through' : 'text-white'}`}>
+                                                {cls.nama_kelas || 'N/A'}
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-400">{cls.pengajar_nama || '-'}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1 text-sm">
-                                                    <span className="inline-flex w-fit bg-yellow-500/10 text-yellow-400 px-2.5 py-0.5 rounded-full font-medium">
+                                                    <span className={`inline-flex w-fit px-2.5 py-0.5 rounded-full font-medium ${isArchived
+                                                        ? 'bg-gray-800 text-gray-500'
+                                                        : 'bg-yellow-500/10 text-yellow-400'
+                                                        }`}>
                                                         {cls.waktu_mulai ? new Date(cls.waktu_mulai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }) : '-'}
                                                     </span>
                                                     <span className="text-gray-500">
-                                                        {cls.waktu_mulai ? new Date(cls.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''} - 
+                                                        {cls.waktu_mulai ? new Date(cls.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''} -
                                                         {cls.waktu_selesai ? new Date(cls.waktu_selesai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">{cls.kapasitas || 0} Org</td>
-                                            <td className="px-6 py-4 font-semibold text-emerald-400">
+                                            <td className="px-6 py-4 text-gray-400">{cls.kapasitas || 0} Org</td>
+                                            <td className={`px-6 py-4 font-semibold ${isArchived ? 'text-gray-600' : 'text-emerald-400'}`}>
                                                 Rp {Number(cls.harga || 0).toLocaleString('id-ID')}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {isArchived ? (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700">
+                                                        Diarsipkan
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                                                        Aktif
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-center gap-2">
@@ -307,18 +362,24 @@ export default function KelolaKelas() {
                                                         👥
                                                     </button>
                                                     <button
-                                                        onClick={() => hasValidId && handleOpenModal('edit', cls)}
-                                                        disabled={!hasValidId}
-                                                        className={`p-2 rounded-lg transition-colors ${hasValidId ? 'text-amber-400 hover:bg-amber-500/10' : 'text-gray-600 cursor-not-allowed'}`}
-                                                        title="Edit"
+                                                        onClick={() => hasValidId && !isArchived && handleOpenModal('edit', cls)}
+                                                        disabled={!hasValidId || isArchived}
+                                                        className={`p-2 rounded-lg transition-colors ${hasValidId && !isArchived
+                                                            ? 'text-amber-400 hover:bg-amber-500/10'
+                                                            : 'text-gray-600 cursor-not-allowed'
+                                                            }`}
+                                                        title={isArchived ? 'Kelas sudah diarsipkan' : 'Edit'}
                                                     >
                                                         ✏️
                                                     </button>
                                                     <button
-                                                        onClick={() => hasValidId && handleDelete(cls.id_kelas)}
-                                                        disabled={!hasValidId}
-                                                        className={`p-2 rounded-lg transition-colors ${hasValidId ? 'text-red-400 hover:bg-red-500/10' : 'text-gray-600 cursor-not-allowed'}`}
-                                                        title="Hapus"
+                                                        onClick={() => hasValidId && !isArchived && handleDelete(cls.id_kelas)}
+                                                        disabled={!hasValidId || isArchived}
+                                                        className={`p-2 rounded-lg transition-colors ${hasValidId && !isArchived
+                                                            ? 'text-red-400 hover:bg-red-500/10'
+                                                            : 'text-gray-600 cursor-not-allowed'
+                                                            }`}
+                                                        title={isArchived ? 'Kelas sudah diarsipkan' : 'Arsipkan'}
                                                     >
                                                         🗑️
                                                     </button>
@@ -355,6 +416,7 @@ export default function KelolaKelas() {
                 )}
             </div>
 
+            {/* Modal Add/Edit */}
             {modalConfig.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity duration-300">
                     <div className="bg-[#1a1a1a] rounded-2xl shadow-2xl w-full max-w-lg p-6 animate-modal border-t-4 border-yellow-500">
@@ -407,6 +469,33 @@ export default function KelolaKelas() {
                 </div>
             )}
 
+            {/* Modal Konfirmasi — pengganti window.confirm */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className={`bg-[#1a1a1a] rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-modal border-t-4 ${confirmModal.variant === 'danger' ? 'border-red-500' : 'border-yellow-500'}`}>
+                        <div className="mb-4">
+                            <h3 className="text-lg font-bold text-white mb-2">{confirmModal.title}</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed">{confirmModal.message}</p>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={closeConfirm}
+                                className="px-4 py-2 text-gray-300 bg-[#2a2a2a] hover:bg-[#333333] rounded-lg font-medium transition-colors"
+                            >
+                                {confirmModal.cancelText}
+                            </button>
+                            <button
+                                onClick={confirmModal.onConfirm}
+                                className={`px-4 py-2 rounded-lg font-semibold shadow transition-colors ${confirmModal.variant === 'danger' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-[#0f0f0f]'}`}
+                            >
+                                {confirmModal.confirmText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Peserta */}
             {participantModal.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
                     <div className="bg-[#1a1a1a] rounded-2xl shadow-2xl w-full max-w-md p-6 animate-modal border-t-4 border-blue-500">
@@ -429,10 +518,9 @@ export default function KelolaKelas() {
                                             <p className="text-white font-medium">{p.nama_lengkap || 'Unknown'}</p>
                                             <p className="text-gray-500 text-sm">{p.email || '-'}</p>
                                         </div>
-                                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                                            p.status === 'confirmed' ? 'bg-green-500/20 text-green-400' :
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${p.status === 'confirmed' ? 'bg-green-500/20 text-green-400' :
                                             p.status === 'cancelled' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
-                                        }`}>
+                                            }`}>
                                             {p.status || 'pending'}
                                         </span>
                                     </div>

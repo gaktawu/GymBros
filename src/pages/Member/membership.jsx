@@ -1,3 +1,4 @@
+// src/pages/member/Membership.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -7,7 +8,6 @@ const API_BASE_URL = 'http://localhost:5000/api/v1';
 const Membership = () => {
   const navigate = useNavigate();
 
-  // ── STATE ──────────────────────────────────────────────────
   const [paketList, setPaketList] = useState([]);
   const [loadingPaket, setLoadingPaket] = useState(true);
 
@@ -20,13 +20,11 @@ const Membership = () => {
   const [showSyarat, setShowSyarat] = useState(false);
   const [agreedSyarat, setAgreedSyarat] = useState(false);
 
-  // ── USE EFFECT (FETCHING DATA) ──────────────────────────────
   useEffect(() => {
     document.title = 'Gymbros | Pilih Membership';
     const ori = document.body.style.backgroundColor;
     document.body.style.backgroundColor = '#111315';
 
-    // 1. FETCH DATA PAKET MEMBERSHIP DARI DATABASE
     const fetchPaket = async () => {
       try {
         setLoadingPaket(true);
@@ -36,11 +34,10 @@ const Membership = () => {
         const res = await axios.get(`${API_BASE_URL}/paket-membership`, config);
         const rawData = res.data.data || [];
 
-        // Mapping Data Database ke Format UI
         const mappedPaket = rawData.map((item) => {
           const namaPaket = item.nama_paket || item.namaPaket || 'Membership';
           const harga = item.harga || 0;
-          const durasiHari = item.durasi_hari || item.durasiHari || 30; // Tambahan fallback durasi
+          const durasiHari = item.durasi_hari || item.durasiHari || 30;
 
           let benefits = item.benefit || item.deskripsi || '';
           if (typeof benefits === 'string') {
@@ -86,7 +83,7 @@ const Membership = () => {
           return {
             id: item.id_paket || item.idPaket || item.id,
             durasi: namaPaket,
-            durasiHari: durasiHari, // Digunakan untuk warning extend
+            durasiHari: durasiHari,
             filter: filterStr,
             hargaNormal: harga,
             hargaDiskon: hargaDiskon,
@@ -109,7 +106,6 @@ const Membership = () => {
 
     fetchPaket();
 
-    // 2. FETCH TESTIMONI
     axios
       .get('https://jsonplaceholder.typicode.com/posts?_limit=10')
       .then((res) => {
@@ -128,7 +124,6 @@ const Membership = () => {
     return () => { document.body.style.backgroundColor = ori; };
   }, []);
 
-  // ── FILTER ─────────────────────────────────────────────────
   const paketFiltered = paketList.filter((p) => {
     const matchFilter = selectedFilter === 'semua' || p.filter === selectedFilter;
     const matchSearch = p.durasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -136,18 +131,36 @@ const Membership = () => {
     return matchFilter && matchSearch;
   });
 
-  // ── HANDLER ────────────────────────────────────────────────
+  const formatRupiah = (n) => 'Rp ' + (n || 0).toLocaleString('id-ID');
+
   const handlePilihPaket = (paket) => {
     setPaketDipilih(paket);
     setShowSyarat(true);
     setAgreedSyarat(false);
   };
 
-  const handleLanjutBayar = () => {
+  const handleLanjutBayar = async () => {
     if (!agreedSyarat) return;
     setShowSyarat(false);
 
-    // Konversi ke format Universal Payment Page
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.post(
+          `${API_BASE_URL}/notifications/trigger`, 
+          {
+            kategori: 'Membership',
+            judul: 'Menunggu Pembayaran Membership',
+            pesan: `Anda telah memilih paket ${paketDipilih.durasi}. Silakan selesaikan pembayaran Anda sebesar ${formatRupiah(paketDipilih.hargaDiskon)}.`,
+            namaPaket: paketDipilih.durasi 
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch (error) {
+      console.error("Gagal memicu notifikasi awal sistem:", error);
+    }
+
     navigate('/member/bayar', {
       state: {
         item: {
@@ -162,13 +175,9 @@ const Membership = () => {
     });
   };
 
-  const formatRupiah = (n) => 'Rp ' + (n || 0).toLocaleString('id-ID');
-
-  // ── RENDER ─────────────────────────────────────────────────
   return (
     <main className="w-full max-w-6xl mx-auto space-y-10 text-[#E0E0E0] pb-10">
 
-      {/* ══ HERO HEADER ══════════════════════════════════════ */}
       <header className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 md:p-8 rounded-3xl shadow-xl overflow-hidden mt-6">
         <div className="absolute -right-10 -top-10 w-48 h-48 bg-[#C2A676]/5 rounded-full blur-2xl pointer-events-none" />
         <p className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">
@@ -194,7 +203,6 @@ const Membership = () => {
         </div>
       </header>
 
-      {/* ══ FORM FILTER / SEARCH ═════════════════════════════ */}
       <form
         onSubmit={(e) => e.preventDefault()}
         className="bg-[#1A1C1E] border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center"
@@ -241,7 +249,6 @@ const Membership = () => {
         </div>
       </form>
 
-      {/* ══ KARTU PAKET ══════════════════════════════════════ */}
       <section>
         {loadingPaket ? (
           <div className="text-center py-20 text-[#C2A676] font-black uppercase tracking-widest animate-pulse">
@@ -323,7 +330,6 @@ const Membership = () => {
         )}
       </section>
 
-      {/* ══ MODAL SYARAT & KETENTUAN ═════════════════════════ */}
       {showSyarat && paketDipilih && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
           <div
@@ -339,7 +345,6 @@ const Membership = () => {
               <strong className="text-white">{formatRupiah(paketDipilih.hargaDiskon)}</strong>
             </p>
 
-            {/* INFO BANNER BACKEND LOGIC MEMBERSHIP (Perpanjangan / Anti Duplikat Invoice) */}
             <div className="bg-[#111315] border border-[#C2A676]/30 rounded-xl p-3 mb-4 flex gap-3 items-start">
               <span className="text-[#C2A676] text-lg leading-none mt-0.5">ℹ️</span>
               <p className="text-[11px] text-gray-300 leading-relaxed">
