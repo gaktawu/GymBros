@@ -65,7 +65,7 @@ const AddMember = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
-  
+
   const [daftarPaket, setDaftarPaket] = useState([]);
   const [isLoadingPaket, setIsLoadingPaket] = useState(true);
 
@@ -78,7 +78,7 @@ const AddMember = () => {
     password_confirmation: '',
     gender: 'Laki-laki',
     role: 'Member',
-    plan: '' 
+    plan: ''
   });
 
   useEffect(() => {
@@ -110,7 +110,7 @@ const AddMember = () => {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         const res = await axios.get("http://localhost:5000/api/v1/paket-membership");
         const packages = res.data.data || res.data;
-        
+
         const activePackages = packages.filter(p => p.status_aktif === 'Tersedia' && !p.is_deleted);
         setDaftarPaket(activePackages);
 
@@ -138,10 +138,10 @@ const AddMember = () => {
 
   const validateForm = () => {
     let newErrors = {};
-    
+
     if (!formData.firstName.trim()) newErrors.firstName = "Nama depan wajib diisi";
     if (!formData.lastName.trim()) newErrors.lastName = "Nama belakang wajib diisi";
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email) newErrors.email = "Email wajib diisi";
     else if (!emailRegex.test(formData.email)) newErrors.email = "Format email tidak valid";
@@ -167,7 +167,7 @@ const AddMember = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     // Tambahan dialog konfirmasi sebelum menyimpan (opsional tapi bagus untuk UX)
@@ -177,21 +177,24 @@ const AddMember = () => {
     setIsSubmitting(true);
     setServerError('');
 
+    // Di dalam handleSubmit, tambahkan statusAkun ke payload:
+
     const payload = {
       namaLengkap: `${formData.firstName} ${formData.lastName}`.trim(),
       email: formData.email.toLowerCase(),
       password: formData.password,
-      noTelepon: formData.phone, 
-      peran: formData.role,
-      jenisKelamin: formData.gender, 
-      idPaket: formData.plan 
+      noTelepon: formData.phone,
+      peran: formData.role,        // Sudah benar: "Admin", "Member", atau "Coach"
+      statusAkun: 'Aktif',         // ➕ TAMBAHAN: Default status untuk member baru
+      jenisKelamin: formData.gender,
+      idPaket: formData.plan
     };
 
     try {
       Alert.loading("Menyimpan Data", "Mohon tunggu sebentar...");
-      
+
       await axios.post("http://localhost:5000/api/v1/users", payload);
-      
+
       Alert.close();
       Alert.success("Member berhasil ditambahkan.");
       navigate('/admin/datamember');
@@ -219,7 +222,7 @@ const AddMember = () => {
       </div>
 
       <div className="bg-[#1e2023] border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl">
-        
+
         {serverError && (
           <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-xl flex items-center gap-3">
             <span className="text-sm font-medium">{serverError}</span>
@@ -303,17 +306,17 @@ const AddMember = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-white/5 mt-8">
-            <button 
-              type="button" 
-              onClick={handleBack} 
-              disabled={isSubmitting} 
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={isSubmitting}
               className="flex-1 rounded-2xl bg-[#25282c] border border-white/5 px-6 py-4 text-xs font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all"
             >
               Kembali
             </button>
-            <button 
-              type="submit" 
-              disabled={isSubmitting || isLoadingPaket || daftarPaket.length === 0} 
+            <button
+              type="submit"
+              disabled={isSubmitting || isLoadingPaket || daftarPaket.length === 0}
               className="flex-1 rounded-2xl bg-[#C2A676] px-6 py-4 text-xs font-black uppercase tracking-widest text-[#111315] hover:bg-[#d4b88a] transition-all flex items-center justify-center gap-2"
             >
               {isSubmitting ? <span>Menyimpan...</span> : <span>Simpan Data Anggota</span>}

@@ -9,7 +9,29 @@ const SCROLLBAR_STYLES = `
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d4b88a; }
 `;
 
-const INITIAL_EDIT_STATE = { id: "", name: "", email: "", plan: "Basic Bro", status: "Active" };
+// --- MAPPING: UI Label → Database Value ---
+const ROLE_UI_TO_DB = {
+  'Admin': 'Admin',
+  'Anggota': 'Member',
+  'Pelatih': 'Coach',
+};
+
+const ROLE_DB_TO_UI = {
+  'Admin': 'Admin',
+  'Member': 'Anggota',
+  'Coach': 'Pelatih',
+};
+
+const STATUS_UI_TO_DB = {
+  'Active': 'Aktif',
+  'Expired': 'Nonaktif',
+};
+
+const STATUS_DB_TO_UI = {
+  'Aktif': 'Active',
+  'Nonaktif': 'Expired',
+  'Diblokir': 'Expired',
+};
 
 const AdminManageMembers = () => {  
   const navigate = useNavigate();
@@ -20,10 +42,15 @@ const AdminManageMembers = () => {
   const ITEMS_PER_PAGE = 10;
 
   const [modalState, setModalState] = useState({ type: null, payload: null });
-  const [editForm, setEditForm] = useState(INITIAL_EDIT_STATE);
+  const [editForm, setEditForm] = useState({ 
+    id: "", 
+    name: "", 
+    email: "", 
+    plan: "Anggota",  // UI label
+    status: "Active"  // UI label
+  });
 
   // 1. FUNGSI TARIK DATA (READ)
-  // PERBAIKAN: Menambahkan parameter isBackgroundFetch agar tidak memunculkan animasi loading terus-menerus
   const fetchMemberData = useCallback(async (isBackgroundFetch = false) => {
     try {
       if (!isBackgroundFetch) setIsLoading(true);
@@ -39,15 +66,16 @@ const AdminManageMembers = () => {
       const response = await axios.get('http://localhost:5000/api/v1/users', apiConfig);
       const rawData = response.data.data || response.data;
 
-      // PERBAIKAN: Memperbaiki penamaan field sesuai dengan toJSON() pada User.js Backend
+      // PERBAIKAN: Mapping peran & status dari DB ke UI
       const formattedMembers = rawData.map(user => ({
-        id: user.idUser || user.id, // Sesuai field backend
+        id: user.idUser || user.id,
         name: (user.namaLengkap || 'Tanpa Nama').toUpperCase(),
         email: user.email ? user.email.toLowerCase() : '',
-        plan: user.peran || "Anggota", 
-        status: user.statusAkun === 'Aktif' ? 'Active' : 'Expired', // PERBAIKAN: Menggunakan statusAkun, bukan status
+        // PERBAIKAN: Konversi DB → UI
+        plan: ROLE_DB_TO_UI[user.peran] || user.peran || "Anggota",
+        status: STATUS_DB_TO_UI[user.statusAkun] || 'Expired',
         joined: user.dibuatPada ? new Date(user.dibuatPada).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Baru',
-        image: user.fotoProfil || null // PERBAIKAN: Menggunakan fotoProfil, bukan avatar
+        image: user.fotoProfil || null
       }));
 
       setMembers(formattedMembers);
@@ -63,7 +91,7 @@ const AdminManageMembers = () => {
     const originalBodyBg = document.body.style.backgroundColor;
     document.body.style.backgroundColor = "#111315";
 
-    fetchMemberData(false); // Fetch pertama kali dengan animasi loading
+    fetchMemberData(false);
 
     return () => {
       document.body.style.backgroundColor = originalBodyBg;
@@ -72,36 +100,48 @@ const AdminManageMembers = () => {
 
   const openModal = useCallback((type, payload) => {
     setModalState({ type, payload });
-    if (type === 'EDIT') setEditForm({ ...payload });
+    if (type === 'EDIT') {
+      // PERBAIKAN: Pastikan editForm pakai UI label (bukan DB value)
+      setEditForm({ 
+        id: payload.id,
+        name: payload.name,
+        email: payload.email,
+        plan: payload.plan,      // Sudah dalam format UI ("Anggota"/"Pelatih"/"Admin")
+        status: payload.status   // Sudah dalam format UI ("Active"/"Expired")
+      });
+    }
   }, []);
 
   const closeModal = useCallback(() => {
     setModalState({ type: null, payload: null });
-    setEditForm(INITIAL_EDIT_STATE);
+    setEditForm({ id: "", name: "", email: "", plan: "Anggota", status: "Active" });
   }, []);
 
-  // 2. FUNGSI EDIT DATA (PUT)
+  // 2. FUNGSI EDIT DATA (PUT) — PERBAIKAN MAPPING
   const handleEditSubmit = useCallback(async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
       const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
       
+      // PERBAIKAN: Konversi UI label → Database value sebelum kirim
       const payload = {
         namaLengkap: editForm.name,
         email: editForm.email,
-        peran: editForm.plan,
-        status: editForm.status === 'Active' ? 'Aktif' : 'Nonaktif'
+        peran: ROLE_UI_TO_DB[editForm.plan],        // "Anggota" → "Member"
+        status: STATUS_UI_TO_DB[editForm.status]     // "Active" → "Aktif"
       };
+
+      console.log("Payload ke backend:", payload); // Debug
 
       await axios.put(`http://localhost:5000/api/v1/users/${editForm.id}`, payload, apiConfig);
       
-      // Sinkronisasi data di latar belakang agar tabel tidak kedip
       await fetchMemberData(true);
       closeModal();
     } catch (error) {
-      console.error(error);
-      alert("Gagal memperbarui data anggota dari server!");
+      console.error("Edit error:", error);
+      const msg = error.response?.data?.message || "Gagal memperbarui data anggota!";
+      alert(msg);
     }
   }, [editForm, fetchMemberData, closeModal]);
 
@@ -126,17 +166,16 @@ const AdminManageMembers = () => {
     const target = members.find(m => m.id === id);
     if (!target) return;
     
-    const newStatus = target.status === 'Active' ? 'Nonaktif' : 'Aktif';
+    // PERBAIKAN: Toggle UI status, lalu konversi ke DB
+    const newUiStatus = target.status === 'Active' ? 'Expired' : 'Active';
+    const newDbStatus = STATUS_UI_TO_DB[newUiStatus]; // "Aktif" atau "Nonaktif"
     
     try {
       const token = localStorage.getItem('token');
       const apiConfig = { headers: { Authorization: `Bearer ${token}` } };
       
-      // Kirim pembaruan ke backend
-      await axios.patch(`http://localhost:5000/api/v1/users/${id}/status`, { status: newStatus }, apiConfig);
+      await axios.patch(`http://localhost:5000/api/v1/users/${id}/status`, { status: newDbStatus }, apiConfig);
       
-      // PERBAIKAN: Fetch data ulang di latar belakang (Background Fetch = true)
-      // Ini akan mencegah layar berkedip saat tombol di klik
       await fetchMemberData(true); 
     } catch (error) {
       console.error(error);
@@ -176,7 +215,7 @@ const AdminManageMembers = () => {
     <main className="w-full max-w-6xl mx-auto space-y-6 text-[#E0E0E0] select-none bg-[#111315] relative z-30 pointer-events-auto p-4 md:p-6">
       <style>{SCROLLBAR_STYLES}</style>
 
-      {/* HEADER KONTROL PANEL */}
+      {/* HEADER */}
       <div className="relative bg-gradient-to-r from-[#1e2023] to-[#25282c] border border-white/10 p-6 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 overflow-hidden shadow-xl">
         <div>
           <h4 className="text-[#C2A676] text-xs font-black tracking-widest uppercase mb-1">ADMIN CONTROL PANEL</h4>
@@ -222,7 +261,7 @@ const AdminManageMembers = () => {
         </button>       
       </div>
 
-      {/* TABEL DATA MEMBER */}
+      {/* TABEL */}
       <div className="bg-[#1e2023] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
         {isLoading ? (
           <div className="p-20 text-center text-xs font-black tracking-widest text-[#C2A676] uppercase animate-pulse">
@@ -237,7 +276,7 @@ const AdminManageMembers = () => {
                   <th className="py-4 px-6">Profile</th>
                   <th className="py-4 px-6">Full Name</th>
                   <th className="py-4 px-6">Email Address</th>
-                  <th className="py-4 px-6">Plan Type</th>
+                  <th className="py-4 px-6">Role</th>
                   <th className="py-4 px-6">Joined Date</th>
                   <th className="py-4 px-6 text-center">Status</th>
                   <th className="py-4 px-6 text-center">Actions</th>
@@ -272,7 +311,6 @@ const AdminManageMembers = () => {
                         <div className="flex items-center justify-center gap-1.5">
                           <button onClick={() => openModal('EDIT', member)} className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase bg-white/5 border border-white/5 hover:border-[#C2A676] hover:text-[#C2A676] transition-colors">Edit</button>
                           
-                          {/* TOMBOL BAN / UNBAN */}
                           <button onClick={() => toggleStatus(member.id)} className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase transition-colors ${member.status.toLowerCase() === 'active' ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-[#111315]' : 'bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-[#111315]'}`}>
                             {member.status.toLowerCase() === 'active' ? 'Ban' : 'Unban'}
                           </button>
@@ -329,7 +367,7 @@ const AdminManageMembers = () => {
         )}
       </div>
 
-      {/* MODAL EDIT DATA */}
+      {/* MODAL EDIT — PERBAIKAN SELECT OPTIONS */}
       {modalState.type === 'EDIT' && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={closeModal}></div>
@@ -354,21 +392,34 @@ const AdminManageMembers = () => {
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
                 <input type="email" value={editForm.email} onChange={(e) => setEditForm(p => ({ ...p, email: e.target.value }))} required className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors" />
               </div>
+              
+              {/* PERBAIKAN: Select Role dengan value UI label */}
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Role / Plan</label>
-                <select value={editForm.plan} onChange={(e) => setEditForm(p => ({ ...p, plan: e.target.value }))} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Role</label>
+                <select 
+                  value={editForm.plan} 
+                  onChange={(e) => setEditForm(p => ({ ...p, plan: e.target.value }))} 
+                  className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors"
+                >
                   <option value="Admin">Admin</option>
                   <option value="Anggota">Anggota</option>
                   <option value="Pelatih">Pelatih</option>
                 </select>
               </div>
+              
+              {/* PERBAIKAN: Select Status dengan value UI label */}
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status Account</label>
-                <select value={editForm.status} onChange={(e) => setEditForm(p => ({ ...p, status: e.target.value }))} className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors">
+                <select 
+                  value={editForm.status} 
+                  onChange={(e) => setEditForm(p => ({ ...p, status: e.target.value }))} 
+                  className="w-full bg-[#25282c] border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C2A676]/50 transition-colors"
+                >
                   <option value="Active">Active</option>
                   <option value="Expired">Nonaktif / Banned</option>
                 </select>
               </div>
+              
               <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
                 <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-[#25282c] px-4 py-2.5 text-xs font-black uppercase text-white hover:bg-[#333333] transition-colors">Cancel</button>
                 <button type="submit" className="flex-1 rounded-xl bg-[#C2A676] px-4 py-2.5 text-xs font-black uppercase text-[#111315] hover:bg-[#d4b88a] transition-colors">Save Changes</button>
@@ -378,7 +429,7 @@ const AdminManageMembers = () => {
         </div>
       )}
 
-      {/* MODAL HAPUS DATA */}
+      {/* MODAL HAPUS */}
       {modalState.type === 'DELETE' && modalState.payload && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm" onClick={closeModal}></div>
