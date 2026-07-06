@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { io } from "socket.io-client";
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
+
 
 const DashboardMember = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -69,7 +70,7 @@ const DashboardMember = () => {
       id: user.idUser ? `GB-${user.idUser.toString().padStart(5, '0')}` : 'GB-00000'
     });
 
-    const socket = io('http://localhost:5000/attendance', {
+    const socket = io(`${BASE_URL}/attendance`, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -94,14 +95,14 @@ const DashboardMember = () => {
         setIsLoading(true);
 
         try {
-          const membershipRes = await axios.get(`${API_BASE_URL}/memberships/my-active`, config);
+          const membershipRes = await axios.get(`${BASE_URL}/memberships/my-active`, config);
           setMembership(membershipRes.data?.data || null);
         } catch (memError) {
           setMembership(null);
         }
 
         try {
-          const classesRes = await axios.get(`${API_BASE_URL}/classes`, config);
+          const classesRes = await axios.get(`${BASE_URL}/classes`, config);
           const dataList = classesRes.data?.data || classesRes.data || [];
           if (Array.isArray(dataList)) setUpcomingClasses(dataList.slice(0, 2));
         } catch (clsError) {
@@ -109,7 +110,7 @@ const DashboardMember = () => {
         }
 
         try {
-          const myClassesRes = await axios.get(`${API_BASE_URL}/classes/my-bookings`, config);
+          const myClassesRes = await axios.get(`${BASE_URL}/classes/my-bookings`, config);
           const myBookings = myClassesRes.data?.data || [];
           setPurchasedClassesCount(myBookings.length);
         } catch (error) {
@@ -118,7 +119,7 @@ const DashboardMember = () => {
         }
 
         try {
-          const statsRes = await axios.get(`${API_BASE_URL}/attendance/stats`, config);
+          const statsRes = await axios.get(`${BASE_URL}/attendance/stats`, config);
           setAttendanceDays(statsRes.data?.data?.totalDays || 0);
         } catch (statsError) {
           console.error("Gagal mengambil statistik absensi:", statsError);
@@ -149,7 +150,7 @@ const DashboardMember = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_BASE_URL}/classes/my-bookings`, {
+      const res = await axios.get(`${BASE_URL}/classes/my-bookings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const bookings = res.data?.data || [];
@@ -173,7 +174,7 @@ const DashboardMember = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_BASE_URL}/attendance/redeem`,
+        `${BASE_URL}/attendance/redeem`,
         { code: redeemCode.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -184,7 +185,7 @@ const DashboardMember = () => {
       if (response.data.action === 'CHECKOUT') setIsCheckedIn(false);
 
       try {
-        const statsRes = await axios.get(`${API_BASE_URL}/attendance/stats`, {
+        const statsRes = await axios.get(`${BASE_URL}/attendance/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAttendanceDays(statsRes.data?.data?.totalDays || 0);
