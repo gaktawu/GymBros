@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import axios from "axios";
 import { io } from "socket.io-client";
 
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
 
 const ICON_PATHS = {
@@ -45,7 +47,6 @@ export default function DashboardAdmin() {
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // === STATE: SOCKET & ATTENDANCE ===
   const [socket, setSocket] = useState(null);
   const [activeGymCount, setActiveGymCount] = useState(0);
   const [liveCode, setLiveCode] = useState("------");
@@ -85,7 +86,6 @@ export default function DashboardAdmin() {
       return;
     }
 
-    const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
     const newSocket = io(`${BASE_URL}/attendance`, {
       withCredentials: true,
