@@ -4,7 +4,6 @@ import { io } from "socket.io-client";
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace(/\/$/, '');
 
-
 const DashboardMember = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [activeUser, setActiveUser] = useState({ name: "LOADING...", id: "GB-00000" });
@@ -45,6 +44,45 @@ const DashboardMember = () => {
     };
   }, []);
 
+  // ==========================================
+  // 1. USE-EFFECT KHUSUS UNTUK SOCKET.IO
+  // ==========================================
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return; // Jangan konek socket kalau belum login
+
+    const socket = io(`${BASE_URL}/attendance`, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 20000
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Socket Member terhubung, ID:', socket.id);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Socket Member error:', err.message);
+    });
+
+    socket.on('gym-count-updated', (count) => {
+      setVisitorCount(count);
+    });
+
+    return () => {
+      console.log('🧹 Cleaning up Member socket');
+      socket.off('connect');
+      socket.off('connect_error');
+      socket.off('gym-count-updated');
+      socket.disconnect();
+    };
+  }, []); // <-- Dependency array kosong agar dipanggil 1x saja
+
+  // ==========================================
+  // 2. USE-EFFECT KHUSUS UNTUK FETCH REST API
+  // ==========================================
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userDataStr = localStorage.getItem('user');
@@ -70,26 +108,6 @@ const DashboardMember = () => {
       id: user.idUser ? `GB-${user.idUser.toString().padStart(5, '0')}` : 'GB-00000'
     });
 
-    const socket = io(`${BASE_URL}/attendance`, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      timeout: 20000
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ Socket Member terhubung, ID:', socket.id);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('❌ Socket Member error:', err.message);
-    });
-
-    socket.on('gym-count-updated', (count) => {
-      setVisitorCount(count);
-    });
-
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
@@ -98,6 +116,7 @@ const DashboardMember = () => {
           const membershipRes = await axios.get(`${BASE_URL}/memberships/my-active`, config);
           setMembership(membershipRes.data?.data || null);
         } catch (memError) {
+          console.error("❌ Mem API Error:", memError.response || memError.message);
           setMembership(null);
         }
 
@@ -106,7 +125,7 @@ const DashboardMember = () => {
           const dataList = classesRes.data?.data || classesRes.data || [];
           if (Array.isArray(dataList)) setUpcomingClasses(dataList.slice(0, 2));
         } catch (clsError) {
-          console.error("Gagal mengambil data kelas:", clsError);
+          console.error("❌ Class API Error:", clsError.response || clsError.message);
         }
 
         try {
@@ -114,7 +133,7 @@ const DashboardMember = () => {
           const myBookings = myClassesRes.data?.data || [];
           setPurchasedClassesCount(myBookings.length);
         } catch (error) {
-          console.error("Gagal mengambil data kelas yang dibeli:", error);
+          console.error("❌ Booking API Error:", error.response || error.message);
           setPurchasedClassesCount(0);
         }
 
@@ -122,7 +141,7 @@ const DashboardMember = () => {
           const statsRes = await axios.get(`${BASE_URL}/attendance/stats`, config);
           setAttendanceDays(statsRes.data?.data?.totalDays || 0);
         } catch (statsError) {
-          console.error("Gagal mengambil statistik absensi:", statsError);
+          console.error("❌ Stats API Error:", statsError.response || statsError.message);
           setAttendanceDays(0);
         }
 
@@ -132,12 +151,6 @@ const DashboardMember = () => {
     };
 
     fetchDashboardData();
-
-    return () => {
-      console.log('🧹 Cleaning up Member socket');
-      socket.off('gym-count-updated');
-      socket.disconnect();
-    };
   }, [showToast]);
 
   const openBookingsModal = async () => {
