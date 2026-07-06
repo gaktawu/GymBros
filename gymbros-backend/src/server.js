@@ -62,7 +62,7 @@ const startServer = async () => {
     startAttendanceCron();
     console.log('✅ All cron jobs started');
 
-    server.listen(PORT, () => {
+    server.listen(PORT,  '0.0.0.0', () => {
       console.log(`
 ╔════════════════════════════════════════╗
 ║  🚀 Server & WebSockets running        ║
