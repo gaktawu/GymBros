@@ -13,8 +13,8 @@ export class UsersRepository {
       noTelepon: row.no_telepon,
       peran: row.peran,
       statusAkun: row.status_akun,
-      fotoProfil: row.foto_profil, 
-      jenisKelamin: row.jenis_kelamin, 
+      fotoProfil: row.foto_profil,
+      jenisKelamin: row.jenis_kelamin,
     });
   }
 
@@ -80,15 +80,15 @@ export class UsersRepository {
 
     if (fields.length === 0) return null;
 
-    values.push(id); 
-    
+    values.push(id);
+
     const query = `
       UPDATE users 
       SET ${fields.join(', ')} 
       WHERE id_user = $${paramIndex} 
       RETURNING *
     `;
-    
+
     const result = await db.query(query, values);
     return this._mapToDomain(result.rows[0]);
   }
@@ -105,19 +105,20 @@ export class UsersRepository {
   }
 
   async createUser(userData) {
-    const { namaLengkap, email, passwordHash, noTelepon, peran, statusAkun } = userData;
+    const { namaLengkap, email, passwordHash, noTelepon, peran, statusAkun, jenisKelamin } = userData;
     const query = `
-      INSERT INTO users (nama_lengkap, email, password_hash, no_telepon, peran, status_akun)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *;
-    `;
+    INSERT INTO users (nama_lengkap, email, password_hash, no_telepon, peran, status_akun, jenis_kelamin)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *;
+  `;
     const values = [
       namaLengkap,
       email,
       passwordHash,
       noTelepon || null,
       peran || 'Member',
-      statusAkun || 'Aktif'
+      statusAkun || 'Aktif',
+      jenisKelamin || null   // ➕ TAMBAHAN
     ];
     const result = await db.query(query, values);
     return this._mapToDomain(result.rows[0]);
@@ -147,15 +148,15 @@ export class UsersRepository {
 
     if (fields.length === 0) return null;
 
-    values.push(id); 
-    
+    values.push(id);
+
     const query = `
       UPDATE users 
       SET ${fields.join(', ')} 
       WHERE id_user = $${paramIndex} 
       RETURNING *
     `;
-    
+
     const result = await db.query(query, values);
     return this._mapToDomain(result.rows[0]);
   }

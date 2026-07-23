@@ -22,17 +22,35 @@ const app = express();
 
 // ✅ FIX: CORS configuration yang lebih spesifik
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173'],
+  origin: function (origin, callback) {
+    // Izinkan request tanpa origin (seperti Postman, mobile app, atau server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Izinkan semua domain dari Railway (.railway.app) DAN localhost
+    if (
+      origin.includes('.railway.app') || 
+      origin.includes('localhost') || 
+      origin.includes('127.0.0.1') ||
+      origin === process.env.FRONTEND_URL
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error('Dibloker oleh kebijakan CORS GymBros'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  // ✅ FIX: Tambahkan header umum yang sering dipakai browser/Vite agar lolos Preflight
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   maxAge: 86400
 };
 
 app.use(cors(corsOptions));
+
+app.options('*', cors(corsOptions));
 app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

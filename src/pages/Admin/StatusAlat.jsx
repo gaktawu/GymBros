@@ -42,15 +42,17 @@ select option{background:#16181A;color:#E0E0E0;}
 .header-badge{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg, rgba(194,166,118,0.2), transparent);border:1px solid rgba(194,166,118,0.4);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 10px rgba(194,166,118,0.1);}
 .header-tag{font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;color:#C2A676;}
 h1{font-size:32px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em;line-height:1;}
-.btn-primary{display:flex;align-items:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg, #C2A676, #9f8455);color:#111315;border:1px solid #D4B87F;border-radius:12px;font-weight:900;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;box-shadow:0 4px 20px rgba(194,166,118,0.25);}
+.btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg, #C2A676, #9f8455);color:#111315;border:1px solid #D4B87F;border-radius:12px;font-weight:900;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;box-shadow:0 4px 20px rgba(194,166,118,0.25);}
 .btn-primary:hover{background:linear-gradient(135deg, #D4B87F, #C2A676);box-shadow:0 6px 28px rgba(194,166,118,0.4);transform:translateY(-2px);}
 
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+/* UPDATE: Menggunakan auto-fit untuk responsivitas */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:28px;}
 .stat-card{background:#16181A;border:1px solid #252830;border-radius:16px;padding:20px 22px;display:flex;align-items:center;gap:16px;box-shadow:inset 0 4px 20px rgba(0,0,0,0.2);}
 .stat-icon{width:44px;height:44px;border-radius:12px;border:1px solid;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
 .stat-value{font-size:26px;font-weight:900;line-height:1;}
 .stat-label{font-size:11px;color:#888;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:4px;}
 
+/* UPDATE: Default grid untuk main content */
 .main-grid{display:grid;gap:20px;align-items:start;}
 .main-grid.cols-2{grid-template-columns:1fr 370px;}
 .main-grid.cols-1{grid-template-columns:1fr;}
@@ -68,8 +70,8 @@ h1{font-size:32px;font-weight:900;color:#fff;margin:0;letter-spacing:-0.02em;lin
 
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
-th{padding:11px 20px;text-align:left;font-size:10px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#888;border-bottom:1px solid #252830;background:#0D0F10;}
-td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
+th{padding:11px 20px;text-align:left;font-size:10px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#888;border-bottom:1px solid #252830;background:#0D0F10;white-space:nowrap;}
+td{padding:13px 20px;border-bottom:1px solid #1A1C1E;white-space:nowrap;}
 .cell-id{font-size:11px;font-weight:700;color:#C2A676;letter-spacing:0.08em;}
 .cell-name{font-size:14px;font-weight:700;}
 .cat-text{font-size:12px;color:#999;display:flex;align-items:center;gap:6px;}
@@ -81,7 +83,7 @@ td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
 .empty{text-align:center;padding:60px;color:#444;}
 .empty-icon{font-size:36px;margin-bottom:12px;}
 
-.panel-footer{padding:13px 22px;border-top:1px solid #252830;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#666;}
+.panel-footer{padding:13px 22px;border-top:1px solid #252830;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#666;flex-wrap:wrap;gap:10px;}
 .panel-footer .highlight{color:#C2A676;font-weight:700;}
 .panel-footer .edit-mode{color:#C2A676;font-weight:600;}
 
@@ -100,8 +102,8 @@ td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
 .form-group{margin-bottom:16px;}
 .form-group:last-of-type{margin-bottom:22px;}
 
-.status-grid{display:flex;gap:8px;}
-.status-btn{flex:1;padding:10px 8px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:1px solid #252830;color:#666;}
+.status-grid{display:flex;gap:8px;flex-wrap:wrap;}
+.status-btn{flex:1;padding:10px 8px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:1px solid #252830;color:#666;min-width:70px;}
 .status-btn.active{border-color:transparent;}
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;transition:background 0.2s;}
 .status-btn:not(.active) .status-dot{background:#333;}
@@ -127,6 +129,20 @@ td{padding:13px 20px;border-bottom:1px solid #1A1C1E;}
 .btn-retry:hover{background:rgba(248,113,113,0.3);}
 
 .status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid;}
+
+/* MEDIA QUERIES UNTUK RESPONSIVITAS MOBILE */
+@media (max-width: 1024px) {
+  .main-grid.cols-2 { grid-template-columns: 1fr; }
+  .form-panel { position: static; margin-top: 20px; }
+}
+
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: flex-start; }
+  .btn-primary { width: 100%; justify-content: center; }
+  .panel-header { flex-direction: column; align-items: stretch; }
+  .panel-spacer { display: none; }
+  .search-wrap, .search-input, .filter-select { width: 100%; }
+}
 `;
 
 // Generator ID Jika Alat Baru

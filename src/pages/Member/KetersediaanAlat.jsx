@@ -7,7 +7,6 @@ const API_URL = 'http://localhost:5000/api/v1/equipments';
 const CATEGORIES     = ['Kardio', 'Beban', 'Mesin', 'Aksesoris'];
 const STATUSES       = ['baik', 'perawatan', 'rusak'];
 
-// ICON PREMIUM UPDATE: Lebih modern dan sleek
 const CATEGORY_ICONS = { 
   Kardio: '☄️', 
   Beban: '🦾', 
@@ -82,12 +81,10 @@ export default function KetersediaanAlatMember() {
   const [filterSts, setFilterSts] = useState('Semua');
   const [search,    setSearch]    = useState('');
 
-  // Fungsi Fetching Data
   const fetchEquipment = () => {
     setLoading(true);
     setError(null);
     
-    // 1. Cek Token Login
     const token = localStorage.getItem('token');
     if (!token) {
       alert("Akses Ditolak: Anda harus login!");
@@ -95,20 +92,15 @@ export default function KetersediaanAlatMember() {
       return;
     }
 
-    // 2. Setup Headers
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-    // 3. Panggil API Backend
     axios.get(API_URL)
       .then(res => {
         const rawData = res.data.data || [];
         
-// 4. Mapping Data dari Database ke format Frontend
         const mappedData = rawData.map(item => {
-          // Ambil status aslinya lalu jadikan huruf kecil semua
           let rawStatus = (item.statusKondisi || item.status || 'baik').toLowerCase();
           
-          // PENERJEMAH STATUS (Dari Database ke UI)
           if (rawStatus === 'available' || rawStatus === 'tersedia') rawStatus = 'baik';
           if (rawStatus === 'maintenance' || rawStatus === 'perbaikan') rawStatus = 'perawatan';
           if (rawStatus === 'broken' || rawStatus === 'rusak') rawStatus = 'rusak';
@@ -117,7 +109,7 @@ export default function KetersediaanAlatMember() {
             id: item.idAlat || item.id,
             name: item.namaAlat || item.name || 'Alat Gym',
             category: item.kategori || item.category || 'Lainnya',
-            status: rawStatus // Masukkan status yang sudah diterjemahkan
+            status: rawStatus 
           };
         });
 
@@ -161,6 +153,35 @@ export default function KetersediaanAlatMember() {
         @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         ::-webkit-scrollbar { width:4px; height:4px; }
         ::-webkit-scrollbar-thumb { background:#2A2D30; border-radius:4px; }
+
+        /* KELAS CSS RESPONSIVE BARU */
+        .stat-grid-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        .filter-container {
+          padding: 16px 20px;
+          border-bottom: 1px solid #252830;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        /* Tampilan Mobile */
+        @media (max-width: 640px) {
+          .filter-container {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .filter-container > div,
+          .filter-container > select {
+            width: 100% !important;
+          }
+        }
       `}</style>
 
       <div style={{ marginBottom: 28, animation: 'fadeUp 0.4s ease both' }}>
@@ -207,7 +228,8 @@ export default function KetersediaanAlatMember() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+      {/* Container StatCard yang diperbarui menggunakan class "stat-grid-container" */}
+      <div className="stat-grid-container">
         <StatCard label="Siap Digunakan"   value={totalBaik}      color="#4ADE80" icon="✅" loading={loading} />
         <StatCard label="Sedang Perawatan" value={totalPerawatan} color="#C2A676" icon="🔧" loading={loading} />
         <StatCard label="Tidak Tersedia"   value={totalRusak}     color="#F87171" icon="⚠️" loading={loading} />
@@ -227,11 +249,9 @@ export default function KetersediaanAlatMember() {
 
       <div style={{ background: '#16181A', border: '1px solid #252830', borderRadius: 20, overflow: 'hidden' }}>
 
-        <div style={{
-          padding: '16px 20px', borderBottom: '1px solid #252830',
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-        }}>
-          <div style={{ flex: 1, minWidth: 160, position: 'relative' }}>
+        {/* Filter Container yang diperbarui menggunakan class "filter-container" */}
+        <div className="filter-container">
+          <div style={{ flex: 1, minWidth: '160px', position: 'relative' }}>
             <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#555' }}>🔍</span>
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Cari nama alat..."
@@ -252,7 +272,7 @@ export default function KetersediaanAlatMember() {
             {STATUSES.map(s => <option key={s} value={s}>{STATUS_CFG[s].label}</option>)}
           </select>
 
-          <span style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap', textAlign: 'right' }}>
             <span style={{ color: '#C2A676', fontWeight: 700 }}>{loading ? '...' : filtered.length}</span> alat
           </span>
         </div>

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import axios from "axios";
 import { io } from "socket.io-client";
 
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
 
 const ICON_PATHS = {
@@ -45,7 +47,6 @@ export default function DashboardAdmin() {
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // === STATE: SOCKET & ATTENDANCE ===
   const [socket, setSocket] = useState(null);
   const [activeGymCount, setActiveGymCount] = useState(0);
   const [liveCode, setLiveCode] = useState("------");
@@ -85,7 +86,9 @@ export default function DashboardAdmin() {
       return;
     }
 
-    const newSocket = io('http://localhost:5000/attendance', {
+
+    const newSocket = io(`${BASE_URL}/attendance`, {
+      withCredentials: true,
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -139,9 +142,9 @@ export default function DashboardAdmin() {
 
     try {
       const [packageRes, userRes, revRes] = await Promise.allSettled([
-        axios.get("http://localhost:5000/api/v1/paket-membership/admin/all", apiConfig),
-        axios.get("http://localhost:5000/api/v1/users", apiConfig),
-        axios.get("http://localhost:5000/api/v1/payments/revenue", apiConfig)
+        axios.get(`${BASE_URL}/api/v1/paket-membership/admin/all`, apiConfig),
+        axios.get(`${BASE_URL}/api/v1/users`, apiConfig),
+        axios.get(`${BASE_URL}/api/v1/payments/revenue`, apiConfig)
       ]);
 
       // 1. Handle Paket Membership
@@ -235,10 +238,10 @@ export default function DashboardAdmin() {
 
     try {
       if (editingClass) {
-        await axios.put(`http://localhost:5000/api/v1/paket-membership/${editingClass.id_paket}`, payload, apiConfig);
+        await axios.put(`${BASE_URL}/api/v1/paket-membership/${editingClass.id_paket}`, payload, apiConfig);
         showToast('Data paket berhasil diperbarui!');
       } else {
-        await axios.post("http://localhost:5000/api/v1/paket-membership", payload, apiConfig);
+        await axios.post(`${BASE_URL}/api/v1/paket-membership`, payload, apiConfig);
         showToast('Paket baru berhasil ditambahkan!');
       }
       setEditingClass(null);
@@ -262,7 +265,7 @@ export default function DashboardAdmin() {
       onConfirm: async () => {
         try {
           const token = localStorage.getItem('token');
-          await axios.delete(`http://localhost:5000/api/v1/paket-membership/${cls.id_paket}`, {
+          await axios.delete(`${BASE_URL}/api/v1/paket-membership/${cls.id_paket}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           showToast('Paket berhasil di-soft delete!');
@@ -294,7 +297,7 @@ export default function DashboardAdmin() {
         cancelText: 'Batal',
         onConfirm: async () => {
           try {
-            await axios.post(`http://localhost:5000/api/v1/paket-membership/${id}/restore`, {}, apiConfig);
+            await axios.post(`${BASE_URL}/api/v1/paket-membership/${id}/restore`, {}, apiConfig);
             showToast(`Paket "${target.nama_paket}" berhasil dipulihkan!`);
             await fetchMembershipData();
           } catch (error) {
@@ -309,7 +312,7 @@ export default function DashboardAdmin() {
 
     const newStatus = target.status_aktif === 'Tersedia' || target.statusAktif === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
     try {
-      await axios.patch(`http://localhost:5000/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, apiConfig);
+      await axios.patch(`${BASE_URL}/api/v1/paket-membership/${id}/status`, { statusAktif: newStatus }, apiConfig);
       showToast(`Status paket "${target.nama_paket}" diubah menjadi ${newStatus}.`);
       await fetchMembershipData();
     } catch (error) {
